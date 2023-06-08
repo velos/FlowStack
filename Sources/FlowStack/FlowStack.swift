@@ -53,6 +53,8 @@ public extension View {
     }
 }
 
+var flowTransition = FlowTransition(percent: 0)
+
 public struct FlowStack<Root: View, Overlay: View>: View {
 
     @Binding private var path: FlowPath
@@ -132,6 +134,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         .animation(.interpolatingSpring(stiffness: 500, damping: 35), value: pathToUse.wrappedValue)
         .environment(\.flowPath, pathToUse)
         .environmentObject(destinationLookup)
+        .environmentObject(flowTransition)
     }
 }
 

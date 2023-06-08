@@ -19,17 +19,6 @@ public struct OpacityTransitionKey: EnvironmentKey {
     public static let defaultValue: CGFloat = 0
 }
 
-public extension EnvironmentValues {
-    var flowTransitionPercent: CGFloat {
-        get { return self[FlowTransitionKey.self] }
-        set { self[FlowTransitionKey.self] = newValue }
-    }
-}
-
-public struct FlowTransitionKey: EnvironmentKey {
-    public static let defaultValue: CGFloat = 0
-}
-
 public struct FlowDismissAction {
 
     var path: Binding<FlowPath>?
@@ -52,8 +41,16 @@ public struct FlowDismissActionKey: EnvironmentKey {
     public static let defaultValue: FlowDismissAction = .init(path: .constant(.init()))
 }
 
-extension AnyTransition {
+public class FlowTransition: ObservableObject {
+    @Published public var percent: CGFloat
 
+    public init(percent: CGFloat) {
+        self.percent = percent
+    }
+}
+
+extension AnyTransition {
+    
     static func flowTransition(with context: PathContext) -> AnyTransition {
         AnyTransition.modifier(
             active: FlowPresentModifier(percent: 0, context: context),
@@ -103,7 +100,7 @@ extension AnyTransition {
                 .opacity(percent == 1.0 ? 1 : 0)
         }
     }
-
+    
     struct FlowPresentModifier: Animatable, ViewModifier {
         var percent: CGFloat
         var context: PathContext
@@ -118,6 +115,8 @@ extension AnyTransition {
         }
 
         @SwiftUI.Environment(\.flowPath) var path
+
+        @EnvironmentObject var flowTransition: FlowTransition
 
         var animatableData: CGFloat {
             get { percent }
@@ -189,9 +188,11 @@ extension AnyTransition {
                     )
                     .opacity(context.anchor == nil ? percent : 1)
             }
+            .onChange(of: percent) {
+                flowTransition.percent = $0
+            }
             .ignoresSafeArea(.container, edges: .all)
             .animation(.interpolatingSpring(stiffness: 500, damping: 35), value: isEnded)
-            .environment(\.flowTransitionPercent, percent)
         }
     }
 }

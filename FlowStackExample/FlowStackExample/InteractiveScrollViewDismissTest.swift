@@ -15,7 +15,7 @@ enum FloatingTest: Hashable {
 struct InteractiveScrollViewDismissTest: View {
 
     @State var path: FlowPath = FlowPath()
-    @SwiftUI.Environment(\.flowTransitionPercent) var percent
+    @SwiftUI.EnvironmentObject var flowTransition: FlowTransition
 
     var body: some View {
         ScrollView {
@@ -26,7 +26,7 @@ struct InteractiveScrollViewDismissTest: View {
                             Rectangle()
                                 .foregroundColor(.red)
                                 .cornerRadius(30)
-                            Text("Destination \(index) \(percent)")
+                            Text("Destination \(index) \(flowTransition.percent)")
                         }
                         .aspectRatio(1, contentMode: .fill)
                         .padding()
