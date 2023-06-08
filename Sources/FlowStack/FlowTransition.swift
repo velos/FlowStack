@@ -100,7 +100,7 @@ extension AnyTransition {
                 .opacity(percent == 1.0 ? 1 : 0)
         }
     }
-    
+
     struct FlowPresentModifier: Animatable, ViewModifier {
         var percent: CGFloat
         var context: PathContext
