@@ -48,7 +48,7 @@ struct AnimationAnchorModifier: ViewModifier {
     }
 }
 
-extension View {
+public extension View {
     func flowAnimationAnchor() -> some View {
         modifier(AnimationAnchorModifier())
     }
@@ -126,16 +126,16 @@ extension View {
     }
 }
 
-struct FlowLink<Label>: View where Label: View {
+public struct FlowLink<Label>: View where Label: View {
 
-    enum ZoomStyle {
+    public enum ZoomStyle {
         case scaleHorizontally
         case resize
     }
 
-    struct Configuration {
+    public struct Configuration {
 
-        init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally) {
+        public init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally) {
             self.animateFromAnchor = animateFromAnchor
             self.transitionFromSnapshot = transitionFromSnapshot
             self.cornerRadius = cornerRadius
@@ -174,7 +174,7 @@ struct FlowLink<Label>: View where Label: View {
     @State private var overrideFrame: CGRect?
     @State private var context: PathContext?
 
-    init<P>(value: P?, configuration: Configuration = .init(), @ViewBuilder label: @escaping () -> Label) where P: Hashable, P: Equatable {
+    public init<P>(value: P?, configuration: Configuration = .init(), @ViewBuilder label: @escaping () -> Label) where P: Hashable, P: Equatable {
         self.label = label
         self.value = value
         self.configuration = configuration
@@ -249,7 +249,7 @@ struct FlowLink<Label>: View where Label: View {
             }
     }
 
-    var body: some View {
+    public var body: some View {
         Group {
             if isContainedInPath && configuration.animateFromAnchor {
                 Color.clear

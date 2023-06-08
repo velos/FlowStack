@@ -29,7 +29,7 @@ struct InteractiveDismissDisabledKey: PreferenceKey {
     }
 }
 
-extension View {
+public extension View {
     func flowInteractiveDismissDisabled(_ isDisabled: Bool = true) -> some View {
         preference(key: InteractiveDismissDisabledKey.self, value: isDisabled)
     }

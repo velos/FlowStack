@@ -19,7 +19,7 @@ public struct OpacityTransitionKey: EnvironmentKey {
     public static let defaultValue: CGFloat = 0
 }
 
-extension EnvironmentValues {
+public extension EnvironmentValues {
     var flowTransitionPercent: CGFloat {
         get { return self[FlowTransitionKey.self] }
         set { self[FlowTransitionKey.self] = newValue }

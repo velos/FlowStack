@@ -61,15 +61,15 @@ struct FlowElement: Equatable, Hashable {
     }
 }
 
-struct FlowPath: Equatable, Hashable {
+public struct FlowPath: Equatable, Hashable {
 
     var elements: [FlowElement]
 
-    init() {
+    public init() {
         elements = []
     }
 
-    var isEmpty: Bool {
+    public var isEmpty: Bool {
         elements.isEmpty
     }
 
@@ -81,7 +81,7 @@ struct FlowPath: Equatable, Hashable {
         return elements.contains { $0 == FlowElement(value: element, context: $0.context, index: level ?? $0.index) }
     }
 
-    mutating func removeLast(_ count: Int = 1) {
+    public mutating func removeLast(_ count: Int = 1) {
         guard !isEmpty else { return }
         elements.removeLast(count)
     }

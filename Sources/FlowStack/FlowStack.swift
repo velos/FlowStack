@@ -25,20 +25,20 @@ class DestinationLookup: ObservableObject {
     @Published var table: [String: AnyDestination] = [:]
 }
 
-struct FlowDestinationModifier<D: Hashable>: ViewModifier {
+public struct FlowDestinationModifier<D: Hashable>: ViewModifier {
     @State var data: D.Type
     @State var destination: AnyDestination
 
     @EnvironmentObject var destinations: DestinationLookup
 
-    func body(content: Content) -> some View {
+    public func body(content: Content) -> some View {
         content
             // swiftlint:disable:next force_unwrapping
             .onAppear { destinations.table.merge([_mangledTypeName(data)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
     }
 }
 
-extension View {
+public extension View {
     func flowDestination<D, C>(for data: D.Type, @ViewBuilder destination: @escaping (D) -> C) -> some View where D: Hashable, C: View {
 
         let destination = AnyDestination(dataType: data, destination: { param in
@@ -53,7 +53,7 @@ extension View {
     }
 }
 
-struct FlowStack<Root: View, Overlay: View>: View {
+public struct FlowStack<Root: View, Overlay: View>: View {
 
     @Binding private var path: FlowPath
     @State private var internalPath: FlowPath = FlowPath()
@@ -66,7 +66,7 @@ struct FlowStack<Root: View, Overlay: View>: View {
 
     @State private var destinationLookup: DestinationLookup = .init()
 
-    init(overlayAlignment: Alignment = .center, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
+    public init(overlayAlignment: Alignment = .center, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
         self.overlayAlignment = overlayAlignment
@@ -75,7 +75,7 @@ struct FlowStack<Root: View, Overlay: View>: View {
         self._path = Binding(get: { FlowPath() }, set: { _ in })
     }
 
-    init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
+    public init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
         self.overlayAlignment = overlayAlignment
@@ -106,7 +106,7 @@ struct FlowStack<Root: View, Overlay: View>: View {
         usesInternalPath ? $internalPath : _path
     }
 
-    var body: some View {
+    public var body: some View {
         ZStack {
             root()
                 .environment(\.flowDepth, 0)
@@ -135,7 +135,7 @@ struct FlowStack<Root: View, Overlay: View>: View {
     }
 }
 
-extension FlowStack where Overlay == EmptyView {
+public extension FlowStack where Overlay == EmptyView {
     init(@ViewBuilder root: @escaping () -> Root) {
         self.root = root
         self.overlay = { EmptyView() }
