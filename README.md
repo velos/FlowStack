@@ -1,4 +1,4 @@
-<img src="[https://cdn.rawgit.com/lkzhao/Hero/427d5f2/Resources/Hero.svg](https://github.com/velos/FlowStack/assets/1665102/6f97b5e4-366e-4554-af95-87db15ad1150)https://github.com/velos/FlowStack/assets/1665102/6f97b5e4-366e-4554-af95-87db15ad1150" width="388"/>
+<img src="https://github.com/velos/FlowStack/assets/1665102/6f97b5e4-366e-4554-af95-87db15ad1150" width="388"/>
 
 **FlowStack** is a library for creating stack-based navigation using a flow layout in SwiftUI. It provides a data structure and animation layer to build upon SwiftUI's native NavigationStack – making it easy for cards in a grid to expand into new screens.
 
