@@ -21,7 +21,7 @@ code snippets
 To integrate using Apple's Swift package manager, add the following as a dependency to your `Package.swift`:
 
 ```
-.package(url: "https://github.com/velos/FlowStack.git", .upToNextMajor(from: "0.1"))
+.package(url: "https://github.com/velos/FlowStack.git", .branch("develop"))
 ```
 
 ## Contribute
