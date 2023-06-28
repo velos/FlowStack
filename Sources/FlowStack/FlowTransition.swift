@@ -41,7 +41,7 @@ public struct FlowDismissAction {
     }
 }
 
-extension EnvironmentValues {
+public extension EnvironmentValues {
     var flowDismiss: FlowDismissAction {
         get { return self[FlowDismissActionKey.self] }
         set { self[FlowDismissActionKey.self] = newValue }

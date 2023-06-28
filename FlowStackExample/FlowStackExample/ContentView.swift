@@ -1,72 +1,80 @@
+//
+//  ContentView.swift
+//  FlowStackExample
+//
+//  Created by Charles Hieger on 6/27/23.
+//
+
 import SwiftUI
 import FlowStack
 
 struct ContentView: View {
+    var body: some View {
+        ProductList()
+    }
+}
 
+struct ProductList: View {
     @State var path = FlowPath()
 
-    enum Test: CaseIterable, Hashable, CustomStringConvertible {
-        case interactiveScrollView
-        case noScroll
-        case disableInteractiveDismiss
-
-        var description: String {
-            switch self {
-            case .interactiveScrollView:
-                return "Interactive Scroll Dismiss"
-            case .noScroll:
-                return "No Scroll Test"
-            case .disableInteractiveDismiss:
-                return "Disable Dismiss"
+    var body: some View {
+        FlowStack(path: $path) {
+            ScrollView {
+                LazyVStack(alignment: .center, spacing: 24, pinnedViews: [], content: {
+                    ForEach(Product.allProducts) { product in
+                        FlowLink(value: product,
+                                 configuration: .init(
+                                    animateFromAnchor: true,
+                                    transitionFromSnapshot: true,
+                                    cornerRadius: 24,
+                                    cornerStyle: .continuous,
+                                    shadowRadius: 0,
+                                    shadowColor: nil,
+                                    shadowOffset: .zero,
+                                    zoomStyle: .scaleHorizontally)) {
+                                        ProductView(product: product)
+                                    }
+                    }
+                })
+                .padding(.horizontal)
+            }
+            .flowDestination(for: Product.self) { product in
+                ProductDetailView(product: product)
             }
         }
     }
+}
+
+struct ProductView: View {
+    var product: Product
 
     var body: some View {
-        FlowStack(path: $path, overlayAlignment: .bottomTrailing) {
-            ScrollView {
-                LazyVGrid(columns: [.init(.adaptive(minimum: 150), spacing: 20, alignment: .top), .init(.adaptive(minimum: 150), spacing: 20, alignment: .top)], alignment: .center, spacing: 20) {
-                    ForEach(Test.allCases, id: \.self) { test in
-                        FlowLink(value: test, configuration: .init(cornerRadius: 16)) {
-                            VStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .foregroundColor(Color(.secondarySystemFill))
-                                    .aspectRatio(3 / 4, contentMode: .fill)
-                                    .flowAnimationAnchor()
-                                Text(test.description)
-                                    .font(.subheadline)
-                                    .background(Color.purple)
-                            }
-                            .padding()
-                            .background(Color(.systemBackground))
-                            .cornerRadius(30)
-                        }
-                    }
-                }
-            }
-            .background(Color.purple)
-            .flowDestination(for: Test.self) { test in
-                switch test {
-                case .interactiveScrollView:
-                    InteractiveScrollViewDismissTest(path: path)
-                case .noScroll:
-                    NoScrollTest(path: path)
-                case .disableInteractiveDismiss:
-                    DisableInteractiveDismissTest()
-                }
-            }
-            .flowDestination(for: FloatingTest.self) { _ in
-                Text("TESTING CART")
-            }
-        } overlay: {
-            FlowLink(value: FloatingTest.destination, configuration: .init(cornerRadius: 25, shadowRadius: 10, shadowColor: .black.opacity(0.3))) {
-                Image(systemName: "cart.fill")
+        image(url: product.imageUrl)
+            .aspectRatio(4 / 3, contentMode: .fill)
+            .overlay(alignment: .topTrailing) {
+                Text(product.name)
+                    .font(.system(size: 48))
+                    .fontWeight(.black)
+                    .foregroundStyle(.white)
                     .padding()
-                    .background(Circle().foregroundColor(.orange))
-                    .frame(width: 50, height: 50)
-                    .shadow(color: .black.opacity(0.3), radius: 10)
             }
-            .padding()
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private func image(url: URL) -> some View {
+        // TODO: Maybe replace with caching async image to ensure snapshot captures image and not placeholder
+        // https://github.com/lorenzofiamingo/swiftui-cached-async-image
+        AsyncImage(url: url, scale: 1) { image in
+            image
+                .resizable()
+                .scaledToFill()
+                .frame(minHeight: 0)
+        } placeholder: {
+            Color(uiColor: .secondarySystemFill)
         }
     }
+}
+
+#Preview {
+    ContentView()
 }
