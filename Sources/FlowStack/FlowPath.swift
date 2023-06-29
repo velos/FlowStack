@@ -95,7 +95,7 @@ struct FlowPathKey: EnvironmentKey {
     static let defaultValue: Binding<FlowPath>? = .constant(FlowPath())
 }
 
-extension EnvironmentValues {
+public extension EnvironmentValues {
     var flowPath: Binding<FlowPath>? {
         get { self[FlowPathKey.self] }
         set { self[FlowPathKey.self] = newValue }
