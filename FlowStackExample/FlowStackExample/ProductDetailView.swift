@@ -37,7 +37,6 @@ struct ProductDetailView: View {
                                         .foregroundStyle(Color(uiColor: .lightGray))
                                 }
                         })
-                        .safeAreaPadding()
                         .padding(.vertical, 40) // TODO: Button placement should directly respect safe area (vs. aprox via padding)
                     })
                     .clipped()
@@ -104,6 +103,8 @@ struct ProductDetailView: View {
     }
 }
 
-#Preview {
-    ProductDetailView(product: .appleII)
+struct ProductDetailView_Previews: PreviewProvider {
+    static var previews: some View {
+        ProductDetailView(product: .appleII)
+    }
 }
