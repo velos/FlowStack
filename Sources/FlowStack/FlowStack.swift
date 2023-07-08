@@ -142,7 +142,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     }
 }
 
-struct DestinationContainer<Content: View>: View {
+private struct DestinationContainer<Content: View>: View {
     @State private var isDismissing: Bool = false
     @ViewBuilder var content: (Binding<Bool>) -> Content
 
