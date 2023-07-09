@@ -54,10 +54,10 @@ public struct FlowDismissActionKey: EnvironmentKey {
 
 extension AnyTransition {
 
-    static func flowTransition(with context: PathContext) -> AnyTransition {
+    static func flowTransition(with context: PathContext, isDismissing: Binding<Bool>) -> AnyTransition {
         AnyTransition.modifier(
-            active: FlowPresentModifier(percent: 0, context: context),
-            identity: FlowPresentModifier(percent: 1, context: context)
+            active: FlowPresentModifier(percent: 0, context: context, isDismissing: isDismissing),
+            identity: FlowPresentModifier(percent: 1, context: context, isDismissing: isDismissing)
         )
     }
 
@@ -111,7 +111,7 @@ extension AnyTransition {
         @State var panOffset: CGPoint = .zero
         @State var isEnded: Bool = false
         @State private var isDisabled: Bool = false
-        @State var isDismissing: Bool = false
+        @Binding var isDismissing: Bool
 
         private var snapshotPercent: CGFloat {
             max(0, 1 - percent / 0.2)

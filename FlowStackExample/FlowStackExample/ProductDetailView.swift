@@ -27,7 +27,7 @@ struct ProductDetailView: View {
                     .overlay(alignment: .topTrailing, content: {
                         Button(action: {
                             // TODO: Dismiss action from button not working as expected
-                            flowDismiss.callAsFunction()
+                            flowDismiss()
                         }, label: {
                             Image(systemName: "xmark")
                                 .foregroundStyle(Color(uiColor: .darkGray))
@@ -37,7 +37,8 @@ struct ProductDetailView: View {
                                         .foregroundStyle(Color(uiColor: .lightGray))
                                 }
                         })
-                        .padding(.vertical, 40) // TODO: Button placement should directly respect safe area (vs. aprox via padding)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 48) // TODO: Button placement should directly respect safe area (vs. aprox via padding)
                     })
                     .clipped()
                 VStack(alignment: .leading, spacing: 40) {
