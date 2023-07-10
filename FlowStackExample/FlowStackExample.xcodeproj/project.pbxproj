@@ -18,6 +18,7 @@
 		EDC874752A4B8FDC0061C327 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDC874742A4B8FDC0061C327 /* ContentView.swift */; };
 		EDC874792A4B93CE0061C327 /* Product.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDC874782A4B93CE0061C327 /* Product.swift */; };
 		EDC8747B2A4CB99D0061C327 /* ProductDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDC8747A2A4CB99D0061C327 /* ProductDetailView.swift */; };
+		EDF7EEC02A5CCB62007ABF7C /* URLCache+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDF7EEBF2A5CCB62007ABF7C /* URLCache+Extensions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +33,7 @@
 		EDC874742A4B8FDC0061C327 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		EDC874782A4B93CE0061C327 /* Product.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Product.swift; sourceTree = "<group>"; };
 		EDC8747A2A4CB99D0061C327 /* ProductDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductDetailView.swift; sourceTree = "<group>"; };
+		EDF7EEBF2A5CCB62007ABF7C /* URLCache+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URLCache+Extensions.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +71,7 @@
 				EDC874742A4B8FDC0061C327 /* ContentView.swift */,
 				EDC8747A2A4CB99D0061C327 /* ProductDetailView.swift */,
 				EDC874782A4B93CE0061C327 /* Product.swift */,
+				EDF7EEBF2A5CCB62007ABF7C /* URLCache+Extensions.swift */,
 				EDC874732A4B8FB90061C327 /* Legacy Demo */,
 				ED07BFFA2A314DFE00C5DA72 /* Assets.xcassets */,
 				ED07BFFC2A314DFE00C5DA72 /* Preview Content */,
@@ -175,6 +178,7 @@
 				EDC874792A4B93CE0061C327 /* Product.swift in Sources */,
 				ED07C00A2A314E6200C5DA72 /* DisableInteractiveDismissTest.swift in Sources */,
 				EDC874752A4B8FDC0061C327 /* ContentView.swift in Sources */,
+				EDF7EEC02A5CCB62007ABF7C /* URLCache+Extensions.swift in Sources */,
 				ED07BFF72A314DFE00C5DA72 /* FlowStackExampleApp.swift in Sources */,
 				ED07C0082A314E6200C5DA72 /* InteractiveScrollViewDismissTest.swift in Sources */,
 				ED07C0092A314E6200C5DA72 /* ContentViewLegacy.swift in Sources */,

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FlowStack
+import CachedAsyncImage
 
 struct ProductDetailView: View {
     @Environment(\.flowDismiss) var flowDismiss
@@ -71,10 +72,7 @@ struct ProductDetailView: View {
     }
 
     private func image(url: URL) -> some View {
-        // TODO: Maybe replace with caching async image to more quickly load image from cache when available.
-        // This could help transition be more "snappy" as far as image loading.
-        // https://github.com/lorenzofiamingo/swiftui-cached-async-image
-        AsyncImage(url: url, scale: 1) { image in
+        CachedAsyncImage(url: url, urlCache: .imageCache) { image in
             image
                 .resizable()
                 .scaledToFill()
