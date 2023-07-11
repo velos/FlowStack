@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FlowStack
+import CachedAsyncImage
 
 struct ContentView: View {
     var body: some View {
@@ -62,9 +63,7 @@ struct ProductView: View {
     }
 
     private func image(url: URL) -> some View {
-        // TODO: Maybe replace with caching async image to ensure snapshot captures image and not placeholder
-        // https://github.com/lorenzofiamingo/swiftui-cached-async-image
-        AsyncImage(url: url, scale: 1) { image in
+        CachedAsyncImage(url: url, urlCache: .imageCache) { image in
             image
                 .resizable()
                 .scaledToFill()
