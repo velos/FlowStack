@@ -14,61 +14,64 @@ struct ProductDetailView: View {
     var product: Product
 
     var body: some View {
-        ScrollView {
-            VStack {
-                image(url: product.imageUrl)
-                    .aspectRatio(3 / 4, contentMode: .fill)
-                    .overlay(alignment: .bottomLeading, content: {
-                        Text(product.name)
-                            .font(.system(size: 48))
-                            .fontWeight(.black)
-                            .foregroundStyle(.white)
-                            .padding()
-                    })
-                    .overlay(alignment: .topTrailing, content: {
-                        Button(action: {
-                            // TODO: Dismiss action from button not working as expected
-                            flowDismiss()
-                        }, label: {
-                            Image(systemName: "xmark")
-                                .foregroundStyle(Color(uiColor: .darkGray))
-                                .padding(10)
-                                .background {
-                                    Circle()
-                                        .foregroundStyle(Color(uiColor: .lightGray))
-                                }
+        GeometryReader { proxy in
+            
+            ScrollView {
+                VStack {
+                    image(url: product.imageUrl)
+                        .aspectRatio(3 / 4, contentMode: .fill)
+                        .overlay(alignment: .bottomLeading, content: {
+                            Text(product.name)
+                                .font(.system(size: 48))
+                                .fontWeight(.black)
+                                .foregroundStyle(.white)
+                                .padding()
                         })
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 48) // TODO: Button placement should directly respect safe area (vs. aprox via padding)
-                    })
-                    .clipped()
-                VStack(alignment: .leading, spacing: 40) {
-                    Text(product.description)
-
-                    VStack(alignment: .leading) {
-                        stat(label: "Released", value: product.released)
-                        separator
-                        stat(label: "Price", value: product.price)
-                        separator
-                        stat(label: "Processor", value: product.processor)
-                        separator
-                        stat(label: "RAM Max", value: product.ramMax)
-                        separator
+                        .overlay(alignment: .topTrailing, content: {
+                            Button(action: {
+                                // TODO: Dismiss action from button not working as expected
+                                flowDismiss()
+                            }, label: {
+                                Image(systemName: "xmark")
+                                    .foregroundStyle(Color(uiColor: .darkGray))
+                                    .padding(10)
+                                    .background {
+                                        Circle()
+                                            .foregroundStyle(Color(uiColor: .lightGray))
+                                    }
+                            })
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, proxy.safeAreaInsets.top + 12)
+                        })
+                        .clipped()
+                    VStack(alignment: .leading, spacing: 40) {
+                        Text(product.description)
+                        
                         VStack(alignment: .leading) {
-                            stat(label: "Display", value: product.display)
+                            stat(label: "Released", value: product.released)
                             separator
-                            stat(label: "Storage", value: product.storage)
+                            stat(label: "Price", value: product.price)
                             separator
-                            stat(label: "OS", value: product.osVersion)
+                            stat(label: "Processor", value: product.processor)
+                            separator
+                            stat(label: "RAM Max", value: product.ramMax)
+                            separator
+                            VStack(alignment: .leading) {
+                                stat(label: "Display", value: product.display)
+                                separator
+                                stat(label: "Storage", value: product.storage)
+                                separator
+                                stat(label: "OS", value: product.osVersion)
+                            }
                         }
+                        .padding()
+                        .overlay(.quaternary, in: RoundedRectangle(cornerRadius: 24, style: /*@START_MENU_TOKEN@*/.continuous/*@END_MENU_TOKEN@*/).stroke())
                     }
                     .padding()
-                    .overlay(.quaternary, in: RoundedRectangle(cornerRadius: 24, style: /*@START_MENU_TOKEN@*/.continuous/*@END_MENU_TOKEN@*/).stroke())
                 }
-                .padding()
             }
+            .ignoresSafeArea()
         }
-        .ignoresSafeArea()
     }
 
     private func image(url: URL) -> some View {
