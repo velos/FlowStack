@@ -19,7 +19,7 @@ struct ProductList: View {
     @State var path = FlowPath()
 
     var body: some View {
-        FlowStack(path: $path) {
+        FlowStack(path: $path, animation: .bouncy) {
             ScrollView {
                 LazyVStack(alignment: .center, spacing: 24, pinnedViews: [], content: {
                     ForEach(Product.allProducts) { product in

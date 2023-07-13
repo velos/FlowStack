@@ -57,6 +57,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     @Binding private var path: FlowPath
     @State private var internalPath: FlowPath = FlowPath()
+    private var animation: Animation
 
     private var overlayAlignment: Alignment
     private var root: () -> Root
@@ -66,20 +67,22 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     @State private var destinationLookup: DestinationLookup = .init()
 
-    public init(overlayAlignment: Alignment = .center, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
+    public init(overlayAlignment: Alignment = .center, animation: Animation = .defaultFlow, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
         self.overlayAlignment = overlayAlignment
+        self.animation = animation
 
         self.usesInternalPath = true
         self._path = Binding(get: { FlowPath() }, set: { _ in })
     }
 
-    public init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
+    public init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, animation: Animation = .defaultFlow, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
         self.overlayAlignment = overlayAlignment
         self._path = path
+        self.animation = animation
     }
 
     private func destination(for instance: any (Hashable & Equatable)) -> AnyDestination? {
@@ -106,6 +109,12 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         usesInternalPath ? $internalPath : _path
     }
 
+    private var transaction: Transaction {
+        var transaction = Transaction(animation: animation)
+        transaction.disablesAnimations = true
+        return transaction
+    }
+
     public var body: some View {
         ZStack {
             root()
@@ -129,8 +138,9 @@ public struct FlowStack<Root: View, Overlay: View>: View {
             overlay()
                 .environment(\.flowDepth, -1)
         }
-        .animation(.interpolatingSpring(stiffness: 500, damping: 35), value: pathToUse.wrappedValue)
-        .environment(\.flowPath, pathToUse)
+        .animation(animation, value: pathToUse.wrappedValue)
+        .environment(\.flowPath, pathToUse.transaction(transaction))
+        .environment(\.flowTransaction, transaction)
         .environmentObject(destinationLookup)
         .environment(\.flowDismiss, FlowDismissAction(
             onDismiss: {
@@ -141,20 +151,33 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 }
 
 public extension FlowStack where Overlay == EmptyView {
-    init(@ViewBuilder root: @escaping () -> Root) {
+    init(animation: Animation = .defaultFlow, @ViewBuilder root: @escaping () -> Root) {
         self.root = root
         self.overlay = { EmptyView() }
         self.overlayAlignment = .center
 
         self.usesInternalPath = true
         self._path = Binding(get: { FlowPath() }, set: { _ in })
+        self.animation = animation
     }
 
-    init(path: Binding<FlowPath>, @ViewBuilder root: @escaping () -> Root) {
+    init(path: Binding<FlowPath>, animation: Animation = .defaultFlow, @ViewBuilder root: @escaping () -> Root) {
         self.root = root
         self.overlay = { EmptyView() }
         self.overlayAlignment = .center
         self._path = path
+        self.animation = animation
+    }
+}
+
+struct FlowTransactionKey: EnvironmentKey {
+    static var defaultValue: Transaction = Transaction()
+}
+
+public extension EnvironmentValues {
+    var flowTransaction: Transaction {
+        get { self[FlowTransactionKey.self] }
+        set { self[FlowTransactionKey.self] = newValue }
     }
 }
 
@@ -172,4 +195,8 @@ struct FlowStack_Previews: PreviewProvider {
             }
         }
     }
+}
+
+public extension Animation {
+    static var defaultFlow: Animation { .interpolatingSpring(stiffness: 500, damping: 35) }
 }

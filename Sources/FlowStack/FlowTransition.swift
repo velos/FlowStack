@@ -116,6 +116,7 @@ extension AnyTransition {
 
         @SwiftUI.Environment(\.flowPath) var path
         @Environment(\.flowDismiss) var dismiss
+        @Environment(\.flowTransaction) var transaction
 
         var animatableData: CGFloat {
             get { percent }
@@ -187,7 +188,7 @@ extension AnyTransition {
                     .opacity(context.anchor == nil ? percent : 1)
             }
             .ignoresSafeArea(.container, edges: .all)
-            .animation(.interpolatingSpring(stiffness: 500, damping: 35), value: isEnded)
+            .animation(transaction.animation, value: isEnded)
             .environment(\.flowTransitionPercent, percent)
         }
     }

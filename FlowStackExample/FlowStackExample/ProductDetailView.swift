@@ -11,11 +11,14 @@ import CachedAsyncImage
 
 struct ProductDetailView: View {
     @Environment(\.flowDismiss) var flowDismiss
+    @Environment(\.flowTransaction) var transaction
+
+    @State var opacity: CGFloat = 0
+
     var product: Product
 
     var body: some View {
         GeometryReader { proxy in
-            
             ScrollView {
                 VStack {
                     image(url: product.imageUrl)
@@ -26,6 +29,7 @@ struct ProductDetailView: View {
                                 .fontWeight(.black)
                                 .foregroundStyle(.white)
                                 .padding()
+                                .opacity(opacity)
                         })
                         .overlay(alignment: .topTrailing, content: {
                             Button(action: {
@@ -42,6 +46,7 @@ struct ProductDetailView: View {
                             })
                             .padding(.horizontal, 12)
                             .padding(.vertical, proxy.safeAreaInsets.top + 12)
+                            .opacity(opacity)
                         })
                         .clipped()
                     VStack(alignment: .leading, spacing: 40) {
@@ -68,10 +73,16 @@ struct ProductDetailView: View {
                         .overlay(.quaternary, in: RoundedRectangle(cornerRadius: 24, style: /*@START_MENU_TOKEN@*/.continuous/*@END_MENU_TOKEN@*/).stroke())
                     }
                     .padding()
+                    .opacity(opacity)
                 }
             }
             .ignoresSafeArea()
         }
+        .onAppear(perform: {
+            withTransaction(transaction) {
+                opacity = 1
+            }
+        })
     }
 
     private func image(url: URL) -> some View {
