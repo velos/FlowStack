@@ -11,7 +11,6 @@ import CachedAsyncImage
 
 struct ProductDetailView: View {
     @Environment(\.flowDismiss) var flowDismiss
-    @Environment(\.flowTransaction) var transaction
 
     @State var opacity: CGFloat = 0
 
@@ -78,11 +77,10 @@ struct ProductDetailView: View {
             }
             .ignoresSafeArea()
         }
-        .onAppear(perform: {
-            withTransaction(transaction) {
-                opacity = 1
-            }
-        })
+        .withFlowAnimation {
+            opacity = 1
+        }
+
     }
 
     private func image(url: URL) -> some View {

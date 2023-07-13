@@ -200,3 +200,28 @@ struct FlowStack_Previews: PreviewProvider {
 public extension Animation {
     static var defaultFlow: Animation { .interpolatingSpring(stiffness: 500, damping: 35) }
 }
+
+struct FlowTransactionModifier: ViewModifier {
+    @Environment(\.flowTransaction) var transaction
+
+    private var onPresent: () -> Void
+
+    init(onPresent: @escaping () -> Void) {
+        self.onPresent = onPresent
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear(perform: {
+                withTransaction(transaction) {
+                    onPresent()
+                }
+            })
+    }
+}
+
+public extension View {
+    func withFlowAnimation(onPresent: @escaping () -> Void) -> some View {
+        self.modifier(FlowTransactionModifier(onPresent: onPresent))
+    }
+}
