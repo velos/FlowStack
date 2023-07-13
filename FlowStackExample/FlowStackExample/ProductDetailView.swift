@@ -79,8 +79,9 @@ struct ProductDetailView: View {
         }
         .withFlowAnimation {
             opacity = 1
+        } onDismiss: {
+            opacity = 0
         }
-
     }
 
     private func image(url: URL) -> some View {

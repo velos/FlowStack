@@ -203,25 +203,52 @@ public extension Animation {
 
 struct FlowTransactionModifier: ViewModifier {
     @Environment(\.flowTransaction) var transaction
+    @Environment(\.flowPath) var path
 
-    private var onPresent: () -> Void
+    @State var initialPathCount: Int = 0
+    @State var dismissCalled: Bool = false
 
-    init(onPresent: @escaping () -> Void) {
+    // This is a workaround to achieve onChange functionality for the path binding
+    // in order to call the onDismiss handler the moment the presented view has been removed from the path.
+    var pathBinding: Binding<FlowPath>? {
+        get {
+            guard let path = path else { return nil }
+
+            if path.elements.count < initialPathCount, !dismissCalled {
+                DispatchQueue.main.async {
+                    dismissCalled = true
+                    withTransaction(transaction) {
+                        onDismiss?()
+                    }
+                }
+            }
+
+            return path
+        }
+    }
+
+    private var onPresent: (() -> Void)?
+    private var onDismiss: (() -> Void)?
+
+    init(onPresent: (() -> Void)?, onDismiss: (() -> Void)?) {
         self.onPresent = onPresent
+        self.onDismiss = onDismiss
     }
 
     func body(content: Content) -> some View {
         content
             .onAppear(perform: {
+                initialPathCount = path!.elements.count
                 withTransaction(transaction) {
-                    onPresent()
+                    onPresent?()
                 }
             })
+            .onChange(of: pathBinding?.wrappedValue, perform: { _ in }) // Needed to trigger pathBinding getter
     }
 }
 
 public extension View {
-    func withFlowAnimation(onPresent: @escaping () -> Void) -> some View {
-        self.modifier(FlowTransactionModifier(onPresent: onPresent))
+    func withFlowAnimation(onPresent: (() -> Void)? = nil, onDismiss: (() -> Void)? = nil) -> some View {
+        self.modifier(FlowTransactionModifier(onPresent: onPresent, onDismiss: onDismiss))
     }
 }
