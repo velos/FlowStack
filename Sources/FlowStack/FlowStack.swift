@@ -203,16 +203,16 @@ public extension Animation {
 
 struct FlowTransactionModifier: ViewModifier {
     @Environment(\.flowTransaction) var transaction
-    @Environment(\.flowPath) var path
+    @Environment(\.flowPath) var flowPath
 
     @State var initialPathCount: Int = 0
     @State var dismissCalled: Bool = false
 
     // This is a workaround to achieve onChange functionality for the path binding
     // in order to call the onDismiss handler the moment the presented view has been removed from the path.
-    var pathBinding: Binding<FlowPath>? {
+    var path: FlowPath? {
         get {
-            guard let path = path else { return nil }
+            guard let path = flowPath else { return nil }
 
             if path.elements.count < initialPathCount, !dismissCalled {
                 DispatchQueue.main.async {
@@ -223,7 +223,7 @@ struct FlowTransactionModifier: ViewModifier {
                 }
             }
 
-            return path
+            return path.wrappedValue
         }
     }
 
@@ -243,7 +243,7 @@ struct FlowTransactionModifier: ViewModifier {
                     onPresent?()
                 }
             })
-            .onChange(of: pathBinding?.wrappedValue, perform: { _ in }) // Needed to trigger pathBinding getter
+            .onChange(of: path, perform: { _ in }) // Needed to trigger pathBinding getter
     }
 }
 
