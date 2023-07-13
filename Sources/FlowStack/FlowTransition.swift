@@ -19,17 +19,6 @@ public struct OpacityTransitionKey: EnvironmentKey {
     public static let defaultValue: CGFloat = 0
 }
 
-public extension EnvironmentValues {
-    var flowTransitionPercent: CGFloat {
-        get { return self[FlowTransitionKey.self] }
-        set { self[FlowTransitionKey.self] = newValue }
-    }
-}
-
-public struct FlowTransitionKey: EnvironmentKey {
-    public static let defaultValue: CGFloat = 0
-}
-
 public struct FlowDismissAction {
     var onDismiss: () -> Void = { }
 
@@ -189,7 +178,6 @@ extension AnyTransition {
             }
             .ignoresSafeArea(.container, edges: .all)
             .animation(transaction.animation, value: isEnded)
-            .environment(\.flowTransitionPercent, percent)
         }
     }
 }
