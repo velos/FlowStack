@@ -32,7 +32,6 @@ struct ProductDetailView: View {
                         })
                         .overlay(alignment: .topTrailing, content: {
                             Button(action: {
-                                // TODO: Dismiss action from button not working as expected
                                 flowDismiss()
                             }, label: {
                                 Image(systemName: "xmark")
