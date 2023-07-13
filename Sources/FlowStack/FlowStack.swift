@@ -208,7 +208,7 @@ struct FlowTransactionModifier: ViewModifier {
     @State var initialPathCount: Int = 0
     @State var dismissCalled: Bool = false
 
-    // This is a workaround to achieve onChange functionality for the path binding
+    // (Workaround) to achieve onChange functionality for the path binding
     // in order to call the onDismiss handler the moment the presented view has been removed from the path.
     var path: FlowPath? {
         get {
@@ -243,7 +243,11 @@ struct FlowTransactionModifier: ViewModifier {
                     onPresent?()
                 }
             })
-            .onChange(of: path, perform: { _ in }) // Needed to trigger pathBinding getter
+            // (Workaround) onChange not passing value to `perform` closure.
+            // Used to trigger the `path` getter where manual "onChange" is handled.
+            .onChange(of: path, perform: { _ in
+                print("hello")
+            })
     }
 }
 
