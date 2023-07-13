@@ -116,19 +116,12 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
                     skrim(for: element)
 
-                    DestinationContainer { isDismissingBinding in
-                        destination.destination(element.value)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .id(element.hashValue)
-                            .transition(.flowTransition(with: element.context ?? .init(), isDismissing: isDismissingBinding))
-                            .environment(\.flowDepth, element.index + 1)
-                            .environment(\.flowDismiss, FlowDismissAction(
-                                path: pathToUse,
-                                onDismiss: { isDismissingBinding.wrappedValue = true })
-                            )
-                            .zIndex(Double(element.index) + 1)
-                    }
-
+                    destination.destination(element.value)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .id(element.hashValue)
+                        .transition(.flowTransition(with: element.context ?? .init()))
+                        .environment(\.flowDepth, element.index + 1)
+                        .zIndex(Double(element.index) + 1)
                 }
             }
         }
@@ -139,15 +132,11 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         .animation(.interpolatingSpring(stiffness: 500, damping: 35), value: pathToUse.wrappedValue)
         .environment(\.flowPath, pathToUse)
         .environmentObject(destinationLookup)
-    }
-}
-
-private struct DestinationContainer<Content: View>: View {
-    @State private var isDismissing: Bool = false
-    @ViewBuilder var content: (Binding<Bool>) -> Content
-
-    var body: some View {
-        content($isDismissing)
+        .environment(\.flowDismiss, FlowDismissAction(
+            onDismiss: {
+                pathToUse.wrappedValue.removeLast()
+            })
+        )
     }
 }
 

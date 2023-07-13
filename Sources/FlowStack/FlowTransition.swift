@@ -31,12 +31,9 @@ public struct FlowTransitionKey: EnvironmentKey {
 }
 
 public struct FlowDismissAction {
-
-    var path: Binding<FlowPath>?
     var onDismiss: () -> Void = { }
 
     public func callAsFunction() {
-        path?.wrappedValue.removeLast()
         onDismiss()
     }
 }
@@ -49,15 +46,15 @@ public extension EnvironmentValues {
 }
 
 public struct FlowDismissActionKey: EnvironmentKey {
-    public static let defaultValue: FlowDismissAction = .init(path: .constant(.init()))
+    public static let defaultValue: FlowDismissAction = .init()
 }
 
 extension AnyTransition {
 
-    static func flowTransition(with context: PathContext, isDismissing: Binding<Bool>) -> AnyTransition {
+    static func flowTransition(with context: PathContext) -> AnyTransition {
         AnyTransition.modifier(
-            active: FlowPresentModifier(percent: 0, context: context, isDismissing: isDismissing),
-            identity: FlowPresentModifier(percent: 1, context: context, isDismissing: isDismissing)
+            active: FlowPresentModifier(percent: 0, context: context),
+            identity: FlowPresentModifier(percent: 1, context: context)
         )
     }
 
@@ -111,13 +108,14 @@ extension AnyTransition {
         @State var panOffset: CGPoint = .zero
         @State var isEnded: Bool = false
         @State private var isDisabled: Bool = false
-        @Binding var isDismissing: Bool
+        @State var isDismissing: Bool = false
 
         private var snapshotPercent: CGFloat {
             max(0, 1 - percent / 0.2)
         }
 
         @SwiftUI.Environment(\.flowPath) var path
+        @Environment(\.flowDismiss) var dismiss
 
         var animatableData: CGFloat {
             get { percent }
@@ -155,7 +153,7 @@ extension AnyTransition {
 
                 content
                     .onInteractiveDismissGesture(threshold: 80, isEnabled: !isDisabled, isDismissing: isDismissing) {
-                        path?.wrappedValue.removeLast()
+                        dismiss()
                         isDismissing = true
                     } onPan: { offset in
                         isEnded = false
@@ -164,7 +162,6 @@ extension AnyTransition {
                         isEnded = true
                         panOffset = .zero
                     }
-                    .environment(\.flowDismiss, FlowDismissAction(path: path, onDismiss: { isDismissing = true }))
                     .onPreferenceChange(InteractiveDismissDisabledKey.self) { isDisabled in
                         self.isDisabled = isDisabled
                     }
