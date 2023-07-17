@@ -245,9 +245,7 @@ struct FlowTransactionModifier: ViewModifier {
             })
             // (Workaround) onChange not passing value to `perform` closure.
             // Used to trigger the `path` getter where manual "onChange" is handled.
-            .onChange(of: path, perform: { _ in
-                print("hello")
-            })
+            .onChange(of: path, perform: { _ in })
     }
 }
 
