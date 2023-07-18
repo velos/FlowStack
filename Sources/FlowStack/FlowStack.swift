@@ -57,6 +57,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     @Binding private var path: FlowPath
     @State private var internalPath: FlowPath = FlowPath()
+    private var animation: Animation
 
     private var overlayAlignment: Alignment
     private var root: () -> Root
@@ -66,20 +67,22 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     @State private var destinationLookup: DestinationLookup = .init()
 
-    public init(overlayAlignment: Alignment = .center, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
+    public init(overlayAlignment: Alignment = .center, animation: Animation = .defaultFlow, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
         self.overlayAlignment = overlayAlignment
+        self.animation = animation
 
         self.usesInternalPath = true
         self._path = Binding(get: { FlowPath() }, set: { _ in })
     }
 
-    public init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
+    public init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, animation: Animation = .defaultFlow, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
         self.overlayAlignment = overlayAlignment
         self._path = path
+        self.animation = animation
     }
 
     private func destination(for instance: any (Hashable & Equatable)) -> AnyDestination? {
@@ -106,6 +109,12 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         usesInternalPath ? $internalPath : _path
     }
 
+    private var transaction: Transaction {
+        var transaction = Transaction(animation: animation)
+        transaction.disablesAnimations = true
+        return transaction
+    }
+
     public var body: some View {
         ZStack {
             root()
@@ -116,19 +125,12 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
                     skrim(for: element)
 
-                    DestinationContainer { isDismissingBinding in
-                        destination.destination(element.value)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .id(element.hashValue)
-                            .transition(.flowTransition(with: element.context ?? .init(), isDismissing: isDismissingBinding))
-                            .environment(\.flowDepth, element.index + 1)
-                            .environment(\.flowDismiss, FlowDismissAction(
-                                path: pathToUse,
-                                onDismiss: { isDismissingBinding.wrappedValue = true })
-                            )
-                            .zIndex(Double(element.index) + 1)
-                    }
-
+                    destination.destination(element.value)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .id(element.hashValue)
+                        .transition(.flowTransition(with: element.context ?? .init()))
+                        .environment(\.flowDepth, element.index + 1)
+                        .zIndex(Double(element.index) + 1)
                 }
             }
         }
@@ -136,36 +138,46 @@ public struct FlowStack<Root: View, Overlay: View>: View {
             overlay()
                 .environment(\.flowDepth, -1)
         }
-        .animation(.interpolatingSpring(stiffness: 500, damping: 35), value: pathToUse.wrappedValue)
-        .environment(\.flowPath, pathToUse)
+        .animation(animation, value: pathToUse.wrappedValue)
+        .environment(\.flowPath, pathToUse.transaction(transaction))
+        .environment(\.flowTransaction, transaction)
         .environmentObject(destinationLookup)
-    }
-}
-
-private struct DestinationContainer<Content: View>: View {
-    @State private var isDismissing: Bool = false
-    @ViewBuilder var content: (Binding<Bool>) -> Content
-
-    var body: some View {
-        content($isDismissing)
+        .environment(\.flowDismiss, FlowDismissAction(
+            onDismiss: {
+                pathToUse.wrappedValue.removeLast()
+            })
+        )
     }
 }
 
 public extension FlowStack where Overlay == EmptyView {
-    init(@ViewBuilder root: @escaping () -> Root) {
+    init(animation: Animation = .defaultFlow, @ViewBuilder root: @escaping () -> Root) {
         self.root = root
         self.overlay = { EmptyView() }
         self.overlayAlignment = .center
 
         self.usesInternalPath = true
         self._path = Binding(get: { FlowPath() }, set: { _ in })
+        self.animation = animation
     }
 
-    init(path: Binding<FlowPath>, @ViewBuilder root: @escaping () -> Root) {
+    init(path: Binding<FlowPath>, animation: Animation = .defaultFlow, @ViewBuilder root: @escaping () -> Root) {
         self.root = root
         self.overlay = { EmptyView() }
         self.overlayAlignment = .center
         self._path = path
+        self.animation = animation
+    }
+}
+
+struct FlowTransactionKey: EnvironmentKey {
+    static var defaultValue: Transaction = Transaction()
+}
+
+public extension EnvironmentValues {
+    var flowTransaction: Transaction {
+        get { self[FlowTransactionKey.self] }
+        set { self[FlowTransactionKey.self] = newValue }
     }
 }
 
@@ -182,5 +194,63 @@ struct FlowStack_Previews: PreviewProvider {
                 Text("Destination \(index)")
             }
         }
+    }
+}
+
+public extension Animation {
+    static var defaultFlow: Animation { .interpolatingSpring(stiffness: 500, damping: 35) }
+}
+
+struct FlowTransactionModifier: ViewModifier {
+    @Environment(\.flowTransaction) var transaction
+    @Environment(\.flowPath) var flowPath
+
+    @State var initialPathCount: Int = 0
+    @State var dismissCalled: Bool = false
+
+    // (Workaround) to achieve onChange functionality for the path binding
+    // in order to call the onDismiss handler the moment the presented view has been removed from the path.
+    var path: FlowPath? {
+        get {
+            guard let path = flowPath else { return nil }
+
+            if path.elements.count < initialPathCount, !dismissCalled {
+                DispatchQueue.main.async {
+                    dismissCalled = true
+                    withTransaction(transaction) {
+                        onDismiss?()
+                    }
+                }
+            }
+
+            return path.wrappedValue
+        }
+    }
+
+    private var onPresent: (() -> Void)?
+    private var onDismiss: (() -> Void)?
+
+    init(onPresent: (() -> Void)?, onDismiss: (() -> Void)?) {
+        self.onPresent = onPresent
+        self.onDismiss = onDismiss
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear(perform: {
+                initialPathCount = path!.elements.count
+                withTransaction(transaction) {
+                    onPresent?()
+                }
+            })
+            // (Workaround) onChange not passing value to `perform` closure.
+            // Used to trigger the `path` getter where manual "onChange" is handled.
+            .onChange(of: path, perform: { _ in })
+    }
+}
+
+public extension View {
+    func withFlowAnimation(onPresent: (() -> Void)? = nil, onDismiss: (() -> Void)? = nil) -> some View {
+        self.modifier(FlowTransactionModifier(onPresent: onPresent, onDismiss: onDismiss))
     }
 }
