@@ -24,7 +24,7 @@ extension CGPoint: Hashable {
     }
 }
 
-struct PathContext: Equatable, Hashable {
+public struct PathContext: Equatable, Hashable {
     var anchor: Anchor<CGRect>?
     var overrideAnchor: Anchor<CGRect>?
 
@@ -86,7 +86,7 @@ public struct FlowPath: Equatable, Hashable {
         elements.removeLast(count)
     }
 
-    mutating func append<P>(_ newElement: P, context: PathContext? = nil) where P: Hashable {
+    public mutating func append<P>(_ newElement: P, context: PathContext? = nil) where P: Hashable {
         self.elements.append(.init(value: newElement, context: context, index: elements.count))
     }
 }
