@@ -39,7 +39,7 @@ struct ProductDetailView: View {
                                     .padding(10)
                                     .background {
                                         Circle()
-                                            .foregroundStyle(Color(uiColor: .lightGray))
+                                            .foregroundStyle(Color(uiColor: .white))
                                     }
                             })
                             .padding(.horizontal, 12)
@@ -77,7 +77,7 @@ struct ProductDetailView: View {
             .ignoresSafeArea()
         }
         .withFlowAnimation {
-            opacity = 1
+            opacity = 0.78
         } onDismiss: {
             opacity = 0
         }
