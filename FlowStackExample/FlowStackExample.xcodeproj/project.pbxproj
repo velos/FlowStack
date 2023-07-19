@@ -11,6 +11,7 @@
 		ED8DE1632A6765F500215165 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED8DE1622A6765F500215165 /* ContentView.swift */; };
 		ED8DE1652A6765F600215165 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ED8DE1642A6765F600215165 /* Assets.xcassets */; };
 		ED8DE1682A6765F600215165 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ED8DE1672A6765F600215165 /* Preview Assets.xcassets */; };
+		ED8DE1742A6767B900215165 /* FlowStack in Frameworks */ = {isa = PBXBuildFile; productRef = ED8DE1732A6767B900215165 /* FlowStack */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -19,6 +20,7 @@
 		ED8DE1622A6765F500215165 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		ED8DE1642A6765F600215165 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		ED8DE1672A6765F600215165 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		ED8DE1712A67678100215165 /* FlowStack */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlowStack; path = ..; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -26,6 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ED8DE1742A6767B900215165 /* FlowStack in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -35,8 +38,10 @@
 		ED8DE1542A6765F500215165 = {
 			isa = PBXGroup;
 			children = (
+				ED8DE1702A67678100215165 /* Packages */,
 				ED8DE15F2A6765F500215165 /* FlowStackExample */,
 				ED8DE15E2A6765F500215165 /* Products */,
+				ED8DE1722A6767B900215165 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -67,6 +72,21 @@
 			path = "Preview Content";
 			sourceTree = "<group>";
 		};
+		ED8DE1702A67678100215165 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				ED8DE1712A67678100215165 /* FlowStack */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		ED8DE1722A6767B900215165 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -83,6 +103,9 @@
 			dependencies = (
 			);
 			name = FlowStackExample;
+			packageProductDependencies = (
+				ED8DE1732A6767B900215165 /* FlowStack */,
+			);
 			productName = FlowStackExample;
 			productReference = ED8DE15D2A6765F500215165 /* FlowStackExample.app */;
 			productType = "com.apple.product-type.application";
@@ -339,6 +362,13 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		ED8DE1732A6767B900215165 /* FlowStack */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FlowStack;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = ED8DE1552A6765F500215165 /* Project object */;
 }
