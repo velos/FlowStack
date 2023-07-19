@@ -1,6 +1,5 @@
 //
 //  View+InteractiveDismiss.swift
-//  Flow
 //
 //  Created by Zac White on 3/16/23.
 //
