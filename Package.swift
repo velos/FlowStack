@@ -14,14 +14,14 @@ let package = Package(
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-        .package(name: "CachedAsyncImage", url: "https://github.com/lorenzofiamingo/swiftui-cached-async-image", from: "2.1.0"),
+        .package(url: "https://github.com/lorenzofiamingo/swiftui-cached-async-image.git", from: "2.1.0"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .target(
             name: "FlowStack",
-            dependencies: ["CachedAsyncImage"]),
+            dependencies: [.product(name: "CachedAsyncImage", package: "swiftui-cached-async-image")]),
         .testTarget(
             name: "FlowStackTests",
             dependencies: ["FlowStack"]),
