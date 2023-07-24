@@ -88,7 +88,7 @@ Below is a reference for all configuration values that a `FlowLink` view can tak
 
 ## Usage Notes
 
-⚠️ **You may see broken animation upon navigation, when displaying images from the Internet within your FlowLink views.** To fix this, you will need to use CachedAsyncImage in order to display remote images, as well as add additional code to define a larger cache size, as shown below...
+⚠️ **When displaying images from the Internet within your FlowLink views, you may see animation distortion when navigating to new views.** To remedy this, you will need to use CachedAsyncImage in order to display any remote images in your FlowLink views, as well as add additional code to define a larger cache size, as shown below...
 
 ```
 extension URLCache {
@@ -102,7 +102,7 @@ CachedAsyncImage(url: url, urlCache: .imageCache) { image in ... }
 
 In addition, we recommend using the `transitionFromSnapshot` and `animateFromAnchor` parameters when displaying images in your FlowLink views. See [Configuration](https://github.com/velos/FlowStack/#configuration) above for details.
 
-A working example of `CachedAsyncImage` can be seen in [ContentView.swift](https://github.com/velos/FlowStack/blob/develop/FlowStackExample/FlowStackExample/ContentView.swift) on the official FlowStack example project.
+A working example of this approach can be seen in [ContentView.swift](https://github.com/velos/FlowStack/blob/develop/FlowStackExample/FlowStackExample/ContentView.swift) on the official FlowStack example project.
 
 ## Contribute
 
