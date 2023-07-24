@@ -1,6 +1,6 @@
 <img src="https://temp.tejen.net/23flowstack/logo.svg" width="388"/>
 
-**FlowStack** is a library for creating stack-based navigation using a flow layout in SwiftUI. It provides a data structure and animation layer to build upon SwiftUI's native NavigationStack – making it easy for cards in a grid to expand into new screens.
+**FlowStack** is a SwiftUI library for creating stack-based navigation with "zooming" transition animations and interactive dismiss functionality. FlowStack's API is modeled after Apple's [NavigationStack](https://developer.apple.com/documentation/swiftui/navigationstack) making it easy and intuitive to add to any new SwiftUI app or migrate from any existing app currently using NavigationStack.
 
 [![License](https://img.shields.io/badge/License-MIT-black.svg)](https://github.com/velos/FlowStack/blob/develop/LICENSE)
 ![Xcode 15.0+](https://img.shields.io/badge/Xcode-14.0+-blue.svg)
@@ -11,28 +11,36 @@
 
 ## Getting Started
 
-The simplest way to use FlowStack is to create a blank new path, and simply use `FlowLink` items to get your navigation flowing.
+Here's an example from [Apple's NavigationStack documentation](https://developer.apple.com/documentation/swiftui/navigationstack#overview) that allows a user to navigate to a detail screen when tapping an item in a list. In this case, the `ParkDetails` screen transitions in by sliding in from the righthand side of the screen in a classic "push" navigation animation.
 
+```swift
+NavigationStack {
+    List(parks) { park in
+        NavigationLink(park.name, value: park)
+    }
+    .navigationDestination(for: Park.self) { park in
+        ParkDetails(park: park)
+    }
+}
 ```
-@State var path = FlowPath()
 
-var products: [Product]
+Updating the above example to use FlowStack looks like this...
+  - ⚠️ NOTE: FlowStack's transition animation currently works best with `ScrollView { LazyVStack { ForEach ... }}}` vs `List`. 
 
-var body: some View {
-    FlowStack(path: $path) {
-        ScrollView {
-            LazyVStack(alignment: .center, spacing: 24, pinnedViews: [], content: {
-                ForEach(products) { product in
-                    FlowLink(value: product) {
-                        ProductView(product: product)
-                    }
+```swift
+FlowStack {
+    ScrollView {
+        LazyVStack {
+           ForEach(parks) { park in
+               FlowLink(value: park, configuration: .init(cornerRadius: cornerRadius)) {
+                    ParkRow(park: park, cornerRadius: cornerRadius)
                 }
-            })
-            .padding(.horizontal)
+            }
+            .flowDestination(for: Park.self) { park in
+                ParkDetails(park: park)
+            }
         }
-        .flowDestination(for: Product.self) { product in
-            ProductDetailView(product: product)
-        }
+        .padding(.horizontal)
     }
 }
 ```
