@@ -1,5 +1,5 @@
 //
-//  ProductDetailView.swift
+//  ProductDetails.swift
 //  FlowStackExample
 //
 //  Created by Charles Hieger on 6/28/23.
@@ -9,7 +9,7 @@ import SwiftUI
 import FlowStack
 import CachedAsyncImage
 
-struct ProductDetailView: View {
+struct ProductDetails: View {
     @Environment(\.flowDismiss) var flowDismiss
 
     @State var opacity: CGFloat = 0
@@ -114,8 +114,8 @@ struct ProductDetailView: View {
     }
 }
 
-struct ProductDetailView_Previews: PreviewProvider {
+struct ProductDetails_Previews: PreviewProvider {
     static var previews: some View {
-        ProductDetailView(product: .appleII)
+        ProductDetails(product: .appleII)
     }
 }
