@@ -11,10 +11,11 @@
 		ED8DE1682A6765F600215165 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ED8DE1672A6765F600215165 /* Preview Assets.xcassets */; };
 		ED8DE1742A6767B900215165 /* FlowStack in Frameworks */ = {isa = PBXBuildFile; productRef = ED8DE1732A6767B900215165 /* FlowStack */; };
 		EDA1DD382A67693A00D82A9D /* URLCache+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA1DD362A67693A00D82A9D /* URLCache+Extensions.swift */; };
-		EDA1DD392A67693A00D82A9D /* ProductDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA1DD352A67693A00D82A9D /* ProductDetailView.swift */; };
+		EDA1DD392A67693A00D82A9D /* ProductDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA1DD352A67693A00D82A9D /* ProductDetails.swift */; };
 		EDA1DD3A2A67693A00D82A9D /* FlowStackExampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA1DD372A67693A00D82A9D /* FlowStackExampleApp.swift */; };
 		EDA1DD3B2A67693A00D82A9D /* Product.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA1DD332A67693A00D82A9D /* Product.swift */; };
 		EDA1DD3C2A67693A00D82A9D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA1DD342A67693A00D82A9D /* ContentView.swift */; };
+		EDFD07BC2A6F319E00CB0737 /* ProductRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDFD07BB2A6F319E00CB0737 /* ProductRow.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,9 +25,10 @@
 		ED8DE1712A67678100215165 /* FlowStack */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlowStack; path = ..; sourceTree = "<group>"; };
 		EDA1DD332A67693A00D82A9D /* Product.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Product.swift; sourceTree = "<group>"; };
 		EDA1DD342A67693A00D82A9D /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		EDA1DD352A67693A00D82A9D /* ProductDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductDetailView.swift; sourceTree = "<group>"; };
+		EDA1DD352A67693A00D82A9D /* ProductDetails.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductDetails.swift; sourceTree = "<group>"; };
 		EDA1DD362A67693A00D82A9D /* URLCache+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URLCache+Extensions.swift"; sourceTree = "<group>"; };
 		EDA1DD372A67693A00D82A9D /* FlowStackExampleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowStackExampleApp.swift; sourceTree = "<group>"; };
+		EDFD07BB2A6F319E00CB0737 /* ProductRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductRow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -62,10 +64,11 @@
 		ED8DE15F2A6765F500215165 /* FlowStackExample */ = {
 			isa = PBXGroup;
 			children = (
-				EDA1DD342A67693A00D82A9D /* ContentView.swift */,
 				EDA1DD372A67693A00D82A9D /* FlowStackExampleApp.swift */,
+				EDA1DD342A67693A00D82A9D /* ContentView.swift */,
+				EDFD07BB2A6F319E00CB0737 /* ProductRow.swift */,
+				EDA1DD352A67693A00D82A9D /* ProductDetails.swift */,
 				EDA1DD332A67693A00D82A9D /* Product.swift */,
-				EDA1DD352A67693A00D82A9D /* ProductDetailView.swift */,
 				EDA1DD362A67693A00D82A9D /* URLCache+Extensions.swift */,
 				ED8DE1642A6765F600215165 /* Assets.xcassets */,
 				ED8DE1662A6765F600215165 /* Preview Content */,
@@ -171,8 +174,9 @@
 			files = (
 				EDA1DD382A67693A00D82A9D /* URLCache+Extensions.swift in Sources */,
 				EDA1DD3C2A67693A00D82A9D /* ContentView.swift in Sources */,
+				EDFD07BC2A6F319E00CB0737 /* ProductRow.swift in Sources */,
 				EDA1DD3B2A67693A00D82A9D /* Product.swift in Sources */,
-				EDA1DD392A67693A00D82A9D /* ProductDetailView.swift in Sources */,
+				EDA1DD392A67693A00D82A9D /* ProductDetails.swift in Sources */,
 				EDA1DD3A2A67693A00D82A9D /* FlowStackExampleApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
