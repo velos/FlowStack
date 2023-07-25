@@ -9,6 +9,14 @@
 
 <img width="263" alt="image" src="https://temp.tejen.net/23flowstack/demo.gif">
 
+## Installation
+
+To integrate using Apple's Swift package manager, add the following as a dependency to your `Package.swift`:
+
+```
+.package(url: "https://github.com/velos/FlowStack.git", .branch("develop"))
+```
+
 ## Getting Started
 
 The simplest way to use FlowStack is to create a blank new path, and simply use `FlowLink` items to get your navigation flowing.
@@ -69,7 +77,7 @@ Below is a reference for all configuration values that a `FlowLink` view can tak
 
 | Parameter | Type | Description |
 | -------- | -------- | -------- |
-| transitionFromSnapshot | Bool | **`true`**: auto-capture a still image of the contents of the given `FlowLink` upon navigation, to use as a starting point for the flow animation. :bulb: **This is necessary when your `FlowLink` views contain an image, to avoid distortion during animation.** |
+| transitionFromSnapshot | Bool | **`true`**: auto-capture a still image of the contents of the given `FlowLink` upon navigation, to use as a starting point for the flow animation. :bulb: **This is necessary when your `FlowLink` views contain an image, to avoid distortion during animation.** Also see: [Usage Notes](https://github.com/velos/FlowStack/#usage-notes) |
 | animateFromAnchor     | Bool     | This should be used in conjunction with `transitionFromSnapshot` to expand an image view upon navigation flow     |
 | cornerRadius   | CGFloat | Set a beginning radius. Used as a starting point for the flow animation. |
 | cornerStyle | [:link: RoundedCornerStyle](https://developer.apple.com/documentation/swiftui/roundedcornerstyle) | Use this in conjunction with `cornerRadius` to define the shape of the view's rounded rectangle's corners. |
@@ -78,13 +86,23 @@ Below is a reference for all configuration values that a `FlowLink` view can tak
 | shadowOffset   | CGPoint   | .zero     |
 | zoomStyle      | enum | `.scaleHorizontally` — *description* `.resize` — *description* |
 
-## Installation
+## Usage Notes
 
-To integrate using Apple's Swift package manager, add the following as a dependency to your `Package.swift`:
+⚠️ **When displaying images from the Internet within your FlowLink views, you may see animation distortion when navigating to new views.** To remedy this, you will need to use CachedAsyncImage in order to display any remote images in your FlowLink views, as well as add additional code to define a larger cache size, as shown below...
 
 ```
-.package(url: "https://github.com/velos/FlowStack.git", .branch("develop"))
+extension URLCache {
+    // increase the default capacity to something usable
+    static let imageCache = URLCache(memoryCapacity: 512_000_000, diskCapacity: 10_000_000_000)
+}
+
+// Usage
+CachedAsyncImage(url: url, urlCache: .imageCache) { image in ... }
 ```
+
+In addition, we recommend using the `transitionFromSnapshot` and `animateFromAnchor` parameters when displaying images in your FlowLink views. See [Configuration](https://github.com/velos/FlowStack/#configuration) above for details.
+
+A working example of this approach can be seen in [ContentView.swift](https://github.com/velos/FlowStack/blob/develop/FlowStackExample/FlowStackExample/ContentView.swift) on the official FlowStack example project.
 
 ## Contribute
 
