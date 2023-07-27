@@ -25,30 +25,30 @@ class DestinationLookup: ObservableObject {
 }
 
 public struct FlowDestinationModifier<D: Hashable>: ViewModifier {
-    @State var data: D.Type
+    @State var dataType: D.Type
     @State var destination: AnyDestination
 
-    @EnvironmentObject var destinations: DestinationLookup
+    @EnvironmentObject var destinationLookup: DestinationLookup
 
     public func body(content: Content) -> some View {
         content
             // swiftlint:disable:next force_unwrapping
-            .onAppear { destinations.table.merge([_mangledTypeName(data)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
+            .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
     }
 }
 
 public extension View {
-    func flowDestination<D, C>(for data: D.Type, @ViewBuilder destination: @escaping (D) -> C) -> some View where D: Hashable, C: View {
+    func flowDestination<D, C>(for dataType: D.Type, @ViewBuilder destination: @escaping (D) -> C) -> some View where D: Hashable, C: View {
 
-        let destination = AnyDestination(dataType: data, content: { param in
-            guard let param = AnyDestination.cast(data: param, to: data) else {
+        let destination = AnyDestination(dataType: dataType, content: { param in
+            guard let param = AnyDestination.cast(data: param, to: dataType) else {
                 fatalError()
             }
 
             return AnyView(destination(param))
         })
 
-        return modifier(FlowDestinationModifier(data: data, destination: destination))
+        return modifier(FlowDestinationModifier(dataType: dataType, destination: destination))
     }
 }
 
