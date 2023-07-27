@@ -13,7 +13,7 @@ struct AnyDestination: Equatable {
     }
 
     let dataType: Any.Type
-    let destination: (Any) -> AnyView
+    let content: (Any) -> AnyView
 
     static func cast<T>(data: Any, to type: T.Type) -> T? {
         data as? T
@@ -40,7 +40,7 @@ public struct FlowDestinationModifier<D: Hashable>: ViewModifier {
 public extension View {
     func flowDestination<D, C>(for data: D.Type, @ViewBuilder destination: @escaping (D) -> C) -> some View where D: Hashable, C: View {
 
-        let destination = AnyDestination(dataType: data, destination: { param in
+        let destination = AnyDestination(dataType: data, content: { param in
             guard let param = AnyDestination.cast(data: param, to: data) else {
                 fatalError()
             }
@@ -124,7 +124,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
                     skrim(for: element)
 
-                    destination.destination(element.value)
+                    destination.content(element.value)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .id(element.hashValue)
                         .transition(.flowTransition(with: element.context ?? .init()))
