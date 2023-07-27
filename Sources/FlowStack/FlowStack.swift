@@ -38,17 +38,17 @@ public struct FlowDestinationModifier<D: Hashable>: ViewModifier {
 }
 
 public extension View {
-    func flowDestination<D, C>(for dataType: D.Type, @ViewBuilder destination: @escaping (D) -> C) -> some View where D: Hashable, C: View {
+    func flowDestination<D, C>(for type: D.Type, @ViewBuilder destination: @escaping (D) -> C) -> some View where D: Hashable, C: View {
 
-        let destination = AnyDestination(dataType: dataType, content: { param in
-            guard let param = AnyDestination.cast(data: param, to: dataType) else {
+        let destination = AnyDestination(dataType: type, content: { param in
+            guard let param = AnyDestination.cast(data: param, to: type) else {
                 fatalError()
             }
 
             return AnyView(destination(param))
         })
 
-        return modifier(FlowDestinationModifier(dataType: dataType, destination: destination))
+        return modifier(FlowDestinationModifier(dataType: type, destination: destination))
     }
 }
 
