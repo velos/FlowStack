@@ -1,6 +1,6 @@
 <img src="https://temp.tejen.net/23flowstack/logo.svg" width="388"/>
 
-**FlowStack** is a SwiftUI library for creating stack-based navigation with "zooming" transition animations and interactive dismiss functionality. FlowStack's API is modeled after Apple's [NavigationStack](https://developer.apple.com/documentation/swiftui/navigationstack) making it easy and intuitive to add to any new SwiftUI app or migrate from any existing app currently using NavigationStack.
+**FlowStack** is a SwiftUI library for creating stack-based navigation with "zooming" transition animations and interactive dismiss functionality. FlowStack's API is modeled after Apple's [NavigationStack](https://developer.apple.com/documentation/swiftui/navigationstack) making it easy and intuitive to add FlowStack to any new SwiftUI project or migrate from an existing project currently using NavigationStack.
 
 [![License](https://img.shields.io/badge/License-MIT-black.svg)](https://github.com/velos/FlowStack/blob/develop/LICENSE)
 ![Xcode 15.0+](https://img.shields.io/badge/Xcode-14.0+-blue.svg)
@@ -19,7 +19,8 @@ To integrate using Apple's Swift package manager, add the following as a depende
 
 ## Getting Started
 
-Here's an example from [Apple's NavigationStack documentation](https://developer.apple.com/documentation/swiftui/navigationstack#overview) that allows a user to navigate to a detail screen when tapping an item in a list. In this case, the `ParkDetails` screen transitions in by sliding in from the righthand side of the screen in a classic "push" navigation animation.
+**Setting up and working with FlowStack is *very* similar to Apple's own NavigationStack!**
+For context, here's an example from [Apple's NavigationStack documentation](https://developer.apple.com/documentation/swiftui/navigationstack#overview) allowing a user to navigate to view a detail screen when tapping an item in a list. In this case, the `ParkDetails` transition occurs by sliding in from the right with the familiar "push" navigation animation.
 
 ```swift
 NavigationStack {
@@ -32,8 +33,7 @@ NavigationStack {
 }
 ```
 
-Updating the above example to use FlowStack looks like this...
-  - :warning: NOTE: FlowStack's transition animation currently works best with `ScrollView { LazyVStack { ForEach ... }}}` vs `List`. 
+**Updating the above example to use FlowStack looks like this...**
 
 ```swift
 FlowStack {
@@ -52,6 +52,8 @@ FlowStack {
     }
 }
 ```
+
+![flowStack_park_demo_2_30fps_25p_midQuality](https://github.com/velos/FlowStack/assets/11927517/254ed093-a1df-4891-a6fe-4ffda11198f4) 
 
 In this example, a Product will be added to the `path` stack when its link is tapped, and navigation will flow into ProductDetailView for the tapped product.
 
