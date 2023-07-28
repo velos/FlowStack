@@ -33,7 +33,7 @@ NavigationStack {
 ```
 
 Updating the above example to use FlowStack looks like this...
-  - ⚠️ NOTE: FlowStack's transition animation currently works best with `ScrollView { LazyVStack { ForEach ... }}}` vs `List`. 
+  - :warning: NOTE: FlowStack's transition animation currently works best with `ScrollView { LazyVStack { ForEach ... }}}` vs `List`. 
 
 ```swift
 FlowStack {
@@ -96,7 +96,7 @@ Below is a reference for all configuration values that a `FlowLink` view can tak
 
 ## Usage Notes
 
-⚠️ For any fetched images to be displayed within a FlowLink, please import and use `CachedAsyncImage` (included in the *FlowStack* library) instead of SwiftUI's provided `AsyncImage`. `AsyncImage` does not cache fetched images and as a result, will not load a previously fetched image fast enough to be included in transition snapshots (i.e. when `transitionFromSnapshot: true` in FlowLink Configuration)
+:warning: For any fetched images to be displayed within a FlowLink, please import and use `CachedAsyncImage` (included in the *FlowStack* library) instead of SwiftUI's provided `AsyncImage`. `AsyncImage` does not cache fetched images and as a result, will not load a previously fetched image fast enough to be included in transition snapshots (i.e. when `transitionFromSnapshot: true` in FlowLink Configuration)
 
 ```
 extension URLCache {
