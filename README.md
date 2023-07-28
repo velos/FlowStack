@@ -1,6 +1,6 @@
 <img src="https://temp.tejen.net/23flowstack/logo.svg" width="388"/>
 
-**FlowStack** is a SwiftUI library for creating stack-based navigation with "zooming" transition animations and interactive dismiss functionality. FlowStack's API is modeled after Apple's [NavigationStack](https://developer.apple.com/documentation/swiftui/navigationstack) making it easy and intuitive to add FlowStack to any new SwiftUI project or migrate from an existing project currently using NavigationStack.
+**FlowStack** is a SwiftUI library for creating stack-based navigation with "zooming" transition animations and interactive pull-to-dismiss gestures. FlowStack's API is modeled after Apple's [NavigationStack](https://developer.apple.com/documentation/swiftui/navigationstack) making it easy and intuitive to add FlowStack to any new SwiftUI app or migrate from any existing app currently using NavigationStack.
 
 [![License](https://img.shields.io/badge/License-MIT-black.svg)](https://github.com/velos/FlowStack/blob/develop/LICENSE)
 ![Xcode 15.0+](https://img.shields.io/badge/Xcode-14.0+-blue.svg)
@@ -20,7 +20,8 @@ To integrate using Apple's Swift package manager, add the following as a depende
 ## Getting Started
 
 **Setting up and working with FlowStack is *very* similar to Apple's own NavigationStack!**
-For context, here's an example from [Apple's NavigationStack documentation](https://developer.apple.com/documentation/swiftui/navigationstack#overview) allowing a user to navigate to view a detail screen when tapping an item in a list. In this case, the `ParkDetails` transition occurs by sliding in from the right with the familiar "push" navigation animation.
+
+For context, here's an example from [Apple's NavigationStack documentation](https://developer.apple.com/documentation/swiftui/navigationstack#overview) showing a basic NavigationStack setup that allows users to navigate to view a detail screen when tapping an item in a list. In this case, the `ParkDetails` transition slides in from the right with the familiar "push" navigation animation.
 
 ```swift
 NavigationStack {
@@ -33,7 +34,19 @@ NavigationStack {
 }
 ```
 
-**Updating the above example to use FlowStack looks like this...**
+![NavigationStack Demo](https://github.com/velos/FlowStack/assets/11927517/39e7f0fa-d453-4afd-9950-53a6a50a1c84)
+
+**Updating the above example to use FlowStack, the highlevel work flow is the same...**
+
+1. Add the root view inside the **FlowStack**.
+   - For scrolling lists, use a ScrollView with a LazyVStack instead of a List for best animation results.
+1. Add a **flowDestination(for:destination:)** modifier within the **FlowStack** hierarchy to associate a data type with it's corresponding destination view.
+1. Initialize a **FlowLink** with...
+   1. A value of the same data type handled by the corresponding **flowDestination(for:destination:)** modifier. 
+   1. A **FlowLink.Configuration** to customize aspects of the transition.
+   1. A view to serve as the content for the **FlowLink**. A common use case would be for this view to contain an image (or other elements) also present in the destination view.
+  
+In this example, similar to the NavigationStack, when a user selects a given flow link, the park value associated with the link is fielded by the corresponding flow destination modifier which adds the associated destination view to the stack (in this case, ParkDetails) and presents it via a "zooming" transiton animation. Views can be removed from the stack and dismissed programmatically (by calling the **FlowDismiss** action accessible via the Environment) or by the user dragging down to initiate an interactive dismiss gesture.
 
 ```swift
 FlowStack {
@@ -44,20 +57,20 @@ FlowStack {
                     ParkRow(park: park, cornerRadius: cornerRadius)
                 }
             }
-            .flowDestination(for: Park.self) { park in
-                ParkDetails(park: park)
-            }
         }
         .padding(.horizontal)
+    }
+    .flowDestination(for: Park.self) { park in
+        ParkDetails(park: park)
     }
 }
 ```
 
-![flowStack_park_demo_2_30fps_25p_midQuality](https://github.com/velos/FlowStack/assets/11927517/254ed093-a1df-4891-a6fe-4ffda11198f4) 
+![FlowStack Demo](https://github.com/velos/FlowStack/assets/11927517/254ed093-a1df-4891-a6fe-4ffda11198f4) 
 
-In this example, a Product will be added to the `path` stack when its link is tapped, and navigation will flow into ProductDetailView for the tapped product.
+## Navigate to different view types
 
-Beyond products, FlowStack can support any combination of custom types in a single `FlowPath` stack. Simply define a new `.flowDestination(...)` for each type that you would like to support `FlowLink` items for.
+As with NavigationStack, FlowStack can support any combination of data and view types in it's stack. Simply add a new **flowDestination(for:destination:)** modifier for each type that you would like to support **FlowLink** items for.
 
 ## Usage Example
 
