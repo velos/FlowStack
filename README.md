@@ -43,10 +43,10 @@ NavigationStack {
 1. Add a **flowDestination(for:destination:)** modifier within the **FlowStack** hierarchy to associate a data type with it's corresponding destination view.
 1. Initialize a **FlowLink** with...
    1. A value of the same data type handled by the corresponding **flowDestination(for:destination:)** modifier. 
-   1. A **FlowLink.Configuration** to customize aspects of the transition.
+   1. A **FlowLink.Configuration** to customize aspects of the transition. In the below example, a corner radius is passed in to the configuration to match the corner radius of the ParkRow during transition.
    1. A view to serve as the content for the **FlowLink**. A common use case would be for this view to contain an image (or other elements) also present in the destination view.
   
-In this example, similar to the NavigationStack, when a user selects a given flow link, the park value associated with the link is fielded by the corresponding flow destination modifier which adds the associated destination view to the stack (in this case, ParkDetails) and presents it via a "zooming" transiton animation. Views can be removed from the stack and dismissed programmatically (by calling the **FlowDismiss** action accessible via the Environment) or by the user dragging down to initiate an interactive dismiss gesture.
+In this example, similar to the NavigationStack, when a user selects a given flow link, the park value associated with the link is handled by the corresponding flow destination modifier with matching data type which adds the associated destination view to the stack (in this case, ParkDetails) and presents it via a "zooming" transiton animation. Views can be removed from the stack and dismissed programmatically (by calling the **FlowDismiss** action accessible via the Environment) or by the user dragging down to initiate an interactive dismiss gesture.
 
 ```swift
 FlowStack {
@@ -70,33 +70,11 @@ FlowStack {
 
 ## Navigate to different view types
 
-As with NavigationStack, FlowStack can support any combination of data and view types in it's stack. Simply add a new **flowDestination(for:destination:)** modifier for each type that you would like to support **FlowLink** items for.
-
-## Usage Example
-
-In the animated demo above, we achieve a "card" effect using `cornerRadius`.
-
-In addition, our cards are comprised of an image, as defined in `ProductView`. Therefore, the navigation flow transition should begin with a snapshot of the card, which can then animate into a new view upon navigation. Use the `transitionFromSnapshot` and `animateFromAnchor` parameters in your FlowLink to make this happen.
-
-```
-FlowLink(value: product,
-         configuration: .init(
-            animateFromAnchor: true,
-            transitionFromSnapshot: true,
-            cornerRadius: 24,
-            cornerStyle: .continuous,
-            shadowRadius: 0,
-            shadowColor: nil,
-            shadowOffset: .zero,
-            zoomStyle: .scaleHorizontally)
-        ) {
-            ProductView(product: product)
-        }
-```
+As with NavigationStack, FlowStack can support any combination of data and view types in it's stack. Simply add a new **flowDestination(for:destination:)** modifier to handle each data type you'd like to support via a given **FlowLink**.
 
 ## Configuration
 
-Below is a reference for all configuration values that a `FlowLink` view can take on:
+Below is a reference for all configuration values a `FlowLink` can use to customize it's associated destination view transition.
 
 | Parameter | Type | Description |
 | -------- | -------- | -------- |
@@ -109,7 +87,7 @@ Below is a reference for all configuration values that a `FlowLink` view can tak
 | shadowOffset   | CGPoint   | .zero     |
 | zoomStyle      | enum | `.scaleHorizontally` — *description* `.resize` — *description* |
 
-## Usage Notes
+## Images
 
 :warning: For any fetched images to be displayed within a FlowLink, please import and use `CachedAsyncImage` (included in the *FlowStack* library) instead of SwiftUI's provided `AsyncImage`. `AsyncImage` does not cache fetched images and as a result, will not load a previously fetched image fast enough to be included in transition snapshots (i.e. when `transitionFromSnapshot: true` in FlowLink Configuration)
 
