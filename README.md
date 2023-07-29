@@ -1,6 +1,6 @@
 <img src="https://temp.tejen.net/23flowstack/logo.svg" width="388"/>
 
-**FlowStack** is a SwiftUI library for creating stack-based navigation with "zooming" transition animations and interactive pull-to-dismiss gestures. FlowStack's API is modeled after Apple's [NavigationStack](https://developer.apple.com/documentation/swiftui/navigationstack) making it easy and intuitive to add FlowStack to any new SwiftUI app or migrate from any existing app currently using NavigationStack.
+**FlowStack** is a SwiftUI library for creating stack-based navigation with "flow" (aka "zooming") transition animations and interactive pull-to-dismiss gestures. FlowStack's API is modeled after Apple's [NavigationStack](https://developer.apple.com/documentation/swiftui/navigationstack) making it easy and intuitive to add FlowStack to a new project or migrate an existing project currently using NavigationStack.
 
 [![License](https://img.shields.io/badge/License-MIT-black.svg)](https://github.com/velos/FlowStack/blob/develop/LICENSE)
 ![Xcode 15.0+](https://img.shields.io/badge/Xcode-14.0+-blue.svg)
@@ -36,7 +36,7 @@ NavigationStack {
 
 ![NavigationStack Demo](https://github.com/velos/FlowStack/assets/11927517/39e7f0fa-d453-4afd-9950-53a6a50a1c84)
 
-**Updating the above example to use FlowStack, the highlevel work flow is the same...**
+**Updating the above example to use FlowStack, the high-level structure and work flow is the same...**
 
 1. Add the root view inside the **FlowStack**.
    - For scrolling lists, use a ScrollView with a LazyVStack instead of a List for best animation results.
@@ -52,8 +52,8 @@ In this example, similar to the NavigationStack, when a user selects a given flo
 FlowStack {
     ScrollView {
         LazyVStack {
-           ForEach(parks) { park in
-               FlowLink(value: park, configuration: .init(cornerRadius: cornerRadius)) {
+            ForEach(parks) { park in
+                FlowLink(value: park, configuration: .init(cornerRadius: cornerRadius)) {
                     ParkRow(park: park, cornerRadius: cornerRadius)
                 }
             }
@@ -72,7 +72,25 @@ FlowStack {
 
 As with NavigationStack, FlowStack can support any combination of data and view types in it's stack. Simply add a new **flowDestination(for:destination:)** modifier to handle each data type you'd like to support via a given **FlowLink**.
 
-## Configuration
+## Manage naviagtion state
+
+// TODO...
+Example: Provide FlowPath binding (vs. internally managed path)
+
+## Animation anchors
+
+By defrault, flow transition animations originate from the bounds of the view provided as content to a FlowLink. However, depending on the given UI, it's sometimes preferable for the transition animation to originate from a subview within the FlowLink's content view.
+
+A common use case is when a FlowLink's view contains an image with additional view elements alongside the image, but you only want the transition animation to emanate from the image, not the entire view containing the other elements. You can achieve this effect by adding a **.flowAnimationAnchor()** modifier to the view you want the transition animation to emanate from; in this case it would be the image view.
+
+```swift
+// TODO: Add flow animation anchor example
+```
+
+
+
+
+## FlowLink configuration
 
 Below is a reference for all configuration values a `FlowLink` can use to customize it's associated destination view transition.
 
