@@ -81,13 +81,29 @@ Example: Provide FlowPath binding (vs. internally managed path)
 
 By defrault, flow transition animations originate from the bounds of the view provided as content to a FlowLink. However, depending on the given UI, it's sometimes preferable for the transition animation to originate from a subview within the FlowLink's content view.
 
-A common use case is when a FlowLink's view contains an image with additional view elements alongside the image, but you only want the transition animation to emanate from the image, not the entire view containing the other elements. You can achieve this effect by adding a **.flowAnimationAnchor()** modifier to the view you want the transition animation to emanate from; in this case it would be the image view.
+A common use case is when a FlowLink's view contains an image along with additional view elements, but you only want the transition animation to emanate from the image, not the entire view containing the other elements. You can achieve this effect by adding a **.flowAnimationAnchor()** modifier to the view you want the transition animation to emanate from.
+
+The below example adds the **.flowAnimationAnchor()** modifier to the image view. This allows the entire view inside the FlowLink to be tappable while constraining the transition animation to just the image.
 
 ```swift
-// TODO: Add flow animation anchor example
+FlowLink(value: park, configuration: .init(cornerRadius: cornerRadius)) {
+    HStack {
+
+        image(url: park.imageUrl)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .flowAnimationAnchor() // <- 💡 Sets the given view as the transition origin.
+
+        VStack(alignment: .leading) {
+            Text(park.name)
+                .font(.title)
+            Text(park.cityStateAddress)
+                .font(.subheadline)
+            Spacer()
+        }
+        Spacer()
+    }
+}
 ```
-
-
 
 
 ## FlowLink configuration
