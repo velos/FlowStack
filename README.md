@@ -105,39 +105,30 @@ FlowLink(value: park, configuration: .init(cornerRadius: cornerRadius)) {
 }
 ```
 
-
-## FlowLink configuration
-
-Below is a reference for all configuration values a `FlowLink` can use to customize it's associated destination view transition.
-
-| Parameter | Type | Description |
-| -------- | -------- | -------- |
-| transitionFromSnapshot | Bool | **`true`**: auto-capture a still image of the contents of the given `FlowLink` upon navigation, to use as a starting point for the flow animation. :bulb: **This is necessary when your `FlowLink` views contain an image, to avoid distortion during animation.** Also see: [Usage Notes](https://github.com/velos/FlowStack/#usage-notes) |
-| animateFromAnchor     | Bool     | This should be used in conjunction with `transitionFromSnapshot` to expand an image view upon navigation flow     |
-| cornerRadius   | CGFloat | Set a beginning radius. Used as a starting point for the flow animation. |
-| cornerStyle | [:link: RoundedCornerStyle](https://developer.apple.com/documentation/swiftui/roundedcornerstyle) | Use this in conjunction with `cornerRadius` to define the shape of the view's rounded rectangle's corners. |
-| shadowRadius   |  CGFloat  |  Set the strength of the shadow beneath the given `FlowLink` view  |
-| shadowColor    | Color     |  Define the color of a shadow, if applicable  |
-| shadowOffset   | CGPoint   | .zero     |
-| zoomStyle      | enum | `.scaleHorizontally` — *description* `.resize` — *description* |
-
 ## Images
 
-:warning: For any fetched images to be displayed within a FlowLink, please import and use `CachedAsyncImage` (included in the *FlowStack* library) instead of SwiftUI's provided `AsyncImage`. `AsyncImage` does not cache fetched images and as a result, will not load a previously fetched image fast enough to be included in transition snapshots (i.e. when `transitionFromSnapshot: true` in FlowLink Configuration)
+When displaying async images within a FlowLink, use [CachedAsyncImage](https://github.com/lorenzofiamingo/swiftui-cached-async-image) (included in the *FlowStack* library) instead of SwiftUI's provided [AsyncImage](https://developer.apple.com/documentation/swiftui/asyncimage). AsyncImage does not cache fetched images and as a result, will not load a previously fetched image fast enough to be included in transition snapshots (i.e. when `transitionFromSnapshot: true` in FlowLink Configuration).
 
-```
+[CachedAsyncImage docs](https://github.com/lorenzofiamingo/swiftui-cached-async-image) has a similar API to AsyncImage with the added ability to specify a cache for caching images. Setting a larger custom cache size is often necessary to get images to actually be cached; images must not be larger than 5% of the disk cache. [See discussion](https://developer.apple.com/documentation/foundation/nsurlsessiondatadelegate/1411612-urlsession#discussion)
+
+```swift
+// Custom cache to support larger image caching
 extension URLCache {
-    // increase the default capacity to something usable
     static let imageCache = URLCache(memoryCapacity: 512_000_000, diskCapacity: 10_000_000_000)
 }
 
+...
+
 // Usage
-CachedAsyncImage(url: url, urlCache: .imageCache) { image in ... }
+CachedAsyncImage(url: url, urlCache: .imageCache) { image in
+    image
+        .resizable()
+        .scaledToFill()
+        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+} placeholder: {
+    Color(uiColor: .secondarySystemFill)
+}
 ```
-
-For most transitions involving images within FlowLinks, you'll likely get the best results using the default values for `FlowLink.Configuration` in regards to `transitionFromSnapshot: true` and `animateFromAnchor: true`. See [Configuration](https://github.com/velos/FlowStack/#configuration) above for details.
-
-A working example of this approach can be seen in [ContentView.swift](https://github.com/velos/FlowStack/blob/develop/FlowStackExample/FlowStackExample/ContentView.swift) on the official FlowStack example project.
 
 ## Contribute
 
