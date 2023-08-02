@@ -43,7 +43,7 @@ NavigationStack {
 1. Add a **flowDestination(for:destination:)** modifier within the **FlowStack** hierarchy to associate a data type with it's corresponding destination view.
 1. Initialize a **FlowLink** with...
    1. A value of the same data type handled by the corresponding **flowDestination(for:destination:)** modifier. 
-   1. A **FlowLink.Configuration** to customize aspects of the transition. In the below example, a corner radius is passed in to the configuration to match the corner radius of the ParkRow during transition.
+   1. A **FlowLink.Configuration** to customize aspects of the transition. In the below example, a corner radius value is passed in to the configuration to match the corner radius of the ParkRow during transition.
    1. A view to serve as the content for the **FlowLink**. A common use case would be for this view to contain an image (or other elements) also present in the destination view.
   
 In this example, similar to the NavigationStack, when a user selects a given flow link, the park value associated with the link is handled by the corresponding flow destination modifier with matching data type which adds the associated destination view to the stack (in this case, ParkDetails) and presents it via a "zooming" transiton animation. Views can be removed from the stack and dismissed programmatically (by calling the **FlowDismiss** action accessible via the Environment) or by the user dragging down to initiate an interactive dismiss gesture.
