@@ -19,7 +19,7 @@ To integrate using Apple's Swift package manager, add the following as a depende
 
 ## Getting Started
 
-**Setting up and working with FlowStack is *very* similar to Apple's own NavigationStack!**
+**Setting up and working with FlowStack is *very* similar to Apple's own NavigationStack:**
 
 For context, here's an example from [Apple's NavigationStack documentation](https://developer.apple.com/documentation/swiftui/navigationstack#overview) showing a basic NavigationStack setup that allows users to navigate to view a detail screen when tapping an item in a list. In this case, the `ParkDetails` transition slides in from the right with the familiar "push" navigation animation.
 
@@ -36,7 +36,7 @@ NavigationStack {
 
 ![NavigationStack Demo](https://github.com/velos/FlowStack/assets/11927517/39e7f0fa-d453-4afd-9950-53a6a50a1c84)
 
-**Updating the above example to use FlowStack, the high-level structure and work flow is the same...**
+**Update the above example to use FlowStack:**
 
 1. Add the root view inside the **FlowStack**.
    - For scrolling lists, use a ScrollView with a LazyVStack instead of a List for best animation results.
