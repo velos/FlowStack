@@ -13,7 +13,7 @@ struct AnyDestination: Equatable {
     }
 
     let dataType: Any.Type
-    let destination: (Any) -> AnyView
+    let content: (Any) -> AnyView
 
     static func cast<T>(data: Any, to type: T.Type) -> T? {
         data as? T
@@ -25,30 +25,30 @@ class DestinationLookup: ObservableObject {
 }
 
 public struct FlowDestinationModifier<D: Hashable>: ViewModifier {
-    @State var data: D.Type
+    @State var dataType: D.Type
     @State var destination: AnyDestination
 
-    @EnvironmentObject var destinations: DestinationLookup
+    @EnvironmentObject var destinationLookup: DestinationLookup
 
     public func body(content: Content) -> some View {
         content
             // swiftlint:disable:next force_unwrapping
-            .onAppear { destinations.table.merge([_mangledTypeName(data)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
+            .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
     }
 }
 
 public extension View {
-    func flowDestination<D, C>(for data: D.Type, @ViewBuilder destination: @escaping (D) -> C) -> some View where D: Hashable, C: View {
+    func flowDestination<D, C>(for type: D.Type, @ViewBuilder destination: @escaping (D) -> C) -> some View where D: Hashable, C: View {
 
-        let destination = AnyDestination(dataType: data, destination: { param in
-            guard let param = AnyDestination.cast(data: param, to: data) else {
+        let destination = AnyDestination(dataType: type, content: { param in
+            guard let param = AnyDestination.cast(data: param, to: type) else {
                 fatalError()
             }
 
             return AnyView(destination(param))
         })
 
-        return modifier(FlowDestinationModifier(data: data, destination: destination))
+        return modifier(FlowDestinationModifier(dataType: type, destination: destination))
     }
 }
 
@@ -124,7 +124,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
                     skrim(for: element)
 
-                    destination.destination(element.value)
+                    destination.content(element.value)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .id(element.hashValue)
                         .transition(.flowTransition(with: element.context ?? .init()))
