@@ -70,7 +70,7 @@ FlowStack {
 
 ## Navigate to different view types
 
-As with NavigationStack, FlowStack can support any combination of data and view types in it's stack. Simply add a new **flowDestination(for:destination:)** modifier to handle each data type you'd like to support via a given **FlowLink**.
+As with NavigationStack, FlowStack can support different data and view types in the same stack. Simply add a new **flowDestination(for:destination:)** modifier to handle each data type you'd like to support via a given **FlowLink**.
 
 ## Manage naviagtion state
 
@@ -105,7 +105,7 @@ FlowLink(value: park, configuration: .init(cornerRadius: cornerRadius)) {
 }
 ```
 
-## Images
+## Image Snapshots
 
 When displaying async images within a FlowLink, use [CachedAsyncImage](https://github.com/lorenzofiamingo/swiftui-cached-async-image) (included in the *FlowStack* library) instead of SwiftUI's provided [AsyncImage](https://developer.apple.com/documentation/swiftui/asyncimage). AsyncImage does not cache fetched images and as a result, will not load a previously fetched image fast enough to be included in transition snapshots (i.e. when `transitionFromSnapshot: true` in FlowLink Configuration).
 
@@ -129,7 +129,3 @@ CachedAsyncImage(url: url, urlCache: .imageCache) { image in
     Color(uiColor: .secondarySystemFill)
 }
 ```
-
-## Contribute
-
-We welcome any contributions. Please read the [Contribution Guide](https://github.com/HeroTransitions/Hero/wiki/Contribution-Guide).
