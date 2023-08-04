@@ -1,4 +1,4 @@
-<img src="https://temp.tejen.net/23flowstack/logo.svg" width="388"/>
+<img src="https://github.com/velos/FlowStack/blob/develop/Logo.svg" width="388"/>
 
 **FlowStack** is a SwiftUI library for creating stack-based navigation with "flow" (aka "zooming") transition animations and interactive pull-to-dismiss gestures. FlowStack's API is modeled after Apple's [NavigationStack](https://developer.apple.com/documentation/swiftui/navigationstack) making it easy and intuitive to add FlowStack to a new project or migrate an existing project currently using NavigationStack.
 
