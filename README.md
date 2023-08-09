@@ -21,6 +21,8 @@ To integrate using Apple's Swift package manager, add the following as a depende
 
 **Setting up and working with FlowStack is *very* similar to Apple's own NavigationStack:**
 
+![NavigationStack Demo](https://github.com/velos/FlowStack/assets/11927517/39e7f0fa-d453-4afd-9950-53a6a50a1c84)
+
 For context, here's an example from [Apple's NavigationStack documentation](https://developer.apple.com/documentation/swiftui/navigationstack#overview) showing a basic NavigationStack setup that allows users to navigate to view a detail screen when tapping an item in a list. In this case, the `ParkDetails` transition slides in from the right with the familiar "push" navigation animation.
 
 ```swift
@@ -34,9 +36,9 @@ NavigationStack {
 }
 ```
 
-![NavigationStack Demo](https://github.com/velos/FlowStack/assets/11927517/39e7f0fa-d453-4afd-9950-53a6a50a1c84)
-
 **Update the above example to use FlowStack:**
+
+![FlowStack Demo](https://github.com/velos/FlowStack/assets/11927517/254ed093-a1df-4891-a6fe-4ffda11198f4) 
 
 1. Add the root view inside the **FlowStack**.
    - For scrolling lists, use a ScrollView with a LazyVStack instead of a List for best animation results.
@@ -66,8 +68,6 @@ FlowStack {
 }
 ```
 
-![FlowStack Demo](https://github.com/velos/FlowStack/assets/11927517/254ed093-a1df-4891-a6fe-4ffda11198f4) 
-
 ## Navigate to different view types
 
 As with NavigationStack, FlowStack can support any combination of data and view types in it's stack. Simply add a new **flowDestination(for:destination:)** modifier to handle each data type you'd like to support via a given **FlowLink**.
@@ -78,6 +78,8 @@ As with NavigationStack, FlowStack can support any combination of data and view 
 Example: Provide FlowPath binding (vs. internally managed path)
 
 ## Animation anchors
+
+![flow_animation_anchor_example_1](https://github.com/velos/FlowStack/assets/11927517/fa6b20da-be32-45d4-a00e-b0aba4f0602d)
 
 By defrault, flow transition animations originate from the bounds of the view provided as content to a FlowLink. However, depending on the given UI, it's sometimes preferable for the transition animation to originate from a subview within the FlowLink's content view.
 
