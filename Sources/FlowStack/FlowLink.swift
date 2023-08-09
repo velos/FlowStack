@@ -200,7 +200,7 @@ public struct FlowLink<Label>: View where Label: View {
 
         guard let size = size else { return nil }
 
-        let frame = overrideFrame ?? CGRect(origin: .zero, size: size)
+        let frame = CGRect(origin: .zero, size: size)
 
         let controller = UIHostingController(
             rootView: label()
@@ -220,11 +220,41 @@ public struct FlowLink<Label>: View where Label: View {
 
         let renderer = UIGraphicsImageRenderer(size: frame.size)
 
-        let image = renderer.image { _ in
-            view.drawHierarchy(in: CGRect(x: -frame.minX, y: -frame.minY, width: size.width, height: size.height), afterScreenUpdates: true)
+        var image = renderer.image { _ in
+            view.drawHierarchy(in: CGRect(x: frame.minX, y: frame.minY, width: size.width, height: size.height), afterScreenUpdates: true)
+        }
+
+        if let overrideFrame = overrideFrame,
+           let croppedImage = crop(image, toRect: overrideFrame) {
+            image = croppedImage
         }
 
         return image
+    }
+
+    /// Crops an image to the given frame.
+    ///
+    /// [Apple Docs - CGImage Cropping](https://developer.apple.com/documentation/coregraphics/cgimage/1454683-cropping)
+    private func crop(_ inputImage: UIImage, toRect cropRect: CGRect) -> UIImage? {
+        let scale = inputImage.scale
+
+        // Scale cropRect relative to image scale
+        let cropZone = CGRect(x:cropRect.origin.x * scale,
+                              y:cropRect.origin.y * scale,
+                              width:cropRect.size.width * scale,
+                              height:cropRect.size.height * scale)
+
+
+        // Perform cropping in Core Graphics
+        guard let cutImageRef: CGImage = inputImage.cgImage?.cropping(to:cropZone)
+        else {
+            return nil
+        }
+
+
+        // Return image to UIImage
+        let croppedImage: UIImage = UIImage(cgImage: cutImageRef)
+        return croppedImage
     }
 
     private var button: some View {
