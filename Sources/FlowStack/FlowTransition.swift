@@ -97,14 +97,30 @@ extension AnyTransition {
         @State var isEnded: Bool = false
         @State private var isDisabled: Bool = false
         @State var isDismissing: Bool = false
+        @State private var snapCornerRadiusZero: Bool = true
 
         private var snapshotPercent: CGFloat {
             max(0, 1 - percent / 0.2)
         }
 
-        @SwiftUI.Environment(\.flowPath) var path
         @Environment(\.flowDismiss) var dismiss
         @Environment(\.flowTransaction) var transaction
+
+        var cornerRadius: CGFloat { context.cornerRadius + ((UIScreen.displayCornerRadius ?? 20) - context.cornerRadius) * percent }
+
+        var conditionalCornerRadius: CGFloat {
+            if percent >= 1 {
+                if snapCornerRadiusZero {
+                    return 0
+                } else {
+                    return cornerRadius
+                }
+            } else {
+                return cornerRadius
+            }
+        }
+
+        var cornerStyle: RoundedCornerStyle { percent > 0.5 ? .continuous : context.cornerStyle }
 
         var animatableData: CGFloat {
             get { percent }
@@ -137,20 +153,32 @@ extension AnyTransition {
             GeometryReader { proxy in
                 let zoomRect = zoomRect(with: proxy, anchor: context.overrideAnchor ?? context.anchor, percent: percent, pullOffset: panOffset)
                 let scaleRatio = context.shouldScaleHorizontally ? zoomRect.size.width / proxy.size.width : 1.0
-                let cornerRadius = context.cornerRadius + ((UIScreen.displayCornerRadius ?? 20) - context.cornerRadius) * percent
-                let cornerStyle: RoundedCornerStyle = percent > 0.5 ? .continuous : context.cornerStyle
 
                 content
-                    .onInteractiveDismissGesture(threshold: 80, isEnabled: !isDisabled, isDismissing: isDismissing) {
+                    .onInteractiveDismissGesture(threshold: 80, isEnabled: !isDisabled, isDismissing: isDismissing, onDismiss: {
                         dismiss()
                         isDismissing = true
-                    } onPan: { offset in
+                    }, onPan: { offset in
+                        snapCornerRadiusZero = false
                         isEnded = false
                         panOffset = offset
-                    } onEnded: { _ in
-                        isEnded = true
-                        panOffset = .zero
-                    }
+                    }, onEnded: { isDismissing in
+                        if #available(iOS 17, *) {
+                            withAnimation(transaction.animation, completionCriteria: .removed) {
+                                panOffset = .zero
+                                isEnded = true
+                            } completion: {
+                                if !isDismissing {
+                                    snapCornerRadiusZero = true
+                                }
+                            }
+                        } else {
+                            withTransaction(transaction) {
+                                panOffset = .zero
+                                isEnded = true
+                            }
+                        }
+                    })
                     .onPreferenceChange(InteractiveDismissDisabledKey.self) { isDisabled in
                         self.isDisabled = isDisabled
                     }
@@ -161,7 +189,7 @@ extension AnyTransition {
                                 .opacity(snapshotPercent)
                         }
                     }
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius / scaleRatio, style: cornerStyle))
+                    .clipShape(RoundedRectangle(cornerRadius: conditionalCornerRadius / scaleRatio, style: cornerStyle))
                     .shadow(color: context.shadowColor ?? .clear, radius: context.shadowRadius, x: context.shadowOffset.x, y: context.shadowOffset.y)
                     .frame(
                         width: context.shouldScaleHorizontally ? proxy.size.width : zoomRect.size.width,
@@ -176,7 +204,6 @@ extension AnyTransition {
                     .opacity(context.anchor == nil ? percent : 1)
             }
             .ignoresSafeArea(.container, edges: .all)
-            .animation(transaction.animation, value: isEnded)
         }
     }
 }
