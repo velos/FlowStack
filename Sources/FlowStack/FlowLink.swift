@@ -221,7 +221,7 @@ public struct FlowLink<Label>: View where Label: View {
         let renderer = UIGraphicsImageRenderer(size: frame.size)
 
         var image = renderer.image { _ in
-            view.drawHierarchy(in: CGRect(x: frame.minX, y: frame.minY, width: size.width, height: size.height), afterScreenUpdates: true)
+            view.drawHierarchy(in: CGRect(x: 0, y: 0, width: size.width, height: size.height), afterScreenUpdates: true)
         }
 
         if let overrideFrame = overrideFrame,
@@ -239,18 +239,14 @@ public struct FlowLink<Label>: View where Label: View {
         let scale = inputImage.scale
 
         // Scale cropRect relative to image scale
-        let cropZone = CGRect(x:cropRect.origin.x * scale,
-                              y:cropRect.origin.y * scale,
-                              width:cropRect.size.width * scale,
-                              height:cropRect.size.height * scale)
+        let cropZone = CGRect(x: cropRect.origin.x * scale,
+                              y: cropRect.origin.y * scale,
+                              width: cropRect.size.width * scale,
+                              height: cropRect.size.height * scale)
 
 
         // Perform cropping in Core Graphics
-        guard let cutImageRef: CGImage = inputImage.cgImage?.cropping(to:cropZone)
-        else {
-            return nil
-        }
-
+        guard let cutImageRef: CGImage = inputImage.cgImage?.cropping(to:cropZone) else { return nil }
 
         // Return image to UIImage
         let croppedImage: UIImage = UIImage(cgImage: cutImageRef)
