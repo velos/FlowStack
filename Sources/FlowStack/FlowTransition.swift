@@ -163,20 +163,10 @@ extension AnyTransition {
                         isEnded = false
                         panOffset = offset
                     }, onEnded: { isDismissing in
-                        if #available(iOS 17, *) {
-                            withAnimation(transaction.animation, completionCriteria: .removed) {
-                                panOffset = .zero
-                                isEnded = true
-                            } completion: {
-                                if !isDismissing {
-                                    snapCornerRadiusZero = true
-                                }
-                            }
-                        } else {
-                            withTransaction(transaction) {
-                                panOffset = .zero
-                                isEnded = true
-                            }
+                        // TODO: FS-34: Handle snap corner radius 0 on interactive dismiss cancel
+                        withTransaction(transaction) {
+                            panOffset = .zero
+                            isEnded = true
                         }
                     })
                     .onPreferenceChange(InteractiveDismissDisabledKey.self) { isDisabled in
