@@ -14,6 +14,7 @@ struct ProductRow: View {
 
     var body: some View {
         image(url: product.imageUrl)
+            .allowsHitTesting(false)
             .aspectRatio(4 / 3, contentMode: .fill)
             .overlay(alignment: .topTrailing) {
                 Text(product.name)
@@ -30,7 +31,7 @@ struct ProductRow: View {
             image
                 .resizable()
                 .scaledToFill()
-                .frame(minHeight: 0)
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
         } placeholder: {
             Color(uiColor: .secondarySystemFill)
         }
