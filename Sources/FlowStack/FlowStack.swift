@@ -137,13 +137,14 @@ public struct FlowStack<Root: View, Overlay: View>: View {
             overlay()
                 .environment(\.flowDepth, -1)
         }
-        .animation(animation, value: pathToUse.wrappedValue)
-        .environment(\.flowPath, pathToUse.transaction(transaction))
+        .environment(\.flowPath, pathToUse)
         .environment(\.flowTransaction, transaction)
         .environmentObject(destinationLookup)
         .environment(\.flowDismiss, FlowDismissAction(
             onDismiss: {
-                pathToUse.wrappedValue.removeLast()
+                withTransaction(transaction) {
+                    pathToUse.wrappedValue.removeLast()
+                }
             })
         )
     }

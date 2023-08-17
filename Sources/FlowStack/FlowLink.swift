@@ -164,8 +164,9 @@ public struct FlowLink<Label>: View where Label: View {
     private var value: (any (Equatable & Hashable))?
     private var configuration: Configuration
 
-    @SwiftUI.Environment(\.flowPath) private var path
-    @SwiftUI.Environment(\.flowDepth) private var flowDepth
+    @Environment(\.flowPath) private var path
+    @Environment(\.flowDepth) private var flowDepth
+    @Environment(\.flowTransaction) private var transaction
 
     @State private var overrideAnchor: Anchor<CGRect>?
 
@@ -268,7 +269,9 @@ public struct FlowLink<Label>: View where Label: View {
                     }
 
                     if let value = value {
-                        path?.wrappedValue.append(value, context: context)
+                        withTransaction(transaction) {
+                            path?.wrappedValue.append(value, context: context)
+                        }
                     }
                 }
             }

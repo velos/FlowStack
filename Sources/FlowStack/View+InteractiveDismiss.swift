@@ -41,7 +41,7 @@ struct InteractiveDismissContainer<T: View>: UIViewControllerRepresentable {
     var onPan: (CGPoint) -> Void
     var isEnabled: Bool
     var isDismissing: Bool
-    var perform: () -> Void
+    var onDismiss: () -> Void
     var onEnded: (Bool) -> Void
 
     let content: T
@@ -56,7 +56,7 @@ struct InteractiveDismissContainer<T: View>: UIViewControllerRepresentable {
     }
 
     func makeCoordinator() -> InteractiveDismissCoordinator {
-        InteractiveDismissCoordinator(threshold: threshold, onPan: onPan, isEnabled: isEnabled, isDismissing: isDismissing, perform: perform, onEnded: onEnded)
+        InteractiveDismissCoordinator(threshold: threshold, onPan: onPan, isEnabled: isEnabled, isDismissing: isDismissing, onDismiss: onDismiss, onEnded: onEnded)
     }
 }
 
@@ -133,7 +133,7 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
             handleDismiss()
         }
     }
-    var perform: () -> Void
+    var onDismiss: () -> Void
     var onEnded: (Bool) -> Void
 
     @SwiftUI.Environment(\.flowDismiss) var flowDismiss
@@ -167,13 +167,13 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
         }
     }
 
-    init(threshold: Double, onPan: @escaping (CGPoint) -> Void, isEnabled: Bool, isDismissing: Bool, perform: @escaping () -> Void, onEnded: @escaping (Bool) -> Void) {
+    init(threshold: Double, onPan: @escaping (CGPoint) -> Void, isEnabled: Bool, isDismissing: Bool, onDismiss: @escaping () -> Void, onEnded: @escaping (Bool) -> Void) {
         self.threshold = threshold
 
         self.onPan = onPan
         self.isEnabled = isEnabled
         self.isDismissing = isDismissing
-        self.perform = perform
+        self.onDismiss = onDismiss
         self.onEnded = onEnded
 
         self.impactGenerator = UIImpactFeedbackGenerator(style: .medium)
@@ -221,7 +221,7 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
         if hasEnded {
             if shouldDismiss {
                 isEnabled = false
-                perform()
+                onDismiss()
                 isPastThreshold = false
             }
 
@@ -273,7 +273,7 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
 }
 
 extension View {
-    func onInteractiveDismissGesture(threshold: Double = 50, isEnabled: Bool = true, isDismissing: Bool = false, perform: @escaping () -> Void, onPan: @escaping (CGPoint) -> Void = { _ in }, onEnded: @escaping (Bool) -> Void = { _ in }) -> some View {
-        InteractiveDismissContainer(threshold: threshold, onPan: onPan, isEnabled: isEnabled, isDismissing: isDismissing, perform: perform, onEnded: onEnded, content: self)
+    func onInteractiveDismissGesture(threshold: Double = 50, isEnabled: Bool = true, isDismissing: Bool = false, onDismiss: @escaping () -> Void, onPan: @escaping (CGPoint) -> Void = { _ in }, onEnded: @escaping (Bool) -> Void = { _ in }) -> some View {
+        InteractiveDismissContainer(threshold: threshold, onPan: onPan, isEnabled: isEnabled, isDismissing: isDismissing, onDismiss: onDismiss, onEnded: onEnded, content: self)
     }
 }
