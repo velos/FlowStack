@@ -1,6 +1,6 @@
 <img src="Logo.svg" height="144">
 
-**FlowStack** is a SwiftUI library for creating stack-based navigation with "flow" (aka "zooming") transition animations and interactive pull-to-dismiss gestures. FlowStack's API is modeled after Apple's [NavigationStack](https://developer.apple.com/documentation/swiftui/navigationstack) making it easy and intuitive to add FlowStack to a new project or migrate an existing project currently using NavigationStack.
+**FlowStack** is a SwiftUI library for creating stack-based navigation with "flow" (aka "zooming") transition animations and interactive pull-to-dismiss gestures. FlowStack's API is modeled after Apple's [NavigationStack](https://developer.apple.com/documentation/swiftui/navigationstack), and though no prior experience with NavigationStack is required to get started with FlowStack, the similarities in use make it easy and intuitive to add FlowStack to a new project or migrate an existing project currently using NavigationStack. An added bonus is that FlowStack is compatible with iOS 15+ where NavigationStack is only available for iOS 16+.
 
 [![License](https://img.shields.io/badge/License-MIT-black.svg)](https://github.com/velos/FlowStack/blob/develop/LICENSE)
 ![Xcode 15.0+](https://img.shields.io/badge/Xcode-14.0+-blue.svg)
@@ -74,8 +74,36 @@ As with NavigationStack, FlowStack can support different data and view types in 
 
 ## Manage naviagtion state
 
-// TODO...
-Example: Provide FlowPath binding (vs. internally managed path)
+By default, a flow stack manages state for any view contained, added or removed from the stack. If you need direct access and control of the state, you can create a binding to a FlowPath and initialize a flow stack with the flow path binding.
+
+```swift
+@State var flowPath = FlowPath()
+...
+
+FlowStack(path: $flowPath) {
+    ScrollView {
+        LazyVStack(alignment: .center, spacing: 24, pinnedViews: [], content: {
+            ForEach(Product.allProducts) { product in
+                FlowLink(value: product, configuration: .init(cornerRadius: cornerRadius)) {
+                    ProductRow(product: product, cornerRadius: cornerRadius)
+                }
+            }
+        })
+        .padding(.horizontal)
+    }
+    .flowDestination(for: Product.self) { product in
+        ProductDetails(product: product)
+    }
+}
+```
+
+As views are added and removed from the stack, the flow path is updated accordingly. This allows for observation of the flow path if needed as well as the ability to programmatically add and remove items and their associated views from the stack. For example, programmatically presenting a new park detail can be done by simply appending a new park to the flow path.
+
+```swift
+func present(product: Product) {
+    flowPath.append(product)
+}
+```
 
 ## Animation anchors
 
