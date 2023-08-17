@@ -14,7 +14,7 @@ struct ProductRow: View {
 
     var body: some View {
         image(url: product.imageUrl)
-            .allowsHitTesting(false)
+            .allowsHitTesting(false) // https://stackoverflow.com/a/74711565
             .aspectRatio(4 / 3, contentMode: .fill)
             .overlay(alignment: .topTrailing) {
                 Text(product.name)
