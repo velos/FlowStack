@@ -17,7 +17,7 @@ To integrate using Apple's Swift package manager, add the following as a depende
 .package(url: "https://github.com/velos/FlowStack.git", .branch("develop"))
 ```
 
-## Getting Started
+## Getting started
 
 **Setting up and working with FlowStack is *very* similar to Apple's own NavigationStack:**
 
@@ -135,7 +135,29 @@ FlowLink(value: park, configuration: .init(cornerRadius: cornerRadius)) {
 }
 ```
 
-## Image Snapshots
+## Animating views alongside transition animation
+
+FlowStack provides a default transition animation when presenting a destination view, however sometimes it's desirable to add additional animations to specific view elements within the presented view during the transition; for example, you may want a "close" button or other text to fade in during presentation and fade out when the view is dismissed. To do this, just add a **withFlowAnimation(onPresent:onDismiss:)** modifier to your destination view and update the properties you want to animate respectively in the **onPresent** and **onDismiss** handlers.
+
+```swift
+@State var opacity: CGFloat = 0
+...
+
+// Destination view
+VStack {
+    image(url: park.imageUrl)
+    
+    Text(park.description)
+        .opacity(opacity) // <- Opacity for description text
+}
+.withFlowAnimation {
+    opacity = 1 // <- Animates alongside the flow transition presentation
+} onDismiss: {
+    opacity = 0 // <- Animates alongside the flow transition dismissal
+}
+```
+
+## Image snapshots
 
 When displaying async images within a FlowLink, use [CachedAsyncImage](https://github.com/lorenzofiamingo/swiftui-cached-async-image) (included in the *FlowStack* library) instead of SwiftUI's provided [AsyncImage](https://developer.apple.com/documentation/swiftui/asyncimage). AsyncImage does not cache fetched images and as a result, will not load a previously fetched image fast enough to be included in transition snapshots (i.e. when `transitionFromSnapshot: true` in FlowLink Configuration).
 
