@@ -135,7 +135,7 @@ FlowLink(value: park, configuration: .init(cornerRadius: cornerRadius)) {
 }
 ```
 
-## Animating views alongside transition animation
+## Animating views alongside flow transition
 
 FlowStack provides a default transition animation when presenting a destination view, however sometimes it's desirable to add additional animations to specific view elements within the presented view during the transition; for example, you may want a "close" button or other text to fade in during presentation and fade out when the view is dismissed. To do this, just add a **withFlowAnimation(onPresent:onDismiss:)** modifier to your destination view and update the properties you want to animate respectively in the **onPresent** and **onDismiss** handlers.
 
