@@ -77,10 +77,10 @@ As with NavigationStack, FlowStack can support different data and view types in 
 By default, any view presented in the flow stack allows the user to drag to interactively dismiss the view. To dismiss a presented view programmatically, simply access the **flowDismiss** object from the environment and call it to dismiss the view.
 
 ```swift
+// Destination View
 @Environment(\.flowDismiss) var flowDismiss
 ...
 
-// Destination View
 Button("Dismiss") {
     flowDismiss()
 }
@@ -154,10 +154,10 @@ FlowLink(value: park, configuration: .init(cornerRadius: cornerRadius)) {
 FlowStack provides a default transition animation when presenting a destination view, however sometimes it's desirable to add additional animations to specific view elements within the presented view during the transition; for example, you may want a "close" button or other text to fade in during presentation and fade out when the view is dismissed. To do this, just add a **withFlowAnimation(onPresent:onDismiss:)** modifier to your destination view and update the properties you want to animate respectively in the **onPresent** and **onDismiss** handlers.
 
 ```swift
+// Destination view
 @State var opacity: CGFloat = 0
 ...
 
-// Destination view
 VStack {
     image(url: park.imageUrl)
     
@@ -165,9 +165,9 @@ VStack {
         .opacity(opacity) // <- Opacity for description text
 }
 .withFlowAnimation {
-    opacity = 1 // <- Animates alongside the flow transition presentation
+    opacity = 1 // <- Animates with the flow transition presentation
 } onDismiss: {
-    opacity = 0 // <- Animates alongside the flow transition dismissal
+    opacity = 0 // <- Animates with the flow transition dismissal
 }
 ```
 
