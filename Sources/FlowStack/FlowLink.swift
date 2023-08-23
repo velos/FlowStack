@@ -48,6 +48,9 @@ struct AnimationAnchorModifier: ViewModifier {
 }
 
 public extension View {
+
+    /// Configures the view as the origin for flow transition animations.
+    /// If the transition uses a snapshot, the snapshot will only contain the contents of the view.
     func flowAnimationAnchor() -> some View {
         modifier(AnimationAnchorModifier())
     }
@@ -125,15 +128,95 @@ extension View {
     }
 }
 
+/// A view that controls a navigation presentation.
+///
+/// People click or tap a flow link to present a view inside a
+/// `FlowStack`.
+///
+/// You control the visual appearance of the link by providing view content
+/// in the link's `label` closure. The flow transition appearance can also be
+/// customized using a `FlowLink.Configuration` object.
+///
+/// Flow navigation is performed based on a presented data value. To support this, use the
+/// `View/flowDestination(for:destination:)` view modifier inside a flow stack
+/// to associate a view with a kind of data, and then present a value of that
+/// data type from a flow link. The following example FlowStack presents a corresponding
+/// `ParkDetails(park:)` view any time a person taps a `FlowLink`.
+///
+///     FlowStack {
+///         ScrollView {
+///             LazyVStack {
+///                 ForEach(parks) { park in
+///                     FlowLink(value: park, configuration: .init(cornerRadius: cornerRadius)) {
+///                         ParkRow(park: park, cornerRadius: cornerRadius)
+///                     }
+///                 }
+///             }
+///             .padding(.horizontal)
+///         }
+///         .flowDestination(for: Park.self) { park in
+///             ParkDetails(park: park)
+///         }
+///     }
+///
+///**Control a flow link programmatically**
+///
+/// Separating the view from the data facilitates programmatic navigation
+/// because you can manage navigation state by manually adding or removing presented data.
+///
+/// To navigate programmatically, introduce a state variable that tracks the `FlowPath`.
+///
+///     @State var flowPath = FlowPath()
+///
+/// Then pass a `Binding` to the state to the flow stack:
+///
+///     FlowStack(path: $flowPath) {
+///         // ...
+///     }
+///
+/// You can modify the flow path to change the contents of the stack. For example,
+/// you can programmatically add a park to the flow path, and
+/// navigation to a new park detail view using the following method:
+///
+///     func showJoshuaTree() {
+///         flowPath.append(Park(name: "Joshua Tree"))
+///     }
 public struct FlowLink<Label>: View where Label: View {
 
+    /// The zoom style applied to transitions to and from a destination view.
     public enum ZoomStyle {
+
+        /// Scales the view contents in proportion to the view frame.
+        ///
+        /// Use this when you want a presented view's contents to maintain it's
+        /// relative proportion and position during a transition. For example, allows
+        /// views with multi-line text to maintain a consistent layout, avoiding line-break/word wrapping
+        /// re-configuring during transitions.
         case scaleHorizontally
+
+        /// Resizes the destination view frame during transitions
+        /// while maintaining the original scale of the contents.
+        ///
+        /// As a result, the layout of the contents may adjust during
+        /// transitions which may not be desirable for views containing
+        /// multi-line text, as the placement of line-breaks/wrapping
+        /// may change during transitions.
         case resize
     }
 
+    /// A configuration object that defines behavior and appearance for a flow transition.
     public struct Configuration {
 
+        /// Creates a configuration with the specified parameters.
+        /// - Parameters:
+        ///   - animateFromAnchor: Whether the destination view should transition from the associated flow link's bounds or flow link animation anchor.
+        ///   - transitionFromSnapshot: Whether a snapshot image of the flow link label contents should be used during a transition.
+        ///   - cornerRadius: The corner radius applied the transitioning destination view. This typically matches the corner style of the flow link contents or flow link animation anchor.
+        ///   - cornerStyle: The corner radius applied the transitioning destination view. This typically matches the corner style of the flow link contents or flow link animation anchor.
+        ///   - shadowRadius: The shadow radius applied to the transitioning destination view.
+        ///   - shadowColor: The shadow color applied to the transitioning destination view.
+        ///   - shadowOffset: The shadow offset applied to the transitioning destination view.
+        ///   - zoomStyle: The zoom style applied to the transitioning destination view
         public init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally) {
             self.animateFromAnchor = animateFromAnchor
             self.transitionFromSnapshot = transitionFromSnapshot
@@ -173,6 +256,22 @@ public struct FlowLink<Label>: View where Label: View {
     @State private var overrideFrame: CGRect?
     @State private var context: PathContext?
 
+    /// Creates a flow link that presents the view corresponding to a value.
+    ///
+    /// When someone activates the flow link that this initializer
+    /// creates, SwiftUI looks for a nearby
+    /// `View/flowDestination(for:destination:)` view modifier
+    /// with a `data` input parameter that matches the type of this
+    /// initializer's `value` input.
+    ///
+    /// If SwiftUI finds a matching modifier within the view hierarchy of an
+    /// enclosing `FlowStack`, it adds the modifier's corresponding
+    /// `destination` view onto the stack. Otherwise, the link doesn't do anything.
+    ///
+    /// - Parameters:
+    ///   - value: An optional value to present.
+    ///   - configuration: An object that allows for customization of the flow transition appearance. For example, matching the transition corner radius with that of the FlowLink Label contents.
+    ///   - label: A label that describes the view that this link presents.
     public init<P>(value: P?, configuration: Configuration = .init(), @ViewBuilder label: @escaping () -> Label) where P: Hashable, P: Equatable {
         self.label = label
         self.value = value
