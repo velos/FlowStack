@@ -29,6 +29,9 @@ struct InteractiveDismissDisabledKey: PreferenceKey {
 }
 
 public extension View {
+
+    /// A modifier that allows for disabling or enabling interactive dismiss functionality for the view.
+    /// - Parameter isDisabled: A `bool` that that determines if interactive dismiss functionality should be disabled for the view.
     func flowInteractiveDismissDisabled(_ isDisabled: Bool = true) -> some View {
         preference(key: InteractiveDismissDisabledKey.self, value: isDisabled)
     }
