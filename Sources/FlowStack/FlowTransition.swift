@@ -14,10 +14,11 @@ extension EnvironmentValues {
     }
 }
 
-public struct OpacityTransitionKey: EnvironmentKey {
-    public static let defaultValue: CGFloat = 0
+struct OpacityTransitionKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
 }
 
+/// An action that dismisses the current presented view.
 public struct FlowDismissAction {
     var onDismiss: () -> Void = { }
 
@@ -33,8 +34,8 @@ public extension EnvironmentValues {
     }
 }
 
-public struct FlowDismissActionKey: EnvironmentKey {
-    public static let defaultValue: FlowDismissAction = .init()
+struct FlowDismissActionKey: EnvironmentKey {
+    static let defaultValue: FlowDismissAction = .init()
 }
 
 extension AnyTransition {
