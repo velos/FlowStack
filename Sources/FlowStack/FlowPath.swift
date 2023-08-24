@@ -23,7 +23,7 @@ extension CGPoint: Hashable {
     }
 }
 
-public struct PathContext: Equatable, Hashable {
+struct PathContext: Equatable, Hashable {
     var anchor: Anchor<CGRect>?
     var overrideAnchor: Anchor<CGRect>?
 
@@ -60,6 +60,7 @@ struct FlowElement: Equatable, Hashable {
     }
 }
 
+/// A type-erased list of data representing the content of a flow stack.
 public struct FlowPath: Equatable, Hashable {
 
     var elements: [FlowElement]
@@ -68,11 +69,12 @@ public struct FlowPath: Equatable, Hashable {
         elements = []
     }
 
-    public var isEmpty: Bool {
+    var isEmpty: Bool {
         elements.isEmpty
     }
 
-    var count: Int {
+    /// The number of elements in the flow path.
+    public var count: Int {
         elements.count
     }
 
@@ -80,13 +82,22 @@ public struct FlowPath: Equatable, Hashable {
         return elements.contains { $0 == FlowElement(value: element, context: $0.context, index: level ?? $0.index) }
     }
 
+    /// Removes the specified number of elements from the end of the flow path.
+    /// - Parameter count: The number of elements to remove from the collection. Count must be greater than or equal to zero and must not exceed the number of elements in the flow path.
     public mutating func removeLast(_ count: Int = 1) {
         guard !isEmpty else { return }
         elements.removeLast(count)
     }
 
-    public mutating func append<P>(_ newElement: P, context: PathContext? = nil) where P: Hashable {
+    mutating func append<P>(_ newElement: P, context: PathContext?) where P: Hashable {
         self.elements.append(.init(value: newElement, context: context, index: elements.count))
+    }
+
+    /// Adds a new element at the end of the flow path.
+    /// - Parameters:
+    ///   - newElement: The element to append to the flow path.
+    public mutating func append<P>(_ newElement: P) where P: Hashable {
+        self.append(newElement, context: nil)
     }
 }
 

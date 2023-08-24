@@ -24,13 +24,13 @@ class DestinationLookup: ObservableObject {
     @Published var table: [String: AnyDestination] = [:]
 }
 
-public struct FlowDestinationModifier<D: Hashable>: ViewModifier {
+struct FlowDestinationModifier<D: Hashable>: ViewModifier {
     @State var dataType: D.Type
     @State var destination: AnyDestination
 
     @EnvironmentObject var destinationLookup: DestinationLookup
 
-    public func body(content: Content) -> some View {
+    func body(content: Content) -> some View {
         content
             // swiftlint:disable:next force_unwrapping
             .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
@@ -38,6 +38,48 @@ public struct FlowDestinationModifier<D: Hashable>: ViewModifier {
 }
 
 public extension View {
+
+    /// Associates a destination view with a presented data type for use within
+    /// a flow stack.
+    ///
+    /// Add this modifier to a view inside a `FlowStack` to
+    /// specify the target view that the stack should display when presenting
+    /// a certain type of data.
+    ///
+    /// Use a `FlowLink` to present the data. For example, you can present
+    /// a `ParkDetail` view for each presentation of a `Park` instance:
+    ///
+    ///     FlowStack {
+    ///         ScrollView {
+    ///             LazyVStack {
+    ///                 ForEach(parks) { park in
+    ///                     FlowLink(value: park, configuration: .init(cornerRadius: cornerRadius)) {
+    ///                         ParkRow(park: park, cornerRadius: cornerRadius)
+    ///                     }
+    ///                 }
+    ///             }
+    ///             .padding(.horizontal)
+    ///         }
+    ///         .flowDestination(for: Park.self) { park in
+    ///             ParkDetails(park: park)
+    ///         }
+    ///     }
+    ///
+    /// You can add more than one flow destination modifier to the stack
+    /// if it needs to present more than one kind of data.
+    ///
+    /// Do not put a navigation destination modifier inside a "lazy" container,
+    /// like ``List`` or ``LazyVStack``. These containers create child views
+    /// only when needed to render on screen. Add the flow destination
+    /// modifier outside these containers so that the flow stack can
+    /// always see the destination.
+    ///
+    /// - Parameters:
+    ///   - data: The type of data that this destination matches.
+    ///   - destination: A view builder that defines a view to display
+    ///     when the stack's flow navigation state contains a value of
+    ///     type `data`. The closure takes one argument, which is the value
+    ///     of the data to present.
     func flowDestination<D, C>(for type: D.Type, @ViewBuilder destination: @escaping (D) -> C) -> some View where D: Hashable, C: View {
 
         let destination = AnyDestination(dataType: type, content: { param in
@@ -52,6 +94,76 @@ public extension View {
     }
 }
 
+/// A view that displays a root view and enables you to present additional
+/// views over the root view.
+///
+/// Use a flow stack to present a stack of views over a root view.
+/// People can add views to the top of the stack by tapping a
+/// `FlowLink`, and remove views using an interactive pull-to-dismiss gesture.
+/// The stack always displays the most recently added view that hasn't been removed,
+/// and doesn't allow the root view to be removed.
+///
+/// To create flow links, associate a view with a data type by adding a
+/// `flowDestination(for:destination:)` modifier inside
+/// the stack's view hierarchy. Then initialize a `FlowLink` that
+/// presents an instance of the same kind of data. The following stack displays
+/// a `ParkDetails` view for navigation links that present data of type `Park`:
+///
+///     FlowStack {
+///         ScrollView {
+///             LazyVStack {
+///                 ForEach(parks) { park in
+///                     FlowLink(value: park, configuration: .init(cornerRadius: cornerRadius)) {
+///                         ParkRow(park: park, cornerRadius: cornerRadius)
+///                     }
+///                 }
+///             }
+///             .padding(.horizontal)
+///         }
+///         .flowDestination(for: Park.self) { park in
+///             ParkDetails(park: park)
+///         }
+///     }
+///
+/// In this example, the `ScrollView` (which contains a list of parks) acts as
+/// the root view and is always present. Selecting a flow link from the list of parks
+/// adds a `ParkDetails` view to the stack, so that it covers the list of parks.
+/// Navigating back removes the detail view and reveals the list of parks again.
+/// The system disables interactive dismiss navigation when the stack is empty
+/// and the root view is visible.
+///
+/// **Manage flow navigation state**
+///
+/// By default, a flow stack manages state for any view contained, added or removed from the stack.
+/// If you need direct access and control of the state, you can create a binding to a FlowPath
+/// and initialize a flow stack with the flow path binding.
+///
+///     @State var flowPath = FlowPath()
+///     ...
+///
+///     FlowStack(path: $flowPath) {
+///         // ...
+///     }
+///
+/// Like before, when someone taps or clicks the flow link for a
+/// park, the stack displays the `ParkDetails` view using the associated park
+/// data. As views are added and removed from the stack, the flow path is updated accordingly.
+/// This allows for observation of the flow path if needed as well as the ability to
+/// programmatically add and remove items and their associated views from the stack.
+/// For example, programmatically presenting a park detail for "Joshua Tree" can be done by simply
+/// appending a new park to the flow path.
+///
+///     func showJoshuaTree() {
+///         flowPath.append(Park(name: "Joshua Tree"))
+///     }
+///
+/// **Navigate to different view types**
+///
+/// To create a stack that can present more than one kind of view, you can add
+/// multiple `flowDestination(for:destination:)` modifiers
+/// inside the stack's view hierarchy, with each modifier presenting a
+/// different data type. The stack matches flow links with flow
+/// destinations based on their respective data types.
 public struct FlowStack<Root: View, Overlay: View>: View {
 
     @Binding private var path: FlowPath
@@ -66,6 +178,12 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     @State private var destinationLookup: DestinationLookup = .init()
 
+    /// Creates a flow stack that manages its own navigation state.
+    /// - Parameters:
+    ///   - overlayAlignment: The alignment applied to the overlay.
+    ///   - animation: The animation to use during flow transitions.
+    ///   - root: The view to display when the stack is empty.
+    ///   - overlay: The view to overlay on the FlowStack. This view is always visible in front of any view presented by the flow stack.
     public init(overlayAlignment: Alignment = .center, animation: Animation = .defaultFlow, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
@@ -76,6 +194,13 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         self._path = Binding(get: { FlowPath() }, set: { _ in })
     }
 
+    /// Creates a flow stack with heterogeneous navigation state that you can control.
+    /// - Parameters:
+    ///   - path: A Binding to the flow path for this stack.
+    ///   - overlayAlignment: The alignment applied to the overlay.
+    ///   - animation: The animation to use during flow transitions.
+    ///   - root: The view to display when the stack is empty.
+    ///   - overlay: The view to overlay on the FlowStack. This view is always visible in front of any view presented by the flow stack.
     public init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, animation: Animation = .defaultFlow, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
@@ -151,6 +276,11 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 }
 
 public extension FlowStack where Overlay == EmptyView {
+
+    /// Creates a flow stack that manages its own navigation state.
+    /// - Parameters:
+    ///   - animation: The animation to use during flow transitions.
+    ///   - root: The view to display when the stack is empty.
     init(animation: Animation = .defaultFlow, @ViewBuilder root: @escaping () -> Root) {
         self.root = root
         self.overlay = { EmptyView() }
@@ -161,6 +291,11 @@ public extension FlowStack where Overlay == EmptyView {
         self.animation = animation
     }
 
+    /// Creates a flow stack with heterogeneous navigation state that you can control.
+    /// - Parameters:
+    ///   - path: A Binding to the flow path for this stack.
+    ///   - animation: The animation to use during flow transitions.
+    ///   - root: The view to display when the stack is empty.
     init(path: Binding<FlowPath>, animation: Animation = .defaultFlow, @ViewBuilder root: @escaping () -> Root) {
         self.root = root
         self.overlay = { EmptyView() }
@@ -174,7 +309,7 @@ struct FlowTransactionKey: EnvironmentKey {
     static var defaultValue: Transaction = Transaction()
 }
 
-public extension EnvironmentValues {
+extension EnvironmentValues {
     var flowTransaction: Transaction {
         get { self[FlowTransactionKey.self] }
         set { self[FlowTransactionKey.self] = newValue }
@@ -198,6 +333,8 @@ struct FlowStack_Previews: PreviewProvider {
 }
 
 public extension Animation {
+
+    /// The default animation to use during flow transitions.
     static var defaultFlow: Animation { .interpolatingSpring(stiffness: 500, damping: 35) }
 }
 
@@ -250,6 +387,34 @@ struct FlowTransactionModifier: ViewModifier {
 }
 
 public extension View {
+
+    /// Adds actions to perform with the flow animation of the view during transitions.
+    ///
+    /// FlowStack provides a default transition animation when
+    /// presenting a destination view, but sometimes it's desirable
+    /// to add additional animations to specific view elements within
+    /// the presented view during the transition.
+    ///
+    /// For example, you may want a "close" button or other view elements
+    /// to fade in during presentation and fade out when the view is dismissed.
+    /// To do this, add a `withFlowAnimation(onPresent:onDismiss:)`
+    /// modifier to your destination view and update the properties you want to
+    /// animate respectively in the `onPresent` and `onDismiss` handlers.
+    ///
+    ///     // Destination view
+    ///     @State var opacity: CGFloat = 0
+    ///     ...
+    ///
+    ///     VStack {
+    ///         image(url: park.imageUrl) // <- Example image loader using URL
+    ///         Text(park.description)
+    ///             .opacity(opacity) // <- Opacity for description text
+    ///     }
+    ///     .withFlowAnimation {
+    ///         opacity = 1 // <- Animates with the flow transition presentation
+    ///     } onDismiss: {
+    ///         opacity = 0 // <- Animates with the flow transition dismissal
+    ///     }
     func withFlowAnimation(onPresent: (() -> Void)? = nil, onDismiss: (() -> Void)? = nil) -> some View {
         self.modifier(FlowTransactionModifier(onPresent: onPresent, onDismiss: onDismiss))
     }

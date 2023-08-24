@@ -1,6 +1,6 @@
 <img src="Logo.svg" height="144">
 
-**FlowStack** is a SwiftUI library for creating stack-based navigation with "flow" (aka "zooming") transition animations and interactive pull-to-dismiss gestures. FlowStack's API is modeled after Apple's [NavigationStack](https://developer.apple.com/documentation/swiftui/navigationstack) making it easy and intuitive to add FlowStack to a new project or migrate an existing project currently using NavigationStack.
+**FlowStack** is a SwiftUI library for creating stack-based navigation with "flow" (aka "zooming") transition animations and interactive pull-to-dismiss gestures. FlowStack's API is modeled after Apple's [NavigationStack](https://developer.apple.com/documentation/swiftui/navigationstack), and though no prior experience with NavigationStack is required to get started with FlowStack, the similarities in use make it easy and intuitive to add FlowStack to a new project or migrate an existing project currently using NavigationStack. An added bonus is that FlowStack is compatible with iOS 15+ where NavigationStack is only available for iOS 16+.
 
 [![License](https://img.shields.io/badge/License-MIT-black.svg)](https://github.com/velos/FlowStack/blob/develop/LICENSE)
 ![Xcode 15.0+](https://img.shields.io/badge/Xcode-14.0+-blue.svg)
@@ -17,7 +17,7 @@ To integrate using Apple's Swift package manager, add the following as a depende
 .package(url: "https://github.com/velos/FlowStack.git", .branch("develop"))
 ```
 
-## Getting Started
+## Getting started
 
 **Setting up and working with FlowStack is *very* similar to Apple's own NavigationStack:**
 
@@ -72,10 +72,52 @@ FlowStack {
 
 As with NavigationStack, FlowStack can support different data and view types in the same stack. Simply add a new **flowDestination(for:destination:)** modifier to handle each data type you'd like to support via a given **FlowLink**.
 
+## Dismiss a presented view
+
+By default, any view presented in the flow stack allows the user to drag to interactively dismiss the view. To dismiss a presented view programmatically, simply access the **flowDismiss** object from the environment and call it to dismiss the view.
+
+```swift
+// Destination View
+@Environment(\.flowDismiss) var flowDismiss
+...
+
+Button("Dismiss") {
+    flowDismiss()
+}
+```
+
 ## Manage naviagtion state
 
-// TODO...
-Example: Provide FlowPath binding (vs. internally managed path)
+By default, a flow stack manages state for any view contained, added or removed from the stack. If you need direct access and control of the state, you can create a binding to a FlowPath and initialize a flow stack with the flow path binding.
+
+```swift
+@State var flowPath = FlowPath()
+...
+
+FlowStack(path: $flowPath) {
+    ScrollView {
+        LazyVStack(alignment: .center, spacing: 24, pinnedViews: [], content: {
+            ForEach(Product.allProducts) { product in
+                FlowLink(value: product, configuration: .init(cornerRadius: cornerRadius)) {
+                    ProductRow(product: product, cornerRadius: cornerRadius)
+                }
+            }
+        })
+        .padding(.horizontal)
+    }
+    .flowDestination(for: Product.self) { product in
+        ProductDetails(product: product)
+    }
+}
+```
+
+As views are added and removed from the stack, the flow path is updated accordingly. This allows for observation of the flow path if needed as well as the ability to programmatically add and remove items and their associated views from the stack. For example, programmatically presenting a new park detail can be done by simply appending a new park to the flow path.
+
+```swift
+func present(product: Product) {
+    flowPath.append(product)
+}
+```
 
 ## Animation anchors
 
@@ -107,7 +149,29 @@ FlowLink(value: park, configuration: .init(cornerRadius: cornerRadius)) {
 }
 ```
 
-## Image Snapshots
+## Animating views with flow animation
+
+FlowStack provides a default transition animation when presenting a destination view, however sometimes it's desirable to add additional animations to specific view elements within the presented view during the transition; for example, you may want a "close" button or other text to fade in during presentation and fade out when the view is dismissed. To do this, just add a **withFlowAnimation(onPresent:onDismiss:)** modifier to your destination view and update the properties you want to animate respectively in the **onPresent** and **onDismiss** handlers.
+
+```swift
+// Destination view
+@State var opacity: CGFloat = 0
+...
+
+VStack {
+    image(url: park.imageUrl)
+    
+    Text(park.description)
+        .opacity(opacity) // <- Opacity for description text
+}
+.withFlowAnimation {
+    opacity = 1 // <- Animates with the flow transition presentation
+} onDismiss: {
+    opacity = 0 // <- Animates with the flow transition dismissal
+}
+```
+
+## Image snapshots
 
 When displaying async images within a FlowLink, use [CachedAsyncImage](https://github.com/lorenzofiamingo/swiftui-cached-async-image) (included in the *FlowStack* library) instead of SwiftUI's provided [AsyncImage](https://developer.apple.com/documentation/swiftui/asyncimage). AsyncImage does not cache fetched images and as a result, will not load a previously fetched image fast enough to be included in transition snapshots (i.e. when `transitionFromSnapshot: true` in FlowLink Configuration).
 

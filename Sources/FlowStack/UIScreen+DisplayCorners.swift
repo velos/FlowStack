@@ -23,7 +23,7 @@ extension UIScreen {
 
     /// The corner radius of the display. Uses a private property of `UIScreen`,
     /// and may report 0 if the API changes.
-    public static var displayCornerRadius: CGFloat? = {
+    static var displayCornerRadius: CGFloat? = {
 
         guard let screen = UIWindowScene.firstForegroundScene?.screen else {
             return nil
