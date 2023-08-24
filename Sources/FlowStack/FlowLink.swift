@@ -138,8 +138,8 @@ extension View {
 /// customized using a `FlowLink.Configuration` object.
 ///
 /// Flow navigation is performed based on a presented data value. To support this, use the
-/// `View/flowDestination(for:destination:)` view modifier inside a flow stack
-/// to associate a view with a kind of data, and then present a value of that
+/// `flowDestination(for:destination:)` view modifier inside a flow stack
+/// to associate a view with a type of data, and then present a value of that
 /// data type from a flow link. The following example FlowStack presents a corresponding
 /// `ParkDetails(park:)` view any time a person taps a `FlowLink`.
 ///
@@ -175,8 +175,7 @@ extension View {
 ///     }
 ///
 /// You can modify the flow path to change the contents of the stack. For example,
-/// you can programmatically add a park to the flow path, and
-/// navigation to a new park detail view using the following method:
+/// the following method allows for programmatic navigation to a new park detail view:
 ///
 ///     func showJoshuaTree() {
 ///         flowPath.append(Park(name: "Joshua Tree"))
@@ -204,18 +203,18 @@ public struct FlowLink<Label>: View where Label: View {
         case resize
     }
 
-    /// A configuration object that defines behavior and appearance for a flow transition.
+    /// A configuration object that defines behavior and appearance for a flow navigation transition.
     public struct Configuration {
 
         /// Creates a configuration with the specified parameters.
         /// - Parameters:
-        ///   - animateFromAnchor: Whether the destination view should transition from the associated flow link's bounds or flow link animation anchor.
-        ///   - transitionFromSnapshot: Whether a snapshot image of the flow link label contents should be used during a transition.
-        ///   - cornerRadius: The corner radius applied the transitioning destination view. This typically matches the corner style of the flow link contents or flow link animation anchor.
-        ///   - cornerStyle: The corner radius applied the transitioning destination view. This typically matches the corner style of the flow link contents or flow link animation anchor.
-        ///   - shadowRadius: The shadow radius applied to the transitioning destination view.
-        ///   - shadowColor: The shadow color applied to the transitioning destination view.
-        ///   - shadowOffset: The shadow offset applied to the transitioning destination view.
+        ///   - animateFromAnchor: Whether the destination view should transition visually from the bounds of the associated flow link contents or flow link animation anchor.
+        ///   - transitionFromSnapshot: Whether a snapshot image of the flow link contents should be used during a transition.
+        ///   - cornerRadius: The corner radius applied to the transitioning destination view. This value should typically match the corner radius of the flow link contents or flow link animation anchor for visual consistency.
+        ///   - cornerStyle: The corner style applied to the transitioning destination view. This value should typically match the corner style of the flow link contents or flow link animation anchor for visual consistency.
+        ///   - shadowRadius: The shadow radius applied to the transitioning destination view. This value should typically match the shadow radius of the flow link contents or flow link animation anchor for visual consistency.
+        ///   - shadowColor: The shadow color applied to the transitioning destination view. This value should typically match the shadow color of the flow link contents or flow link animation anchor for visual consistency.
+        ///   - shadowOffset: The shadow offset applied to the transitioning destination view. This value should typically match the shadow offset of the flow link contents or flow link animation anchor for visual consistency.
         ///   - zoomStyle: The zoom style applied to the transitioning destination view
         public init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally) {
             self.animateFromAnchor = animateFromAnchor
@@ -259,8 +258,8 @@ public struct FlowLink<Label>: View where Label: View {
     /// Creates a flow link that presents the view corresponding to a value.
     ///
     /// When someone activates the flow link that this initializer
-    /// creates, SwiftUI looks for a nearby
-    /// `View/flowDestination(for:destination:)` view modifier
+    /// creates, FlowStack looks for a nearby
+    /// `flowDestination(for:destination:)` view modifier
     /// with a `data` input parameter that matches the type of this
     /// initializer's `value` input.
     ///

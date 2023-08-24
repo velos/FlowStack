@@ -42,11 +42,12 @@ public extension View {
     /// Associates a destination view with a presented data type for use within
     /// a flow stack.
     ///
-    /// Add this view modifer to a view inside a `FlowStack` to
-    /// describe the view that the stack displays when presenting
-    /// a particular kind of data. Use a `FlowLink` to present
-    /// the data. For example, you can present a `ParkDetail` view for
-    /// each presentation of a `Park` instance:
+    /// Add this modifier to a view inside a `FlowStack` to
+    /// specify the target view that the stack should display when presenting
+    /// a certain type of data.
+    ///
+    /// Use a `FlowLink` to present the data. For example, you can present
+    /// a `ParkDetail` view for each presentation of a `Park` instance:
     ///
     ///     FlowStack {
     ///         ScrollView {
@@ -103,7 +104,7 @@ public extension View {
 /// and doesn't allow the root view to be removed.
 ///
 /// To create flow links, associate a view with a data type by adding a
-/// `View/flowDestination(for:destination:)` modifier inside
+/// `flowDestination(for:destination:)` modifier inside
 /// the stack's view hierarchy. Then initialize a `FlowLink` that
 /// presents an instance of the same kind of data. The following stack displays
 /// a `ParkDetails` view for navigation links that present data of type `Park`:
@@ -159,7 +160,7 @@ public extension View {
 /// **Navigate to different view types**
 ///
 /// To create a stack that can present more than one kind of view, you can add
-/// multiple `View/flowDestination(for:destination:)` modifiers
+/// multiple `flowDestination(for:destination:)` modifiers
 /// inside the stack's view hierarchy, with each modifier presenting a
 /// different data type. The stack matches flow links with flow
 /// destinations based on their respective data types.
@@ -389,22 +390,22 @@ public extension View {
     /// Adds actions to perform with the flow animation of the view during transitions.
     ///
     /// FlowStack provides a default transition animation when
-    /// presenting a destination view, however sometimes it's desirable
+    /// presenting a destination view, but sometimes it's desirable
     /// to add additional animations to specific view elements within
     /// the presented view during the transition.
     ///
     /// For example, you may want a "close" button or other view elements
     /// to fade in during presentation and fade out when the view is dismissed.
-    /// To do this, just add a **withFlowAnimation(onPresent:onDismiss:)**
+    /// To do this, add a `withFlowAnimation(onPresent:onDismiss:)`
     /// modifier to your destination view and update the properties you want to
-    /// animate respectively in the **onPresent** and **onDismiss** handlers.
+    /// animate respectively in the `onPresent` and `onDismiss` handlers.
     ///
     ///     // Destination view
     ///     @State var opacity: CGFloat = 0
     ///     ...
     ///
     ///     VStack {
-    ///         image(url: park.imageUrl)
+    ///         image(url: park.imageUrl) // <- Example image loader using URL
     ///         Text(park.description)
     ///             .opacity(opacity) // <- Opacity for description text
     ///     }
