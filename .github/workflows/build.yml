@@ -13,5 +13,5 @@ jobs:
       - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
       - run: echo "🖥️ The workflow is now ready to test your code on the runner."
       - run: echo "🛠️ Begin build"
-      # - run: xcodebuild -scheme FlowStack -destination 'platform=iOS Simulator,OS=latest,name=iPhone 14 Pro'
-      - run: echo "🍏 Job status: ${{ job.status }}."
+      - run: xcodebuild -scheme FlowStack -destination 'platform=iOS Simulator,OS=latest,name=iPhone 14 Pro'
+      - run: echo "🍏 Job status is ${{ job.status }}."
