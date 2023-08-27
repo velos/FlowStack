@@ -14,5 +14,5 @@ jobs:
       - run: echo "🖥️ The workflow is now ready to test your code on the runner."
       - name: List files in the repository
         run: |
-          ls ${{ github.workspace }}
-      - run: echo "🍏 This job's status is ${{ job.status }}."
+          xcodebuild -scheme FlowStack -destination 'platform=iOS Simulator,OS=latest,name=iPhone 14 Pro'
+      - run: echo "🍏 Job status: ${{ job.status }}."
