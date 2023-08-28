@@ -17,4 +17,5 @@ jobs:
         with:
           platform: iOS
           action: build
-          scheme: FlowStackExample
+          working-directory: FlowStackExample
+          # scheme: FlowStackExample
