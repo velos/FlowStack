@@ -17,5 +17,5 @@ jobs:
         with:
           platform: iOS
           action: build
-          working-directory: FlowStackExample
+          workspace: FlowStackExample/FlowStackExample.xcodeproj/project.xcworkspace
           # scheme: FlowStackExample
