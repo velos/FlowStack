@@ -16,7 +16,7 @@ jobs:
       - name: mxcl/Xcodebuild
         uses: mxcl/xcodebuild@v2.0.0
         with:
-          xcode: '14.3'
+          # xcode: '14.3'
           platform: iOS
           action: build
           # swift: '5.8'
