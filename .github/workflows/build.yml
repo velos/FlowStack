@@ -17,3 +17,4 @@ jobs:
         with:
           platform: iOS
           action: build
+          scheme: FlowStackExample
