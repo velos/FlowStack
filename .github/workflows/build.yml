@@ -7,7 +7,7 @@ on:
     branches:
       - main
 jobs:
-  build:
+  build-example-project:
     runs-on: macos-latest
     steps:
       - name: Checkout
@@ -19,3 +19,13 @@ jobs:
           action: build
           workspace: FlowStackExample/FlowStackExample.xcodeproj/project.xcworkspace
           scheme: FlowStackExample
+  build-package:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.6.0
+      - name: mxcl/Xcodebuild
+        uses: mxcl/xcodebuild@v2.0.0
+        with:
+          platform: iOS
+          action: build  
