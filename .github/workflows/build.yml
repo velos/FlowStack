@@ -4,19 +4,13 @@ on: [push]
 jobs:
   build:
     runs-on: macos-latest
-    strategy:
-      matrix:
-        platform:
-          - iOS
-        swift:
-          - '5.8'
     steps:
       - name: Checkout
         uses: actions/checkout@v3.6.0
       - name: mxcl/Xcodebuild
         uses: mxcl/xcodebuild@v2.0.0
         with:
-          platform: ${{ matrix.platform }}
+          platform: iOS
           action: build
-          swift: ${{ matrix.swift }}
+          swift: '5.8'
       - run: echo "🍏 Job status is ${{ job.status }}."
