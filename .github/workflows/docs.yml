@@ -1,7 +1,7 @@
 # Workflow for building DocC documentation and deploying to GitHub Pages
 name: Build and deploy DocC documentation to GitHub Pages
 
-on: 
+on:
   # Runs on pushes targeting the default branch
   push:
     branches: ["main"]
