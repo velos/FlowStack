@@ -161,8 +161,6 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
 
     fileprivate var scrollView: UIScrollView? {
         didSet {
-            scrollView?.contentInsetAdjustmentBehavior = .never
-
             if let recognizer = scrollView?.panGestureRecognizer {
                 panGestureRecognizer.shouldRequireFailure(of: recognizer)
                 edgeGestureRecognizer.shouldRequireFailure(of: recognizer)
