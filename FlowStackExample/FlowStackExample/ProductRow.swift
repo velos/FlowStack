@@ -13,9 +13,12 @@ struct ProductRow: View {
     var cornerRadius: CGFloat
 
     var body: some View {
-        image(url: product.imageUrl)
-            .allowsHitTesting(false) // https://stackoverflow.com/a/74711565
+        Color.clear
             .aspectRatio(4 / 3, contentMode: .fill)
+            .overlay {
+                image(url: product.imageUrl)
+                    .allowsHitTesting(false) // https://stackoverflow.com/a/74711565
+            }
             .overlay(alignment: .topTrailing) {
                 Text(product.name)
                     .font(.system(size: 48))
