@@ -226,11 +226,23 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                .ignoresSafeArea()
                .zIndex(Double(element.index + 1) - 0.1)
                .id(element.hashValue)
+               .onTapGesture {
+                   flowDismissAction()
+               }
         }
     }
 
     private var pathToUse: Binding<FlowPath> {
         usesInternalPath ? $internalPath : _path
+    }
+
+    private var flowDismissAction: FlowDismissAction {
+        FlowDismissAction(
+            onDismiss: {
+                withTransaction(transaction) {
+                    pathToUse.wrappedValue.removeLast()
+                }
+            })
     }
 
     private var transaction: Transaction {
@@ -265,13 +277,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         .environment(\.flowPath, pathToUse)
         .environment(\.flowTransaction, transaction)
         .environmentObject(destinationLookup)
-        .environment(\.flowDismiss, FlowDismissAction(
-            onDismiss: {
-                withTransaction(transaction) {
-                    pathToUse.wrappedValue.removeLast()
-                }
-            })
-        )
+        .environment(\.flowDismiss, flowDismissAction)
     }
 }
 
