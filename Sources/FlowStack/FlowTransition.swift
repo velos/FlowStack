@@ -99,6 +99,7 @@ extension AnyTransition {
         @State private var isDisabled: Bool = false
         @State var isDismissing: Bool = false
         @State private var snapCornerRadiusZero: Bool = true
+        @State private var availableSize: CGSize = .zero
 
         private var snapshotPercent: CGFloat {
             max(0, 1 - percent / 0.2)
@@ -106,13 +107,22 @@ extension AnyTransition {
 
         @Environment(\.flowDismiss) var dismiss
         @Environment(\.flowTransaction) var transaction
+        @Environment(\.horizontalSizeClass) var horizontalSizeClass
 
         var cornerRadius: CGFloat { context.cornerRadius + ((UIScreen.displayCornerRadius ?? 20) - context.cornerRadius) * percent }
+        
+        var isPresentedFullscreen: Bool {
+            horizontalSizeClass == .compact || availableSize.width - 2 * Constants.minVerticalPadding < Constants.maxWidth
+        }
 
         var conditionalCornerRadius: CGFloat {
-            if percent >= 1 {
-                if snapCornerRadiusZero {
-                    return 0
+            if isPresentedFullscreen {
+                if percent >= 1 {
+                    if snapCornerRadiusZero {
+                        return 0
+                    } else {
+                        return cornerRadius
+                    }
                 } else {
                     return cornerRadius
                 }
@@ -143,11 +153,28 @@ extension AnyTransition {
             let zoomRect = CGRect(
                 x: (proxy.size.width / 2) * percent + rect.midX * (1 - percent) + (pullOffset ?? .zero).x / 3,
                 y: (proxy.size.height / 2) * percent + rect.midY * (1 - percent) + (pullOffset ?? .zero).y / 3,
-                width: rect.width + ((proxy.size.width - rect.width) * max(0, percent) * (1 - pullPercent)),
-                height: rect.height + ((proxy.size.height - rect.height) * max(0, percent) * (1 - pullPercent))
+                width: rect.width + ((presentationSize(availableSize: proxy.size).width - rect.width) * max(0, percent) * (1 - pullPercent)),
+                height: rect.height + ((presentationSize(availableSize: proxy.size).height - rect.height) * max(0, percent) * (1 - pullPercent))
             )
 
             return zoomRect
+        }
+
+        struct Constants {
+            static let maxWidth: CGFloat = 706
+            static let maxHeight: CGFloat = 998
+            static let minVerticalPadding: CGFloat = 44
+        }
+
+        private func presentationSize(availableSize: CGSize) -> CGSize {
+
+            if horizontalSizeClass == .regular && availableSize.width - 2 * Constants.minVerticalPadding >= Constants.maxWidth {
+                let width = Constants.maxWidth
+                let height = min(Constants.maxHeight, availableSize.height - Constants.minVerticalPadding * 2)
+                return CGSize(width: width, height: height)
+            } else {
+                return availableSize
+            }
         }
 
         func body(content: Content) -> some View {
@@ -173,6 +200,10 @@ extension AnyTransition {
                     .onPreferenceChange(InteractiveDismissDisabledKey.self) { isDisabled in
                         self.isDisabled = isDisabled
                     }
+                    .preference(key: SizePreferenceKey.self, value: proxy.size)
+                    .onPreferenceChange(SizePreferenceKey.self, perform: { value in
+                        availableSize = value
+                    })
                     .overlay {
                         if let image = context.snapshot, percent < 1 {
                             Image(uiImage: image)
@@ -197,4 +228,12 @@ extension AnyTransition {
             .ignoresSafeArea(.container, edges: .all)
         }
     }
+}
+
+struct SizePreferenceKey: PreferenceKey {
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        value = nextValue()
+    }
+
+    static var defaultValue: CGSize = .zero
 }

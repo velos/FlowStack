@@ -33,6 +33,6 @@ extension UIScreen {
             return nil
         }
 
-        return cornerRadius
+        return cornerRadius > 0 ? cornerRadius : 12
     }()
 }
