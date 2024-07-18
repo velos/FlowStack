@@ -246,6 +246,8 @@ public struct FlowLink<Label>: View where Label: View {
     private var value: (any (Equatable & Hashable))?
     private var configuration: Configuration
 
+    @Environment(\.self) private var capturedEnvironment
+
     @Environment(\.flowPath) private var path
     @Environment(\.flowDepth) private var flowDepth
     @Environment(\.flowTransaction) private var transaction
@@ -303,6 +305,9 @@ public struct FlowLink<Label>: View where Label: View {
 
         let controller = UIHostingController(
             rootView: label()
+                .transformEnvironment(\.self) { environment in
+                    environment = capturedEnvironment
+                }
                 .environment(\.opacityTransitionPercent, 1)
                 .ignoresSafeArea()
         )
