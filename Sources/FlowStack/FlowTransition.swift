@@ -204,10 +204,11 @@ extension AnyTransition {
                     .onPreferenceChange(SizePreferenceKey.self, perform: { value in
                         availableSize = value
                     })
-                    .overlay {
+                    .overlay(alignment: .top) {
                         if let image = context.snapshot, percent < 1 {
                             Image(uiImage: image)
                                 .resizable()
+                                .aspectRatio(contentMode: .fit)
                                 .opacity(snapshotPercent)
                         }
                     }
