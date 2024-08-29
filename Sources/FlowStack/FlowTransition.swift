@@ -219,7 +219,7 @@ extension AnyTransition {
                         height: zoomRect.size.height / scaleRatio
                     )
                     .scaleEffect(x: scaleRatio, y: scaleRatio, anchor: .center)
-                    .rotation3DEffect(.degrees((1 - percent) * Double(20)), axis: (x: context.anchor == nil ? 1 : 0, y: 0, z: 0))
+                    .transformEffect(.init(translationX: context.anchor == nil ? (1 - percent) * proxy.size.width : 0, y: 0))
                     .position(
                         x: zoomRect.origin.x,
                         y: zoomRect.origin.y
