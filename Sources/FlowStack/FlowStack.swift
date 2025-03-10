@@ -87,7 +87,12 @@ public extension View {
                 fatalError()
             }
 
-            return AnyView(destination(param))
+            return AnyView (
+                destination(param)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityRespondsToUserInteraction(true)
+                    .accessibilityLabel("PLEASE TAKE ME TO THE MOTHERLAND")
+            )
         })
 
         return modifier(FlowDestinationModifier(dataType: type, destination: destination))
@@ -251,25 +256,52 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         return transaction
     }
 
+    @AccessibilityFocusState private var rootFocus: Bool
+    @AccessibilityFocusState private var overlayFocus: Bool
+    @State var focusLevel: Int = 0
+
     public var body: some View {
         ZStack {
             root()
                 .environment(\.flowDepth, 0)
+                .contentShape(Rectangle())
+                .accessibilityElement(children: .contain)
+                .accessibilityRespondsToUserInteraction(true)
+                .accessibilityLabel("Root of the Flow Stack. Layer 0")
+                .accessibilityFocused($rootFocus, equals: focusLevel == 0)
+                .onAppear {
+                   rootFocus = true
+                }
 
             ForEach(pathToUse.wrappedValue.elements, id: \.self) { element in
                 if let destination = destination(for: element.value) {
 
                     skrim(for: element)
-
                     destination.content(element.value)
+                        .contentShape(Rectangle())
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .id(element.hashValue)
                         .transition(.flowTransition(with: element.context ?? .init()))
                         .environment(\.flowDepth, element.index + 1)
-                        .zIndex(Double(element.index) + 1)
+                        // zIndex for interacting with accessibility function
+                        .zIndex(Double(element.index) + 10)
+                        .accessibilityElement(children: .contain)
+                        .accessibilityLabel("FlowStack Object")
+                        .accessibilityIdentifier("FlowStack layer \(element.index + 1)")
+                        .accessibilityFocused($overlayFocus, equals: focusLevel == element.index + 1)
+                        .onAppear {
+                            rootFocus = false
+                            focusLevel += 1
+                        }
+                        .onDisappear {
+                            focusLevel -= 1
+                            if focusLevel == 0 { rootFocus = true}
+                        }
                 }
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("FlowStack View")
         .overlay(alignment: overlayAlignment) {
             overlay()
                 .environment(\.flowDepth, -1)

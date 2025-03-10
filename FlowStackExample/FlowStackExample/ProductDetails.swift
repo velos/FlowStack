@@ -13,6 +13,7 @@ struct ProductDetails: View {
     @Environment(\.flowDismiss) var flowDismiss
 
     @State var opacity: CGFloat = 0
+    @AccessibilityFocusState private var isFocused
 
     var product: Product
 
@@ -21,6 +22,7 @@ struct ProductDetails: View {
             ScrollView {
                 VStack {
                     image(url: product.imageUrl)
+                        .border(.purple)
                         .aspectRatio(3 / 4, contentMode: .fill)
                         .overlay(alignment: .bottomLeading, content: {
                             Text(product.name)
@@ -75,6 +77,9 @@ struct ProductDetails: View {
                 }
             }
             .ignoresSafeArea()
+            .onAppear {
+                isFocused = true
+            }
         }
         .withFlowAnimation {
             opacity = 0.78
@@ -89,6 +94,7 @@ struct ProductDetails: View {
                 .resizable()
                 .scaledToFill()
                 .frame(minWidth: 0, minHeight: 0)
+                .accessibilityHidden(true)
         } placeholder: {
             Color(uiColor: .secondarySystemFill)
         }
