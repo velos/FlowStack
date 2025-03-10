@@ -22,7 +22,6 @@ struct ProductDetails: View {
             ScrollView {
                 VStack {
                     image(url: product.imageUrl)
-                        .border(.purple)
                         .aspectRatio(3 / 4, contentMode: .fill)
                         .overlay(alignment: .bottomLeading, content: {
                             Text(product.name)

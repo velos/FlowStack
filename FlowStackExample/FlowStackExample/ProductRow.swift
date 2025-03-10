@@ -20,7 +20,6 @@ struct ProductRow: View {
                     .allowsHitTesting(false) // https://stackoverflow.com/a/74711565
                     .accessibilityLabel("Product Row Image overlay")
             }
-            .border(.blue)
             .overlay(alignment: .topTrailing) {
                 Text(product.name)
                     .font(.system(size: 48))
@@ -30,8 +29,6 @@ struct ProductRow: View {
                     .accessibilityLabel("Product Row name")
             }
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .accessibilityElement(children: .combine)
-            .border(.pink)
     }
 
     private func image(url: URL) -> some View {
