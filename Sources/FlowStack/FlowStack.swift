@@ -32,7 +32,7 @@ struct FlowDestinationModifier<D: Hashable>: ViewModifier {
     func body(content: Content) -> some View {
         content
             // Z-index is needed in order to work with accessibility VoiceControl
-            .zIndex(1)
+//            .zIndex(1)
             // swiftlint:disable:next force_unwrapping
             .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
     }
@@ -274,8 +274,9 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         .transition(.flowTransition(with: element.context ?? .init()))
                         .environment(\.flowDepth, element.index + 1)
                         // zIndex must be high enough to move infront of root view
-                        .zIndex(1)
+//                        .zIndex(1)
                         .accessibilityElement(children: .contain)
+                        .onAppear {print("BRODY: new layer \(element.index) \n\n\(element.value)")}
                 }
             }
         }
