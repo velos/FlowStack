@@ -41,7 +41,7 @@ struct ContentView: View {
 
             }
         }
-        .accessibilityElement(children: .contain)
+        .accessibilityElement(children: .contain) 
     }
 
     var content: some View {

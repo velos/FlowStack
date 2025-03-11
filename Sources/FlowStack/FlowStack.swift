@@ -28,12 +28,11 @@ struct FlowDestinationModifier<D: Hashable>: ViewModifier {
     @State var dataType: D.Type
     @State var destination: AnyDestination
     @EnvironmentObject var destinationLookup: DestinationLookup
-    @Environment(\.flowDismiss) var flowDismiss
 
     func body(content: Content) -> some View {
         content
             // Z-index is needed in order to work with accessibility VoiceControl
-            .zIndex(10)
+            .zIndex(1)
             // swiftlint:disable:next force_unwrapping
             .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
     }
@@ -83,7 +82,6 @@ public extension View {
     ///     type `data`. The closure takes one argument, which is the value
     ///     of the data to present.
     func flowDestination<D, C>(for type: D.Type, @ViewBuilder destination: @escaping (D) -> C) -> some View where D: Hashable, C: View {
-
         let destination = AnyDestination(dataType: type, content: { param in
             guard let param = AnyDestination.cast(data: param, to: type) else {
                 fatalError()
@@ -93,7 +91,6 @@ public extension View {
                 destination(param)
                     .accessibilityElement(children: .contain)
                     .accessibilityRespondsToUserInteraction(true)
-                    .accessibilityLabel("PLEASE TAKE ME TO THE MOTHERLAND")
             )
         })
 
@@ -257,12 +254,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         transaction.disablesAnimations = true
         return transaction
     }
-
     @Environment(\.flowDismiss) var flowDismiss
-    @AccessibilityFocusState private var rootFocus: Bool
-    @AccessibilityFocusState private var overlayFocus: Bool
-    @State var focusLevel: Int = 0
-
     public var body: some View {
         ZStack {
             root()
@@ -270,7 +262,6 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 .contentShape(Rectangle())
                 .accessibilityElement(children: .contain)
                 .accessibilityRespondsToUserInteraction(true)
-                .accessibilityLabel("Root of the Flow Stack. Layer 0")
 
             ForEach(pathToUse.wrappedValue.elements, id: \.self) { element in
                 if let destination = destination(for: element.value) {
@@ -283,16 +274,13 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         .transition(.flowTransition(with: element.context ?? .init()))
                         .environment(\.flowDepth, element.index + 1)
                         // zIndex must be high enough to move infront of root view
-                        // inside FlowDestinationModifier zIndex is 1
-                        .zIndex(Double(element.index) + 10)
+                        .zIndex(1)
                         .accessibilityElement(children: .contain)
-                        .accessibilityAction(.escape) { flowDismiss() }
                 }
             }
         }
-        .accessibilityAction(.escape) { flowDismissAction() }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("FlowStack View")
+        .accessibilityAction(.escape) { flowDismissAction() }
         .overlay(alignment: overlayAlignment) {
             overlay()
                 .environment(\.flowDepth, -1)
