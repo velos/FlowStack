@@ -12,8 +12,6 @@ import CachedAsyncImage
 struct ProductDetails: View {
     @Environment(\.flowDismiss) var flowDismiss
     @State var opacity: CGFloat = 0
-    @AccessibilityFocusState private var isFocused
-
     var product: Product
 
     var body: some View {
@@ -78,9 +76,6 @@ struct ProductDetails: View {
                 .accessibilityElement(children: .contain)
             }
             .ignoresSafeArea()
-            .onAppear {
-                isFocused = true
-            }
         }
         .withFlowAnimation {
             opacity = 0.78

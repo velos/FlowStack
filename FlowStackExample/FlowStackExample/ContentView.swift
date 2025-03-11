@@ -13,9 +13,7 @@ struct ContentView: View {
     @Environment(\.flowDismiss) private var flowDismiss
 
     let cornerRadius: CGFloat = 24
-
-    @AccessibilityFocusState private var isFocused: Bool
-//    @State var hideMacs: Bool = false
+    
     var body: some View {
         FlowStack {
             ScrollView {
