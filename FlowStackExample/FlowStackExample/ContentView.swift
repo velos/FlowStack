@@ -10,6 +10,7 @@ import FlowStack
 
 struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.flowDismiss) private var flowDismiss
 
     let cornerRadius: CGFloat = 24
 
@@ -32,17 +33,15 @@ struct ContentView: View {
                 }
                 .padding(.horizontal )
             }
-            // VERY IMPORTANT FOR THE FLOW STACK ACCESSIBILITY FEATURES
-            .zIndex(2)
             .flowDestination(for: Product.self) { product in
                 ProductDetails(product: product)
                     .accessibilityElement(children: .contain)
                     .accessibilityRespondsToUserInteraction(true)
                     .accessibilityLabel("ProductDetails from flowDestination in contentView")
+
             }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("FlowStack from contentView")
     }
 
     var content: some View {

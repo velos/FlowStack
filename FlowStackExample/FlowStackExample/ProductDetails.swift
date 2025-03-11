@@ -46,7 +46,9 @@ struct ProductDetails: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, proxy.safeAreaInsets.top + 12)
                             .opacity(opacity)
+
                         })
+                        .accessibilitySortPriority(100)
                         .clipped()
                     VStack(alignment: .leading, spacing: 40) {
                         Text(product.description)
@@ -74,6 +76,7 @@ struct ProductDetails: View {
                     .padding()
                     .opacity(opacity)
                 }
+                .accessibilityAction(.escape){ flowDismiss() }
             }
             .ignoresSafeArea()
             .onAppear {

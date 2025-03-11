@@ -27,11 +27,13 @@ class DestinationLookup: ObservableObject {
 struct FlowDestinationModifier<D: Hashable>: ViewModifier {
     @State var dataType: D.Type
     @State var destination: AnyDestination
-
     @EnvironmentObject var destinationLookup: DestinationLookup
+    @Environment(\.flowDismiss) var flowDismiss
 
     func body(content: Content) -> some View {
         content
+            // Z-index is needed in order to work with accessibility VoiceControl
+            .zIndex(10)
             // swiftlint:disable:next force_unwrapping
             .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
     }
@@ -256,6 +258,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         return transaction
     }
 
+    @Environment(\.flowDismiss) var flowDismiss
     @AccessibilityFocusState private var rootFocus: Bool
     @AccessibilityFocusState private var overlayFocus: Bool
     @State var focusLevel: Int = 0
@@ -268,10 +271,6 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityRespondsToUserInteraction(true)
                 .accessibilityLabel("Root of the Flow Stack. Layer 0")
-                .accessibilityFocused($rootFocus, equals: focusLevel == 0)
-                .onAppear {
-                   rootFocus = true
-                }
 
             ForEach(pathToUse.wrappedValue.elements, id: \.self) { element in
                 if let destination = destination(for: element.value) {
@@ -283,23 +282,15 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         .id(element.hashValue)
                         .transition(.flowTransition(with: element.context ?? .init()))
                         .environment(\.flowDepth, element.index + 1)
-                        // zIndex for interacting with accessibility function
+                        // zIndex must be high enough to move infront of root view
+                        // inside FlowDestinationModifier zIndex is 1
                         .zIndex(Double(element.index) + 10)
                         .accessibilityElement(children: .contain)
-                        .accessibilityLabel("FlowStack Object")
-                        .accessibilityIdentifier("FlowStack layer \(element.index + 1)")
-                        .accessibilityFocused($overlayFocus, equals: focusLevel == element.index + 1)
-                        .onAppear {
-                            rootFocus = false
-                            focusLevel += 1
-                        }
-                        .onDisappear {
-                            focusLevel -= 1
-                            if focusLevel == 0 { rootFocus = true}
-                        }
+                        .accessibilityAction(.escape) { flowDismiss() }
                 }
             }
         }
+        .accessibilityAction(.escape) { flowDismissAction() }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("FlowStack View")
         .overlay(alignment: overlayAlignment) {
