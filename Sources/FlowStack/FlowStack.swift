@@ -23,16 +23,22 @@ struct AnyDestination: Equatable {
 class DestinationLookup: ObservableObject {
     @Published var table: [String: AnyDestination] = [:]
 }
+// Tracks Z index for accessibility
+class FlowState: ObservableObject {
+    @Published var flowZIndex: Double = 0
+}
 
 struct FlowDestinationModifier<D: Hashable>: ViewModifier {
     @State var dataType: D.Type
     @State var destination: AnyDestination
     @EnvironmentObject var destinationLookup: DestinationLookup
+    @EnvironmentObject var flowState: FlowState
+
 
     func body(content: Content) -> some View {
         content
-            // Z-index is needed in order to work with accessibility VoiceControl
-//            .zIndex(1)
+            // .flowZIndex is 1 for voiceControl and then 0 for animations
+            .zIndex(flowState.flowZIndex)
             // swiftlint:disable:next force_unwrapping
             .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
     }
@@ -181,6 +187,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     private var usesInternalPath: Bool = false
 
     @State private var destinationLookup: DestinationLookup = .init()
+    @State var flowState: FlowState = .init()
 
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
@@ -243,6 +250,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     private var flowDismissAction: FlowDismissAction {
         FlowDismissAction(
             onDismiss: {
+                flowState.flowZIndex = 0
                 withTransaction(transaction) {
                     pathToUse.wrappedValue.removeLast()
                 }
@@ -274,9 +282,10 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         .transition(.flowTransition(with: element.context ?? .init()))
                         .environment(\.flowDepth, element.index + 1)
                         // zIndex must be high enough to move infront of root view
-//                        .zIndex(1)
+                        .zIndex(Double(element.index + 1))
                         .accessibilityElement(children: .contain)
-                        .onAppear {print("BRODY: new layer \(element.index) \n\n\(element.value)")}
+                        .onAppear { flowState.flowZIndex = 1 }
+
                 }
             }
         }
@@ -289,6 +298,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         .environment(\.flowPath, pathToUse)
         .environment(\.flowTransaction, transaction)
         .environmentObject(destinationLookup)
+        .environmentObject(flowState)
         .environment(\.flowDismiss, flowDismissAction)
     }
 }
