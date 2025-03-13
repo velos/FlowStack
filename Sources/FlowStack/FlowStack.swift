@@ -263,13 +263,15 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         return transaction
     }
     @Environment(\.flowDismiss) var flowDismiss
+    @State var accessRoot: Bool = true
     public var body: some View {
         ZStack {
             root()
                 .environment(\.flowDepth, 0)
                 .contentShape(Rectangle())
                 .accessibilityElement(children: .contain)
-                .accessibilityRespondsToUserInteraction(true)
+                .accessibilityHidden(!accessRoot)
+
 
             ForEach(pathToUse.wrappedValue.elements, id: \.self) { element in
                 if let destination = destination(for: element.value) {
@@ -284,11 +286,16 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         // zIndex must be high enough to move infront of root view
                         .zIndex(Double(element.index + 1))
                         .accessibilityElement(children: .contain)
-                        .onAppear { flowState.flowZIndex = 1 }
+                        .onAppear {
+                            flowState.flowZIndex = Double(element.index + 1)
+                            accessRoot = false
+                        }
+                        .onDisappear { accessRoot = true}
 
                 }
             }
         }
+        .zIndex(flowState.flowZIndex)
         .accessibilityElement(children: .contain)
         .accessibilityAction(.escape) { flowDismissAction() }
         .overlay(alignment: overlayAlignment) {
