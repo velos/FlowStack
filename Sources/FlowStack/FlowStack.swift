@@ -284,13 +284,14 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         .zIndex(flowState.flowZIndex)
                         .accessibilityElement(children: .contain)
                         .accessibilityHidden(flowState.flowZIndex != Double(element.index + 1))
+                        .accessibilityAction(.escape) { flowDismissAction() }
                         .onAppear { flowState.flowZIndex = Double(element.index + 1) }
+
                 }
             }
         }
         .zIndex(flowState.flowZIndex)
         .accessibilityElement(children: .contain)
-        .accessibilityAction(.escape) { flowDismissAction() }
         .overlay(alignment: overlayAlignment) {
             overlay()
                 .environment(\.flowDepth, -1)
