@@ -8,10 +8,6 @@
 import SwiftUI
 import FlowStack
 
-enum Destination: Hashable {
-    case layer2
-}
-
 struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.flowDismiss) private var flowDismiss
@@ -40,13 +36,6 @@ struct ContentView: View {
                     .accessibilityElement(children: .contain)
                     .accessibilityRespondsToUserInteraction(true)
                     .accessibilityLabel("ProductDetails from flowDestination in contentView")
-
-            }.flowDestination(for: Destination.self) { destination in
-                switch destination {
-                case .layer2:
-                    LayerView()
-                        .accessibilityElement(children: .contain)
-                }
 
             }
         }
