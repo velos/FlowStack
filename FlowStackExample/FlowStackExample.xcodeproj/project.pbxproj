@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		96C174DF2D7B8F7100D51569 /* FlowStack in Frameworks */ = {isa = PBXBuildFile; productRef = 96C174DE2D7B8F7100D51569 /* FlowStack */; };
 		96C174E12D7B969B00D51569 /* FlowStack in Frameworks */ = {isa = PBXBuildFile; productRef = 96C174E02D7B969B00D51569 /* FlowStack */; };
+		96F8C8B22D83EA24004341B8 /* LayerTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96F8C8B12D83EA24004341B8 /* LayerTest.swift */; };
 		ED8DE1652A6765F600215165 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ED8DE1642A6765F600215165 /* Assets.xcassets */; };
 		ED8DE1682A6765F600215165 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ED8DE1672A6765F600215165 /* Preview Assets.xcassets */; };
 		ED8DE1742A6767B900215165 /* FlowStack in Frameworks */ = {isa = PBXBuildFile; productRef = ED8DE1732A6767B900215165 /* FlowStack */; };
@@ -21,6 +22,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		96F8C8B12D83EA24004341B8 /* LayerTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayerTest.swift; sourceTree = "<group>"; };
 		ED183AB22BB4D99A0041F7C7 /* FlowStackExample.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FlowStackExample.entitlements; sourceTree = "<group>"; };
 		ED8DE15D2A6765F500215165 /* FlowStackExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FlowStackExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED8DE1642A6765F600215165 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -77,6 +79,7 @@
 				EDA1DD362A67693A00D82A9D /* URLCache+Extensions.swift */,
 				ED8DE1642A6765F600215165 /* Assets.xcassets */,
 				ED8DE1662A6765F600215165 /* Preview Content */,
+				96F8C8B12D83EA24004341B8 /* LayerTest.swift */,
 			);
 			path = FlowStackExample;
 			sourceTree = "<group>";
@@ -182,6 +185,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				EDA1DD382A67693A00D82A9D /* URLCache+Extensions.swift in Sources */,
+				96F8C8B22D83EA24004341B8 /* LayerTest.swift in Sources */,
 				EDA1DD3C2A67693A00D82A9D /* ContentView.swift in Sources */,
 				EDFD07BC2A6F319E00CB0737 /* ProductRow.swift in Sources */,
 				EDA1DD3B2A67693A00D82A9D /* Product.swift in Sources */,

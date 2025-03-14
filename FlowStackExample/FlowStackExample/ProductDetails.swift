@@ -49,7 +49,18 @@ struct ProductDetails: View {
                         .clipped()
                     VStack(alignment: .leading, spacing: 40) {
                         Text(product.description)
-                        
+
+                        FlowLink(value: Destination.layer2, configuration: .init(cornerRadius: 10)) {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.gray)
+                                .frame(width: 200, height: 100)
+                                .overlay(
+                                    Text("Layer 2")
+                                        .foregroundStyle(.white)
+                                        .fontWeight(.semibold)
+                                )
+                        }
+
                         VStack(alignment: .leading) {
                             stat(label: "Released", value: product.released)
                             separator

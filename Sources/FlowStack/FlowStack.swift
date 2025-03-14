@@ -25,7 +25,8 @@ class DestinationLookup: ObservableObject {
 }
 // Tracks Z index for accessibility
 class FlowState: ObservableObject {
-    @Published var flowZIndex: Double = 0
+    @Published var flowZIndex: Double = 0.0
+    @Published var activeLayer: Double = 0.0
 }
 
 struct FlowDestinationModifier<D: Hashable>: ViewModifier {
@@ -37,8 +38,7 @@ struct FlowDestinationModifier<D: Hashable>: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            // .flowZIndex is 1 for voiceControl and then 0 for animations
-            .zIndex(flowState.flowZIndex)
+            .zIndex(flowState.flowZIndex > 0 ? 1 : 0)
             // swiftlint:disable:next force_unwrapping
             .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
     }
@@ -187,7 +187,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     private var usesInternalPath: Bool = false
 
     @State private var destinationLookup: DestinationLookup = .init()
-    @State var flowState: FlowState = .init()
+    @StateObject var flowState: FlowState = .init()
 
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
@@ -235,7 +235,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                .foregroundColor(Color.black.opacity(0.7))
                .transition(.opacity)
                .ignoresSafeArea()
-               .zIndex(Double(element.index + 1) - 0.1)
+               .zIndex(flowState.flowZIndex > 0 ? 1 - 0.1 : 0)
                .id(element.hashValue)
                .onTapGesture {
                    flowDismissAction()
@@ -249,8 +249,10 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     private var flowDismissAction: FlowDismissAction {
         FlowDismissAction(
+    
             onDismiss: {
-                flowState.flowZIndex = 0
+                flowState.flowZIndex -= 1
+                print("flowDismiss -> active layer now \(flowState.flowZIndex)")
                 withTransaction(transaction) {
                     pathToUse.wrappedValue.removeLast()
                 }
@@ -263,14 +265,13 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         return transaction
     }
     @Environment(\.flowDismiss) var flowDismiss
-    @State var accessRoot: Bool = true
     public var body: some View {
         ZStack {
             root()
                 .environment(\.flowDepth, 0)
                 .contentShape(Rectangle())
                 .accessibilityElement(children: .contain)
-                .accessibilityHidden(!accessRoot)
+                .accessibilityHidden(flowState.flowZIndex != 0)
 
 
             ForEach(pathToUse.wrappedValue.elements, id: \.self) { element in
@@ -284,13 +285,21 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         .transition(.flowTransition(with: element.context ?? .init()))
                         .environment(\.flowDepth, element.index + 1)
                         // zIndex must be high enough to move infront of root view
-                        .zIndex(Double(element.index + 1))
+//                        .zIndex(Double(element.index + 1))
+                        .zIndex(flowState.flowZIndex > 0 ? 1 : 0)
                         .accessibilityElement(children: .contain)
+                        .accessibilityHidden(flowState.flowZIndex != Double(element.index + 1))
                         .onAppear {
                             flowState.flowZIndex = Double(element.index + 1)
-                            accessRoot = false
+                            print("🫎flow layer: \(element.index + 1) Appeared!")
+                            print("🫎flowState.flowZIndex is now: \(flowState.flowZIndex)")
+                            print("🫎accessibilityHidden for this layer? \(flowState.flowZIndex != Double(element.index + 1))")
                         }
-                        .onDisappear { accessRoot = true}
+                        .onDisappear {
+                            flowState.flowZIndex = Double(element.index)
+                            print("🫎flow layer: \(element.index + 1) disappeared!")
+                            print("🫎flowState.flowZIndex is now: \(flowState.flowZIndex)")
+                        }
 
                 }
             }
