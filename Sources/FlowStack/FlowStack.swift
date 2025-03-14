@@ -234,7 +234,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                .foregroundColor(Color.black.opacity(0.7))
                .transition(.opacity)
                .ignoresSafeArea()
-               .zIndex(flowState.flowZIndex > 0 ? 1 - 0.1 : 0)
+               .zIndex(flowState.flowZIndex - 0.1)
                .id(element.hashValue)
                .onTapGesture {
                    flowDismissAction()
