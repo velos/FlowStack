@@ -26,7 +26,6 @@ class DestinationLookup: ObservableObject {
 // Tracks Z index for accessibility
 class FlowState: ObservableObject {
     @Published var flowZIndex: Double = 0.0
-    @Published var activeLayer: Double = 0.0
 }
 
 struct FlowDestinationModifier<D: Hashable>: ViewModifier {
@@ -38,7 +37,7 @@ struct FlowDestinationModifier<D: Hashable>: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .zIndex(flowState.flowZIndex > 0 ? 1 : 0)
+            .zIndex(flowState.flowZIndex)
             // swiftlint:disable:next force_unwrapping
             .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
     }
@@ -249,13 +248,11 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     private var flowDismissAction: FlowDismissAction {
         FlowDismissAction(
-    
             onDismiss: {
-                flowState.flowZIndex -= 1
-                print("flowDismiss -> active layer now \(flowState.flowZIndex)")
                 withTransaction(transaction) {
                     pathToUse.wrappedValue.removeLast()
                 }
+                flowState.flowZIndex -= 1
             })
     }
 
@@ -284,23 +281,10 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         .id(element.hashValue)
                         .transition(.flowTransition(with: element.context ?? .init()))
                         .environment(\.flowDepth, element.index + 1)
-                        // zIndex must be high enough to move infront of root view
-//                        .zIndex(Double(element.index + 1))
-                        .zIndex(flowState.flowZIndex > 0 ? 1 : 0)
+                        .zIndex(flowState.flowZIndex)
                         .accessibilityElement(children: .contain)
                         .accessibilityHidden(flowState.flowZIndex != Double(element.index + 1))
-                        .onAppear {
-                            flowState.flowZIndex = Double(element.index + 1)
-                            print("🫎flow layer: \(element.index + 1) Appeared!")
-                            print("🫎flowState.flowZIndex is now: \(flowState.flowZIndex)")
-                            print("🫎accessibilityHidden for this layer? \(flowState.flowZIndex != Double(element.index + 1))")
-                        }
-                        .onDisappear {
-                            flowState.flowZIndex = Double(element.index)
-                            print("🫎flow layer: \(element.index + 1) disappeared!")
-                            print("🫎flowState.flowZIndex is now: \(flowState.flowZIndex)")
-                        }
-
+                        .onAppear { flowState.flowZIndex = Double(element.index + 1) }
                 }
             }
         }
