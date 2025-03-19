@@ -3,12 +3,13 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 60;
+	objectVersion = 56;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		96C174DF2D7B8F7100D51569 /* FlowStack in Frameworks */ = {isa = PBXBuildFile; productRef = 96C174DE2D7B8F7100D51569 /* FlowStack */; };
 		96C174E12D7B969B00D51569 /* FlowStack in Frameworks */ = {isa = PBXBuildFile; productRef = 96C174E02D7B969B00D51569 /* FlowStack */; };
+		96EB90462D8B30DC00E62254 /* FlowStack in Frameworks */ = {isa = PBXBuildFile; productRef = 96EB90452D8B30DC00E62254 /* FlowStack */; };
 		ED8DE1652A6765F600215165 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ED8DE1642A6765F600215165 /* Assets.xcassets */; };
 		ED8DE1682A6765F600215165 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ED8DE1672A6765F600215165 /* Preview Assets.xcassets */; };
 		ED8DE1742A6767B900215165 /* FlowStack in Frameworks */ = {isa = PBXBuildFile; productRef = ED8DE1732A6767B900215165 /* FlowStack */; };
@@ -41,6 +42,7 @@
 				ED8DE1742A6767B900215165 /* FlowStack in Frameworks */,
 				96C174E12D7B969B00D51569 /* FlowStack in Frameworks */,
 				96C174DF2D7B8F7100D51569 /* FlowStack in Frameworks */,
+				96EB90462D8B30DC00E62254 /* FlowStack in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -123,6 +125,7 @@
 				ED8DE1732A6767B900215165 /* FlowStack */,
 				96C174DE2D7B8F7100D51569 /* FlowStack */,
 				96C174E02D7B969B00D51569 /* FlowStack */,
+				96EB90452D8B30DC00E62254 /* FlowStack */,
 			);
 			productName = FlowStackExample;
 			productReference = ED8DE15D2A6765F500215165 /* FlowStackExample.app */;
@@ -153,7 +156,7 @@
 			);
 			mainGroup = ED8DE1542A6765F500215165;
 			packageReferences = (
-				96C174DD2D7B8F7100D51569 /* XCLocalSwiftPackageReference "../../FlowStack" */,
+				96EB90442D8B30DB00E62254 /* XCRemoteSwiftPackageReference "FlowStack" */,
 			);
 			productRefGroup = ED8DE15E2A6765F500215165 /* Products */;
 			projectDirPath = "";
@@ -396,12 +399,16 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		96C174DD2D7B8F7100D51569 /* XCLocalSwiftPackageReference "../../FlowStack" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../FlowStack;
+/* Begin XCRemoteSwiftPackageReference section */
+		96EB90442D8B30DB00E62254 /* XCRemoteSwiftPackageReference "FlowStack" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/velos/FlowStack.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
 		};
-/* End XCLocalSwiftPackageReference section */
+/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		96C174DE2D7B8F7100D51569 /* FlowStack */ = {
@@ -410,6 +417,11 @@
 		};
 		96C174E02D7B969B00D51569 /* FlowStack */ = {
 			isa = XCSwiftPackageProductDependency;
+			productName = FlowStack;
+		};
+		96EB90452D8B30DC00E62254 /* FlowStack */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96EB90442D8B30DB00E62254 /* XCRemoteSwiftPackageReference "FlowStack" */;
 			productName = FlowStack;
 		};
 		ED8DE1732A6767B900215165 /* FlowStack */ = {
