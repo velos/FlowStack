@@ -23,21 +23,21 @@ struct AnyDestination: Equatable {
 class DestinationLookup: ObservableObject {
     @Published var table: [String: AnyDestination] = [:]
 }
+
 // Tracks Z index for accessibility
-class FlowState: ObservableObject {
-    @Published var flowZIndex: Double = 0.0
+class FlowDepth: ObservableObject {
+    @Published var zIndex: Double = 0.0
 }
 
 struct FlowDestinationModifier<D: Hashable>: ViewModifier {
     @State var dataType: D.Type
     @State var destination: AnyDestination
     @EnvironmentObject var destinationLookup: DestinationLookup
-    @EnvironmentObject var flowState: FlowState
-
+    @EnvironmentObject var flowDepth: FlowDepth
 
     func body(content: Content) -> some View {
         content
-            .zIndex(flowState.flowZIndex)
+            .zIndex(flowDepth.zIndex)
             // swiftlint:disable:next force_unwrapping
             .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
     }
@@ -186,7 +186,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     private var usesInternalPath: Bool = false
 
     @State private var destinationLookup: DestinationLookup = .init()
-    @StateObject var flowState: FlowState = .init()
+    @StateObject var flowDepth: FlowDepth = .init()
 
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
@@ -234,7 +234,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                .foregroundColor(Color.black.opacity(0.7))
                .transition(.opacity)
                .ignoresSafeArea()
-               .zIndex(flowState.flowZIndex - 0.1)
+               .zIndex(flowDepth.zIndex - 0.1)
                .id(element.hashValue)
                .onTapGesture {
                    flowDismissAction()
@@ -252,7 +252,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 withTransaction(transaction) {
                     pathToUse.wrappedValue.removeLast()
                 }
-                flowState.flowZIndex -= 1
+                flowDepth.zIndex -= 1
             })
     }
 
@@ -265,10 +265,9 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     public var body: some View {
         ZStack {
             root()
-                .environment(\.flowDepth, 0)
                 .contentShape(Rectangle())
                 .accessibilityElement(children: .contain)
-                .accessibilityHidden(flowState.flowZIndex != 0)
+                .accessibilityHidden(flowDepth.zIndex != 0)
 
 
             ForEach(pathToUse.wrappedValue.elements, id: \.self) { element in
@@ -280,26 +279,25 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .id(element.hashValue)
                         .transition(.flowTransition(with: element.context ?? .init()))
-                        .environment(\.flowDepth, element.index + 1)
-                        .zIndex(flowState.flowZIndex)
+                        .zIndex(flowDepth.zIndex)
                         .accessibilityElement(children: .contain)
-                        .accessibilityHidden(flowState.flowZIndex != Double(element.index + 1))
+                        .accessibilityHidden(flowDepth.zIndex != Double(element.index + 1))
                         .accessibilityAction(.escape) { flowDismissAction() }
-                        .onAppear { flowState.flowZIndex = Double(element.index + 1) }
+                        .onAppear { flowDepth.zIndex = Double(element.index + 1) }
 
                 }
             }
         }
-        .zIndex(flowState.flowZIndex)
+        .zIndex(flowDepth.zIndex)
         .accessibilityElement(children: .contain)
         .overlay(alignment: overlayAlignment) {
             overlay()
-                .environment(\.flowDepth, -1)
+//                .environment(\.flowDepth, -1)
         }
         .environment(\.flowPath, pathToUse)
         .environment(\.flowTransaction, transaction)
         .environmentObject(destinationLookup)
-        .environmentObject(flowState)
+        .environmentObject(flowDepth)
         .environment(\.flowDismiss, flowDismissAction)
     }
 }
