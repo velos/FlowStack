@@ -292,7 +292,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         .accessibilityElement(children: .contain)
         .overlay(alignment: overlayAlignment) {
             overlay()
-//                .environment(\.flowDepth, -1)
+                .zIndex(flowDepth.zIndex - 1.0)
         }
         .environment(\.flowPath, pathToUse)
         .environment(\.flowTransaction, transaction)
