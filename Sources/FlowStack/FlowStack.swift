@@ -284,7 +284,6 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         .accessibilityHidden(flowDepth.zIndex != Double(element.index + 1))
                         .accessibilityAction(.escape) { flowDismissAction() }
                         .onAppear { flowDepth.zIndex = Double(element.index + 1) }
-
                 }
             }
         }

@@ -1,15 +1,5 @@
 {
-  "originHash" : "99e5a49423693e29df6521b6807bc4811d93fc7fedf7585b9cd990561d6bb89a",
   "pins" : [
-    {
-      "identity" : "flowstack",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/velos/FlowStack.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "4a9cce6db8becc3b4da3e35c1eb5ec3ddf89677a"
-      }
-    },
     {
       "identity" : "swiftui-cached-async-image",
       "kind" : "remoteSourceControl",
@@ -20,5 +10,5 @@
       }
     }
   ],
-  "version" : 3
+  "version" : 2
 }

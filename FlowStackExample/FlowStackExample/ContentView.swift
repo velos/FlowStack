@@ -11,9 +11,8 @@ import FlowStack
 struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.flowDismiss) private var flowDismiss
-
     let cornerRadius: CGFloat = 24
-    
+
     var body: some View {
         FlowStack {
             ScrollView {
@@ -22,14 +21,13 @@ struct ContentView: View {
                         LazyVStack(alignment: .center, spacing: 24, pinnedViews: [], content: {
                             content
                         })
-
                     } else {
                         LazyVGrid(columns: [GridItem(.flexible(), spacing: 16), GridItem(.flexible())], alignment: .center, spacing: 16, content: {
                             content
                         })
                     }
                 }
-                .padding(.horizontal )
+                .padding(.horizontal)
             }
             .flowDestination(for: Product.self) { product in
                 ProductDetails(product: product)

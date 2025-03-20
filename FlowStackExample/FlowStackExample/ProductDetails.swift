@@ -43,7 +43,6 @@ struct ProductDetails: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, proxy.safeAreaInsets.top + 12)
                             .opacity(opacity)
-
                         })
                         .accessibilitySortPriority(100)
                         .clipped()
