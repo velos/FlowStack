@@ -72,6 +72,7 @@ struct ProductDetails: View {
                     .opacity(opacity)
                 }
                 .accessibilityElement(children: .contain)
+                .accessibilityAction(.escape) { flowDismiss() }
             }
             .ignoresSafeArea()
         }
