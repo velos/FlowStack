@@ -282,7 +282,6 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         .zIndex(flowDepth.zIndex)
                         .accessibilityElement(children: .contain)
                         .accessibilityHidden(flowDepth.zIndex != Double(element.index + 1))
-                        .accessibilityAction(.escape) { flowDismissAction() }
                         .onAppear { flowDepth.zIndex = Double(element.index + 1) }
                 }
             }
