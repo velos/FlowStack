@@ -4,6 +4,7 @@
 //  Created by Zac White on 2/14/23.
 //
 
+import Combine
 import SwiftUI
 
 struct AnyDestination: Equatable {
@@ -27,6 +28,25 @@ class DestinationLookup: ObservableObject {
 // Tracks Z index for accessibility
 class FlowDepth: ObservableObject {
     @Published var zIndex: Double = 0.0
+    @Published var isVoiceOverRunning: Bool = false
+    @Published var isDismissing: Bool = false
+}
+
+final class VoiceOverObserver: ObservableObject {
+    @Published var isVoiceOverRunning: Bool = UIAccessibility.isVoiceOverRunning
+    var cancellable: AnyCancellable?
+
+    init() {
+        cancellable = NotificationCenter.default
+            .publisher(for: UIAccessibility.voiceOverStatusDidChangeNotification)
+            .sink { [weak self] _ in
+                self?.isVoiceOverRunning = UIAccessibility.isVoiceOverRunning
+            }
+    }
+
+    deinit {
+        cancellable?.cancel()
+    }
 }
 
 struct FlowDestinationModifier<D: Hashable>: ViewModifier {
@@ -35,22 +55,16 @@ struct FlowDestinationModifier<D: Hashable>: ViewModifier {
     @EnvironmentObject var destinationLookup: DestinationLookup
     @EnvironmentObject var flowDepth: FlowDepth
 
-    // Track the current VoiceOver state
-        @State private var isVoiceOverRunning: Bool = UIAccessibility.isVoiceOverRunning
-
     func body(content: Content) -> some View {
         content
-            .zIndex(isVoiceOverRunning ? flowDepth.zIndex : flowDepth.zIndex - 0.2)
+            .zIndex(flowDepth.isVoiceOverRunning ? flowDepth.zIndex : flowDepth.zIndex - 0.2)
             // swiftlint:disable:next force_unwrapping
             .onAppear {
                 destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs })
-
-                NotificationCenter.default.addObserver(forName: UIAccessibility.voiceOverStatusDidChangeNotification, object: nil, queue: .main) { _ in
-                    isVoiceOverRunning = UIAccessibility.isVoiceOverRunning
-                }
             }
-            .onDisappear {
-                NotificationCenter.default.removeObserver(self, name: UIAccessibility.voiceOverStatusDidChangeNotification, object: nil)
+            .onChange(of: flowDepth.isVoiceOverRunning) { newValue in
+                if newValue {print("🫎 VoiceOVER ON")}
+                else {print("🫎 VoiceOVER OFF")}
             }
     }
 }
@@ -199,6 +213,9 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     @State private var destinationLookup: DestinationLookup = .init()
     @StateObject var flowDepth: FlowDepth = .init()
+    @State private var isVoiceOverRunning: Bool = UIAccessibility.isVoiceOverRunning
+
+    @ObservedObject var voiceOverObserver = VoiceOverObserver()
 
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
@@ -240,16 +257,21 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     }
 
     @ViewBuilder
-    private func skrim(for element: FlowElement) -> some View {
-        if element == pathToUse.wrappedValue.elements.last, element.context?.shouldShowSkrim == true {
+    private func skrim(for element: FlowElement, index: Int) -> some View {
+        if element.context?.shouldShowSkrim == true, Double(index + 1) == flowDepth.zIndex {
             Rectangle()
                .foregroundColor(Color.black.opacity(0.7))
                .transition(.opacity)
                .ignoresSafeArea()
                .zIndex(flowDepth.zIndex - 0.1)
-               .id(element.hashValue)
+               .id(flowDepth.zIndex)
+               .onAppear {print("🫎 skrim \(flowDepth.zIndex - 0.1) appear ")}
+               .onDisappear {print("🫎 disapeear ")}
                .onTapGesture {
                    flowDismissAction()
+               }
+               .onChange(of: flowDepth.zIndex) { new in
+                   print("🫎 SKRIM changed \(new - 0.1)")
                }
         }
     }
@@ -261,10 +283,14 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     private var flowDismissAction: FlowDismissAction {
         FlowDismissAction(
             onDismiss: {
+                flowDepth.isDismissing = true
                 withTransaction(transaction) {
                     pathToUse.wrappedValue.removeLast()
                 }
                 flowDepth.zIndex -= 1
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5){
+                    flowDepth.isDismissing = false
+                }
             })
     }
 
@@ -282,10 +308,10 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 .accessibilityHidden(flowDepth.zIndex != 0)
 
 
-            ForEach(pathToUse.wrappedValue.elements, id: \.self) { element in
+            ForEach(Array(pathToUse.wrappedValue.elements.enumerated()), id: \.1.self) { index, element in
                 if let destination = destination(for: element.value) {
 
-                    skrim(for: element)
+                    skrim(for: element, index: index)
                     destination.content(element.value)
                         .contentShape(Rectangle())
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -294,9 +320,18 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         .zIndex(flowDepth.zIndex)
                         .accessibilityElement(children: .contain)
                         .accessibilityHidden(flowDepth.zIndex != Double(element.index + 1))
-                        .onAppear { flowDepth.zIndex = Double(element.index + 1) }
+                        .onAppear {
+                            flowDepth.zIndex = Double(element.index + 1)
+                            print("\n🫎 \(flowDepth.zIndex) appeared")
+                        }
                 }
             }
+        }
+        .onChange(of: pathToUse.wrappedValue.elements) { new in
+            print("🫎 path count: \(new.count)")
+        }
+        .onReceive(voiceOverObserver.$isVoiceOverRunning) { isRunning in
+            flowDepth.isVoiceOverRunning = isRunning
         }
         .zIndex(flowDepth.zIndex)
         .accessibilityElement(children: .contain)
