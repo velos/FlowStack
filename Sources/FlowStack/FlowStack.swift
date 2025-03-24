@@ -35,11 +35,23 @@ struct FlowDestinationModifier<D: Hashable>: ViewModifier {
     @EnvironmentObject var destinationLookup: DestinationLookup
     @EnvironmentObject var flowDepth: FlowDepth
 
+    // Track the current VoiceOver state
+        @State private var isVoiceOverRunning: Bool = UIAccessibility.isVoiceOverRunning
+
     func body(content: Content) -> some View {
         content
-            .zIndex(UIAccessibility.isVoiceOverRunning ? flowDepth.zIndex: flowDepth.zIndex - 0.2 )
+            .zIndex(isVoiceOverRunning ? flowDepth.zIndex : flowDepth.zIndex - 0.2)
             // swiftlint:disable:next force_unwrapping
-            .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
+            .onAppear {
+                destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs })
+
+                NotificationCenter.default.addObserver(forName: UIAccessibility.voiceOverStatusDidChangeNotification, object: nil, queue: .main) { _ in
+                    isVoiceOverRunning = UIAccessibility.isVoiceOverRunning
+                }
+            }
+            .onDisappear {
+                NotificationCenter.default.removeObserver(self, name: UIAccessibility.voiceOverStatusDidChangeNotification, object: nil)
+            }
     }
 }
 
