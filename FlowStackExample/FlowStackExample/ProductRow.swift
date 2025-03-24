@@ -18,6 +18,7 @@ struct ProductRow: View {
             .overlay {
                 image(url: product.imageUrl)
                     .allowsHitTesting(false) // https://stackoverflow.com/a/74711565
+                    .accessibilityLabel("Product Row Image overlay")
             }
             .overlay(alignment: .topTrailing) {
                 Text(product.name)
@@ -25,6 +26,7 @@ struct ProductRow: View {
                     .fontWeight(.black)
                     .foregroundStyle(.white)
                     .padding()
+                    .accessibilityLabel("Product Row name")
             }
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }

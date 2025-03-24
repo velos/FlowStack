@@ -56,17 +56,6 @@ public extension View {
     }
 }
 
-struct FlowDepthKey: EnvironmentKey {
-    static var defaultValue: Int = 0
-}
-
-extension EnvironmentValues {
-    var flowDepth: Int {
-        get { self[FlowDepthKey.self] }
-        set { self[FlowDepthKey.self] = newValue }
-    }
-}
-
 struct GestureContainer: UIViewRepresentable {
 
     @Binding var isPressed: Bool
@@ -249,8 +238,8 @@ public struct FlowLink<Label>: View where Label: View {
     @Environment(\.self) private var capturedEnvironment
 
     @Environment(\.flowPath) private var path
-    @Environment(\.flowDepth) private var flowDepth
     @Environment(\.flowTransaction) private var transaction
+    @EnvironmentObject var flowDepth: FlowDepth
 
     @State private var overrideAnchor: Anchor<CGRect>?
 
@@ -281,16 +270,16 @@ public struct FlowLink<Label>: View where Label: View {
     }
 
     var isContainedInPath: Bool {
-        guard let elements = path?.wrappedValue.elements, let value = value, elements.count > flowDepth else { return false }
+        guard let elements = path?.wrappedValue.elements, let value = value, elements.count > Int(flowDepth.zIndex) else { return false }
 
         // treat -1 as special case to ignore the level on comparisons
-        let depth = flowDepth == -1 ? nil : flowDepth
+        let depth = flowDepth.zIndex == -1 ? nil : flowDepth.zIndex
 
-        return path?.wrappedValue.contains(value, atLevel: depth) ?? false
+        return path?.wrappedValue.contains(value, atLevel: Int(flowDepth.zIndex)) ?? false
     }
 
     var hasSiblingElement: Bool {
-        return path?.wrappedValue.elements.map(\.context?.linkDepth).contains(flowDepth) ?? false
+        return path?.wrappedValue.elements.map(\.context?.linkDepth).contains(Int(flowDepth.zIndex)) ?? false
     }
 
     @State private var snapshot: UIImage?
@@ -370,7 +359,6 @@ public struct FlowLink<Label>: View where Label: View {
                     if configuration.transitionFromSnapshot {
                         context?.snapshot = await updateSnapshot()
                     }
-
                     if let value = value {
                         withTransaction(transaction) {
                             path?.wrappedValue.append(value, context: context)
@@ -413,7 +401,7 @@ public struct FlowLink<Label>: View where Label: View {
                 anchor: configuration.animateFromAnchor ? anchor : nil,
                 overrideAnchor: configuration.animateFromAnchor ? overrideAnchor : nil,
                 snapshot: configuration.animateFromAnchor && configuration.transitionFromSnapshot ? snapshot : nil,
-                linkDepth: flowDepth,
+                linkDepth: Int(flowDepth.zIndex),
                 cornerRadius: configuration.cornerRadius,
                 cornerStyle: configuration.cornerStyle,
                 shadowRadius: configuration.shadowRadius,

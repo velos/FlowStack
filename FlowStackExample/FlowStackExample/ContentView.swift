@@ -10,9 +10,7 @@ import FlowStack
 
 struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-
     let cornerRadius: CGFloat = 24
-
     var body: some View {
         FlowStack {
             ScrollView {
@@ -21,7 +19,6 @@ struct ContentView: View {
                         LazyVStack(alignment: .center, spacing: 24, pinnedViews: [], content: {
                             content
                         })
-
                     } else {
                         LazyVGrid(columns: [GridItem(.flexible(), spacing: 16), GridItem(.flexible())], alignment: .center, spacing: 16, content: {
                             content
@@ -32,15 +29,25 @@ struct ContentView: View {
             }
             .flowDestination(for: Product.self) { product in
                 ProductDetails(product: product)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityRespondsToUserInteraction(true)
+                    .accessibilityLabel("ProductDetails from flowDestination in contentView")
+
             }
         }
+        .accessibilityElement(children: .contain) 
     }
 
     var content: some View {
         ForEach(Product.allProducts) { product in
             FlowLink(value: product, configuration: .init(cornerRadius: cornerRadius)) {
                 ProductRow(product: product, cornerRadius: cornerRadius)
+                    .accessibilityElement(children: .combine)
             }
+            .contentShape(Rectangle())
+            .accessibilityRespondsToUserInteraction(true)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Product \(product.name)")
         }
     }
 }
