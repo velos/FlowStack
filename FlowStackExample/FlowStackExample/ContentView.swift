@@ -10,9 +10,7 @@ import FlowStack
 
 struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @Environment(\.flowDismiss) private var flowDismiss
     let cornerRadius: CGFloat = 24
-
     var body: some View {
         FlowStack {
             ScrollView {
