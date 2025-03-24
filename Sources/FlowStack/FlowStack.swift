@@ -37,7 +37,7 @@ struct FlowDestinationModifier<D: Hashable>: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .zIndex(flowDepth.zIndex)
+            .zIndex(UIAccessibility.isVoiceOverRunning ? flowDepth.zIndex: flowDepth.zIndex - 0.2 )
             // swiftlint:disable:next force_unwrapping
             .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
     }
