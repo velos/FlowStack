@@ -25,7 +25,6 @@ class DestinationLookup: ObservableObject {
     @Published var table: [String: AnyDestination] = [:]
 }
 
-// Tracks Z index for accessibility
 class AccessibilityManager: ObservableObject {
     @Published var zIndex: Double = 0.0
     @Published var isVoiceOverRunning: Bool = false
@@ -58,12 +57,7 @@ struct FlowDestinationModifier<D: Hashable>: ViewModifier {
         content
             .zIndex(accessibilityManager.isVoiceOverRunning ? accessibilityManager.zIndex : accessibilityManager.zIndex - 0.2)
             // swiftlint:disable:next force_unwrapping
-            .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs })
-}
-            .onChange(of: accessibilityManager.isVoiceOverRunning) { newValue in
-                if newValue {print("🫎 VoiceOVER ON")}
-                else {print("🫎 VoiceOVER OFF")}
-            }
+            .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
     }
 }
 
@@ -115,14 +109,12 @@ public extension View {
             guard let param = AnyDestination.cast(data: param, to: type) else {
                 fatalError()
             }
-
             return AnyView (
                 destination(param)
                     .accessibilityElement(children: .contain)
                     .accessibilityRespondsToUserInteraction(true)
             )
         })
-
         return modifier(FlowDestinationModifier(dataType: type, destination: destination))
     }
 }
@@ -252,7 +244,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         return destination
     }
 
-    private func calculateSkrimZIndex() -> Double {
+    private func SkrimZIndex() -> Double {
         if accessibilityManager.isVoiceOverRunning {
             return accessibilityManager.zIndex - 0.1
         }
@@ -266,7 +258,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 .foregroundColor(Color.black.opacity(0.7))
                 .transition(.opacity)
                 .ignoresSafeArea()
-                .zIndex(calculateSkrimZIndex())
+                .zIndex(SkrimZIndex())
                 .id(element.hashValue)
                 .onTapGesture {
                     flowDismissAction()
@@ -317,13 +309,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         .zIndex(Double(accessibilityManager.zIndex))
                         .accessibilityElement(children: .contain)
                         .accessibilityHidden(accessibilityManager.zIndex != Double(element.index + 1))
-                        .onAppear {
-                            accessibilityManager.zIndex = Double(element.index + 1)
-                            print("🫎 zIndex: \(Double(element.index + 1))")
-                        }
-                        .simultaneousGesture(TapGesture().onEnded {
-                            print("🫎 accessibilityManager.zIndex \(accessibilityManager.zIndex ) ")
-                        })
+                        .onAppear { accessibilityManager.zIndex = Double(element.index + 1) }
                 }
             }
         }
