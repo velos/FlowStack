@@ -269,12 +269,6 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 .ignoresSafeArea()
                 .zIndex(calculateSkrimZIndex())
                 .id(flowDepth.zIndex)
-                .onAppear {
-                    print("🫎 appearing \(element.index + 1)")
-                }
-                .onDisappear {
-                    print("🫎 disapeering \(element.index + 1)")
-                }
                 .onTapGesture {
                     flowDismissAction()
                 }
