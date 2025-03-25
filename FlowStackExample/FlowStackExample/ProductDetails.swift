@@ -11,7 +11,9 @@ import CachedAsyncImage
 
 struct ProductDetails: View {
     @Environment(\.flowDismiss) var flowDismiss
+
     @State var opacity: CGFloat = 0
+
     var product: Product
 
     var body: some View {
@@ -44,10 +46,10 @@ struct ProductDetails: View {
                             .padding(.vertical, proxy.safeAreaInsets.top + 12)
                             .opacity(opacity)
                         })
-                        .accessibilitySortPriority(100)
                         .clipped()
                     VStack(alignment: .leading, spacing: 40) {
                         Text(product.description)
+                        
                         VStack(alignment: .leading) {
                             stat(label: "Released", value: product.released)
                             separator
@@ -71,8 +73,6 @@ struct ProductDetails: View {
                     .padding()
                     .opacity(opacity)
                 }
-                .accessibilityElement(children: .contain)
-                .accessibilityAction(.escape) { flowDismiss() }
             }
             .ignoresSafeArea()
         }
@@ -89,7 +89,6 @@ struct ProductDetails: View {
                 .resizable()
                 .scaledToFill()
                 .frame(minWidth: 0, minHeight: 0)
-                .accessibilityHidden(true)
         } placeholder: {
             Color(uiColor: .secondarySystemFill)
         }

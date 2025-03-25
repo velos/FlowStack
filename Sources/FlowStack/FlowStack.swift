@@ -24,20 +24,14 @@ class DestinationLookup: ObservableObject {
     @Published var table: [String: AnyDestination] = [:]
 }
 
-// Tracks Z index for accessibility
-class FlowDepth: ObservableObject {
-    @Published var zIndex: Double = 0.0
-}
-
 struct FlowDestinationModifier<D: Hashable>: ViewModifier {
     @State var dataType: D.Type
     @State var destination: AnyDestination
+
     @EnvironmentObject var destinationLookup: DestinationLookup
-    @EnvironmentObject var flowDepth: FlowDepth
 
     func body(content: Content) -> some View {
         content
-            .zIndex(flowDepth.zIndex)
             // swiftlint:disable:next force_unwrapping
             .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
     }
@@ -87,16 +81,13 @@ public extension View {
     ///     type `data`. The closure takes one argument, which is the value
     ///     of the data to present.
     func flowDestination<D, C>(for type: D.Type, @ViewBuilder destination: @escaping (D) -> C) -> some View where D: Hashable, C: View {
+
         let destination = AnyDestination(dataType: type, content: { param in
             guard let param = AnyDestination.cast(data: param, to: type) else {
                 fatalError()
             }
 
-            return AnyView (
-                destination(param)
-                    .accessibilityElement(children: .contain)
-                    .accessibilityRespondsToUserInteraction(true)
-            )
+            return AnyView(destination(param))
         })
 
         return modifier(FlowDestinationModifier(dataType: type, destination: destination))
@@ -186,7 +177,6 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     private var usesInternalPath: Bool = false
 
     @State private var destinationLookup: DestinationLookup = .init()
-    @StateObject var flowDepth: FlowDepth = .init()
 
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
@@ -234,7 +224,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                .foregroundColor(Color.black.opacity(0.7))
                .transition(.opacity)
                .ignoresSafeArea()
-               .zIndex(flowDepth.zIndex - 0.1)
+               .zIndex(Double(element.index + 1) - 0.1)
                .id(element.hashValue)
                .onTapGesture {
                    flowDismissAction()
@@ -252,7 +242,6 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 withTransaction(transaction) {
                     pathToUse.wrappedValue.removeLast()
                 }
-                flowDepth.zIndex -= 1
             })
     }
 
@@ -261,41 +250,33 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         transaction.disablesAnimations = true
         return transaction
     }
-    @Environment(\.flowDismiss) var flowDismiss
+
     public var body: some View {
         ZStack {
             root()
-                .contentShape(Rectangle())
-                .accessibilityElement(children: .contain)
-                .accessibilityHidden(flowDepth.zIndex != 0)
-
+                .environment(\.flowDepth, 0)
 
             ForEach(pathToUse.wrappedValue.elements, id: \.self) { element in
                 if let destination = destination(for: element.value) {
 
                     skrim(for: element)
+
                     destination.content(element.value)
-                        .contentShape(Rectangle())
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .id(element.hashValue)
                         .transition(.flowTransition(with: element.context ?? .init()))
-                        .zIndex(flowDepth.zIndex)
-                        .accessibilityElement(children: .contain)
-                        .accessibilityHidden(flowDepth.zIndex != Double(element.index + 1))
-                        .onAppear { flowDepth.zIndex = Double(element.index + 1) }
+                        .environment(\.flowDepth, element.index + 1)
+                        .zIndex(Double(element.index) + 1)
                 }
             }
         }
-        .zIndex(flowDepth.zIndex)
-        .accessibilityElement(children: .contain)
         .overlay(alignment: overlayAlignment) {
             overlay()
-                .zIndex(flowDepth.zIndex - 1.0)
+                .environment(\.flowDepth, -1)
         }
         .environment(\.flowPath, pathToUse)
         .environment(\.flowTransaction, transaction)
         .environmentObject(destinationLookup)
-        .environmentObject(flowDepth)
         .environment(\.flowDismiss, flowDismissAction)
     }
 }
