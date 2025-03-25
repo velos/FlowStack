@@ -58,7 +58,9 @@ struct FlowDestinationModifier<D: Hashable>: ViewModifier {
         content
             .zIndex(flowDepth.isVoiceOverRunning ? flowDepth.zIndex : flowDepth.zIndex - 0.2)
             // swiftlint:disable:next force_unwrapping
-            .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
+            .onAppear {
+                destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs })
+            }
             .onChange(of: flowDepth.isVoiceOverRunning) { newValue in
                 if newValue {print("🫎 VoiceOVER ON")}
                 else {print("🫎 VoiceOVER OFF")}
@@ -268,7 +270,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 .transition(.opacity)
                 .ignoresSafeArea()
                 .zIndex(calculateSkrimZIndex())
-                .id(flowDepth.zIndex)
+                .id(element.hashValue)
                 .onTapGesture {
                     flowDismissAction()
                 }
@@ -286,6 +288,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                     pathToUse.wrappedValue.removeLast()
                 }
                 flowDepth.zIndex -= 1
+
             })
     }
 
@@ -307,24 +310,28 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 if let destination = destination(for: element.value) {
 
                     skrim(for: element)
+
                     destination.content(element.value)
                         .contentShape(Rectangle())
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .id(element.hashValue)
                         .transition(.flowTransition(with: element.context ?? .init()))
-                        .zIndex(flowDepth.zIndex)
+                        .zIndex(Double(flowDepth.zIndex))
                         .accessibilityElement(children: .contain)
                         .accessibilityHidden(flowDepth.zIndex != Double(element.index + 1))
                         .onAppear {
                             flowDepth.zIndex = Double(element.index + 1)
+                            print("🫎 zIndex: \(Double(element.index + 1))")
                         }
+                        .simultaneousGesture(TapGesture().onEnded {
+                            print("🫎 flowDepth.zIndex \(flowDepth.zIndex ) ")
+                        })
                 }
             }
         }
         .onReceive(voiceOverObserver.$isVoiceOverRunning) { isRunning in
             flowDepth.isVoiceOverRunning = isRunning
         }
-        .zIndex(flowDepth.zIndex)
         .accessibilityElement(children: .contain)
         .overlay(alignment: overlayAlignment) {
             overlay()

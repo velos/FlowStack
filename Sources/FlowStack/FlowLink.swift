@@ -273,9 +273,9 @@ public struct FlowLink<Label>: View where Label: View {
         guard let elements = path?.wrappedValue.elements, let value = value, elements.count > Int(flowDepth.zIndex) else { return false }
 
         // treat -1 as special case to ignore the level on comparisons
-        let depth = flowDepth.zIndex == -1 ? nil : flowDepth.zIndex
+        let depth = Int(flowDepth.zIndex) == -1 ? nil : Int(flowDepth.zIndex)
 
-        return path?.wrappedValue.contains(value, atLevel: Int(flowDepth.zIndex)) ?? false
+        return path?.wrappedValue.contains(value, atLevel: depth) ?? false
     }
 
     var hasSiblingElement: Bool {
