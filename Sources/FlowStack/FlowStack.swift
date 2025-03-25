@@ -26,7 +26,7 @@ class DestinationLookup: ObservableObject {
 }
 
 // Tracks Z index for accessibility
-class FlowDepth: ObservableObject {
+class AccessibilityManager: ObservableObject {
     @Published var zIndex: Double = 0.0
     @Published var isVoiceOverRunning: Bool = false
     @Published var isDismissing: Bool = false
@@ -52,16 +52,15 @@ struct FlowDestinationModifier<D: Hashable>: ViewModifier {
     @State var dataType: D.Type
     @State var destination: AnyDestination
     @EnvironmentObject var destinationLookup: DestinationLookup
-    @EnvironmentObject var flowDepth: FlowDepth
+    @EnvironmentObject var accessibilityManager: AccessibilityManager
 
     func body(content: Content) -> some View {
         content
-            .zIndex(flowDepth.isVoiceOverRunning ? flowDepth.zIndex : flowDepth.zIndex - 0.2)
+            .zIndex(accessibilityManager.isVoiceOverRunning ? accessibilityManager.zIndex : accessibilityManager.zIndex - 0.2)
             // swiftlint:disable:next force_unwrapping
-            .onAppear {
-                destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs })
-            }
-            .onChange(of: flowDepth.isVoiceOverRunning) { newValue in
+            .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs })
+}
+            .onChange(of: accessibilityManager.isVoiceOverRunning) { newValue in
                 if newValue {print("🫎 VoiceOVER ON")}
                 else {print("🫎 VoiceOVER OFF")}
             }
@@ -211,9 +210,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     private var usesInternalPath: Bool = false
 
     @State private var destinationLookup: DestinationLookup = .init()
-    @StateObject var flowDepth: FlowDepth = .init()
-    @State private var isVoiceOverRunning: Bool = UIAccessibility.isVoiceOverRunning
-
+    @StateObject var accessibilityManager: AccessibilityManager = .init()
     @ObservedObject var voiceOverObserver = VoiceOverObserver()
 
     /// Creates a flow stack that manages its own navigation state.
@@ -256,10 +253,10 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     }
 
     private func calculateSkrimZIndex() -> Double {
-        if flowDepth.isVoiceOverRunning {
-            return flowDepth.zIndex - 0.1
+        if accessibilityManager.isVoiceOverRunning {
+            return accessibilityManager.zIndex - 0.1
         }
-        return flowDepth.zIndex > 1.0 ? flowDepth.zIndex : flowDepth.zIndex - 0.1
+        return accessibilityManager.zIndex > 1.0 ? accessibilityManager.zIndex : accessibilityManager.zIndex - 0.1
     }
 
     @ViewBuilder
@@ -285,10 +282,9 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         FlowDismissAction(
             onDismiss: {
                 withTransaction(transaction) {
+                    accessibilityManager.zIndex -= 1
                     pathToUse.wrappedValue.removeLast()
                 }
-                flowDepth.zIndex -= 1
-
             })
     }
 
@@ -303,7 +299,8 @@ public struct FlowStack<Root: View, Overlay: View>: View {
             root()
                 .contentShape(Rectangle())
                 .accessibilityElement(children: .contain)
-                .accessibilityHidden(flowDepth.zIndex != 0)
+                .accessibilityHidden(accessibilityManager.zIndex != 0)
+                .environment(\.flowDepth, 0)
 
 
             ForEach(pathToUse.wrappedValue.elements, id: \.self) { element in
@@ -316,31 +313,32 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .id(element.hashValue)
                         .transition(.flowTransition(with: element.context ?? .init()))
-                        .zIndex(Double(flowDepth.zIndex))
+                        .environment(\.flowDepth, element.index + 1)
+                        .zIndex(Double(accessibilityManager.zIndex))
                         .accessibilityElement(children: .contain)
-                        .accessibilityHidden(flowDepth.zIndex != Double(element.index + 1))
+                        .accessibilityHidden(accessibilityManager.zIndex != Double(element.index + 1))
                         .onAppear {
-                            flowDepth.zIndex = Double(element.index + 1)
+                            accessibilityManager.zIndex = Double(element.index + 1)
                             print("🫎 zIndex: \(Double(element.index + 1))")
                         }
                         .simultaneousGesture(TapGesture().onEnded {
-                            print("🫎 flowDepth.zIndex \(flowDepth.zIndex ) ")
+                            print("🫎 accessibilityManager.zIndex \(accessibilityManager.zIndex ) ")
                         })
                 }
             }
         }
         .onReceive(voiceOverObserver.$isVoiceOverRunning) { isRunning in
-            flowDepth.isVoiceOverRunning = isRunning
+            accessibilityManager.isVoiceOverRunning = isRunning
         }
         .accessibilityElement(children: .contain)
         .overlay(alignment: overlayAlignment) {
             overlay()
-                .zIndex(flowDepth.zIndex - 1.0)
+                .environment(\.flowDepth, -1)
         }
         .environment(\.flowPath, pathToUse)
         .environment(\.flowTransaction, transaction)
         .environmentObject(destinationLookup)
-        .environmentObject(flowDepth)
+        .environmentObject(accessibilityManager)
         .environment(\.flowDismiss, flowDismissAction)
     }
 }
@@ -411,7 +409,6 @@ public extension Animation {
 struct FlowTransactionModifier: ViewModifier {
     @Environment(\.flowTransaction) var transaction
     @Environment(\.flowPath) var flowPath
-    @EnvironmentObject var flowDepth: FlowDepth
 
     @State var initialPathCount: Int = 0
     @State var dismissCalled: Bool = false
@@ -445,7 +442,6 @@ struct FlowTransactionModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .zIndex(flowDepth.zIndex)
             .onAppear(perform: {
                 initialPathCount = path!.elements.count
                 withTransaction(transaction) {
