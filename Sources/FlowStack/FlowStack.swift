@@ -59,9 +59,7 @@ struct FlowDestinationModifier<D: Hashable>: ViewModifier {
         content
             .zIndex(flowDepth.isVoiceOverRunning ? flowDepth.zIndex : flowDepth.zIndex - 0.2)
             // swiftlint:disable:next force_unwrapping
-            .onAppear {
-                destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs })
-            }
+            .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
             .onChange(of: flowDepth.isVoiceOverRunning) { newValue in
                 if newValue {print("🫎 VoiceOVER ON")}
                 else {print("🫎 VoiceOVER OFF")}
@@ -256,23 +254,31 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         return destination
     }
 
+    private func calculateSkrimZIndex() -> Double {
+        if flowDepth.isVoiceOverRunning {
+            return flowDepth.zIndex - 0.1
+        }
+        return flowDepth.zIndex > 1.0 ? flowDepth.zIndex : flowDepth.zIndex - 0.1
+    }
+
     @ViewBuilder
-    private func skrim(for element: FlowElement, index: Int) -> some View {
-        if element.context?.shouldShowSkrim == true, Double(index + 1) == flowDepth.zIndex {
+    private func skrim(for element: FlowElement) -> some View {
+        if element == pathToUse.wrappedValue.elements.last, element.context?.shouldShowSkrim == true {
             Rectangle()
-               .foregroundColor(Color.black.opacity(0.7))
-               .transition(.opacity)
-               .ignoresSafeArea()
-               .zIndex(flowDepth.zIndex - 0.1)
-               .id(flowDepth.zIndex)
-               .onAppear {print("🫎 skrim \(flowDepth.zIndex - 0.1) appear ")}
-               .onDisappear {print("🫎 disapeear ")}
-               .onTapGesture {
-                   flowDismissAction()
-               }
-               .onChange(of: flowDepth.zIndex) { new in
-                   print("🫎 SKRIM changed \(new - 0.1)")
-               }
+                .foregroundColor(Color.black.opacity(0.7))
+                .transition(.opacity)
+                .ignoresSafeArea()
+                .zIndex(calculateSkrimZIndex())
+                .id(flowDepth.zIndex)
+                .onAppear {
+                    print("🫎 appearing \(element.index + 1)")
+                }
+                .onDisappear {
+                    print("🫎 disapeering \(element.index + 1)")
+                }
+                .onTapGesture {
+                    flowDismissAction()
+                }
         }
     }
 
@@ -283,14 +289,10 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     private var flowDismissAction: FlowDismissAction {
         FlowDismissAction(
             onDismiss: {
-                flowDepth.isDismissing = true
                 withTransaction(transaction) {
                     pathToUse.wrappedValue.removeLast()
                 }
                 flowDepth.zIndex -= 1
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5){
-                    flowDepth.isDismissing = false
-                }
             })
     }
 
@@ -308,10 +310,10 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 .accessibilityHidden(flowDepth.zIndex != 0)
 
 
-            ForEach(Array(pathToUse.wrappedValue.elements.enumerated()), id: \.1.self) { index, element in
+            ForEach(pathToUse.wrappedValue.elements, id: \.self) { element in
                 if let destination = destination(for: element.value) {
 
-                    skrim(for: element, index: index)
+                    skrim(for: element)
                     destination.content(element.value)
                         .contentShape(Rectangle())
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -322,13 +324,9 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         .accessibilityHidden(flowDepth.zIndex != Double(element.index + 1))
                         .onAppear {
                             flowDepth.zIndex = Double(element.index + 1)
-                            print("\n🫎 \(flowDepth.zIndex) appeared")
                         }
                 }
             }
-        }
-        .onChange(of: pathToUse.wrappedValue.elements) { new in
-            print("🫎 path count: \(new.count)")
         }
         .onReceive(voiceOverObserver.$isVoiceOverRunning) { isRunning in
             flowDepth.isVoiceOverRunning = isRunning
@@ -413,6 +411,7 @@ public extension Animation {
 struct FlowTransactionModifier: ViewModifier {
     @Environment(\.flowTransaction) var transaction
     @Environment(\.flowPath) var flowPath
+    @EnvironmentObject var flowDepth: FlowDepth
 
     @State var initialPathCount: Int = 0
     @State var dismissCalled: Bool = false
@@ -446,6 +445,7 @@ struct FlowTransactionModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .zIndex(flowDepth.zIndex)
             .onAppear(perform: {
                 initialPathCount = path!.elements.count
                 withTransaction(transaction) {
