@@ -43,7 +43,6 @@ final class VoiceOverObserver: ObservableObject {
                 self?.isVoiceOverRunning = UIAccessibility.isVoiceOverRunning
             }
     }
-
     deinit {
         cancellable?.cancel()
     }
