@@ -56,6 +56,17 @@ public extension View {
     }
 }
 
+struct FlowDepthKey: EnvironmentKey {
+    static var defaultValue: Int = 0
+}
+
+extension EnvironmentValues {
+    var flowDepth: Int {
+        get { self[FlowDepthKey.self] }
+        set { self[FlowDepthKey.self] = newValue }
+    }
+}
+
 struct GestureContainer: UIViewRepresentable {
 
     @Binding var isPressed: Bool
@@ -238,8 +249,8 @@ public struct FlowLink<Label>: View where Label: View {
     @Environment(\.self) private var capturedEnvironment
 
     @Environment(\.flowPath) private var path
+    @Environment(\.flowDepth) private var flowDepth
     @Environment(\.flowTransaction) private var transaction
-    @EnvironmentObject var flowDepth: FlowDepth
 
     @State private var overrideAnchor: Anchor<CGRect>?
 
@@ -270,16 +281,16 @@ public struct FlowLink<Label>: View where Label: View {
     }
 
     var isContainedInPath: Bool {
-        guard let elements = path?.wrappedValue.elements, let value = value, elements.count > Int(flowDepth.zIndex) else { return false }
+        guard let elements = path?.wrappedValue.elements, let value = value, elements.count > flowDepth else { return false }
 
         // treat -1 as special case to ignore the level on comparisons
-        let depth = flowDepth.zIndex == -1 ? nil : flowDepth.zIndex
+        let depth = flowDepth == -1 ? nil : flowDepth
 
-        return path?.wrappedValue.contains(value, atLevel: Int(flowDepth.zIndex)) ?? false
+        return path?.wrappedValue.contains(value, atLevel: depth) ?? false
     }
 
     var hasSiblingElement: Bool {
-        return path?.wrappedValue.elements.map(\.context?.linkDepth).contains(Int(flowDepth.zIndex)) ?? false
+        return path?.wrappedValue.elements.map(\.context?.linkDepth).contains(flowDepth) ?? false
     }
 
     @State private var snapshot: UIImage?
@@ -401,7 +412,7 @@ public struct FlowLink<Label>: View where Label: View {
                 anchor: configuration.animateFromAnchor ? anchor : nil,
                 overrideAnchor: configuration.animateFromAnchor ? overrideAnchor : nil,
                 snapshot: configuration.animateFromAnchor && configuration.transitionFromSnapshot ? snapshot : nil,
-                linkDepth: Int(flowDepth.zIndex),
+                linkDepth: flowDepth,
                 cornerRadius: configuration.cornerRadius,
                 cornerStyle: configuration.cornerStyle,
                 shadowRadius: configuration.shadowRadius,
@@ -420,4 +431,3 @@ public struct FlowLink<Label>: View where Label: View {
         }
     }
 }
-
