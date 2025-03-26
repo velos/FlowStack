@@ -420,4 +420,3 @@ public struct FlowLink<Label>: View where Label: View {
         }
     }
 }
-
