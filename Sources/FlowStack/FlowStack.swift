@@ -293,8 +293,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityHidden(accessibilityManager.zIndex != 0)
                 .environment(\.flowDepth, 0)
-
-
+            
             ForEach(pathToUse.wrappedValue.elements, id: \.self) { element in
                 if let destination = destination(for: element.value) {
 
