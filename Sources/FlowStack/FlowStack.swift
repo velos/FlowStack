@@ -56,6 +56,7 @@ struct AccessibilityModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .environment(\.flowDepth, element + 1)
             .zIndex(Double(accessibilityManager.zIndex))
             .accessibilityElement(children: .contain)
             .accessibilityHidden(isHidden(accessibilityManager.zIndex, element))
@@ -313,7 +314,6 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .id(element.hashValue)
                         .transition(.flowTransition(with: element.context ?? .init()))
-                        .environment(\.flowDepth, element.index + 1)
                         .modifier(AccessibilityModifier(element: element.index))
                 }
             }
