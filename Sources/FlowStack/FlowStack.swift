@@ -4,6 +4,7 @@
 //  Created by Zac White on 2/14/23.
 //
 
+import Combine
 import SwiftUI
 
 struct AnyDestination: Equatable {
@@ -24,20 +25,55 @@ class DestinationLookup: ObservableObject {
     @Published var table: [String: AnyDestination] = [:]
 }
 
-// Tracks Z index for accessibility
-class FlowDepth: ObservableObject {
+class AccessibilityManager: ObservableObject {
     @Published var zIndex: Double = 0.0
+    var skrimIndex: Double { zIndex - 0.1 }
+    var behindSkrim: Double { zIndex - 0.2 }
+
+    // Setup VoiceOver Observer
+    @Published var isVoiceOverRunning: Bool = UIAccessibility.isVoiceOverRunning
+    init() {
+        NotificationCenter.default
+            .publisher(for: UIAccessibility.voiceOverStatusDidChangeNotification)
+            .map { _ in UIAccessibility.isVoiceOverRunning }
+            .assign(to: &$isVoiceOverRunning)
+    }
+
+    func setIndex(_ input: Int) { self.zIndex = Double(input + 1)}
+
+    func decrementIndex() { self.zIndex -= 1.0 }
+
+    func calcSkrim() -> Double {
+        if isVoiceOverRunning { return skrimIndex }
+        return zIndex > 1.0 ? zIndex : skrimIndex
+    }
+}
+
+struct AccessibilityModifier: ViewModifier {
+    @EnvironmentObject var accessibilityManager: AccessibilityManager
+    var isHidden: (Double, Int) -> Bool = { d, i in d != Double(i + 1) }
+    let element: Int
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.flowDepth, element + 1)
+            .zIndex(Double(accessibilityManager.zIndex))
+            .accessibilityElement(children: .contain)
+            .accessibilityHidden(isHidden(accessibilityManager.zIndex, element))
+            .onAppear { accessibilityManager.setIndex(element) }
+    }
 }
 
 struct FlowDestinationModifier<D: Hashable>: ViewModifier {
     @State var dataType: D.Type
     @State var destination: AnyDestination
     @EnvironmentObject var destinationLookup: DestinationLookup
-    @EnvironmentObject var flowDepth: FlowDepth
+    @EnvironmentObject var accessibilityManager: AccessibilityManager
+    @Environment(\.flowDismiss) var flowDismiss
 
     func body(content: Content) -> some View {
         content
-            .zIndex(flowDepth.zIndex)
+            .zIndex(accessibilityManager.isVoiceOverRunning ? accessibilityManager.zIndex : accessibilityManager.behindSkrim)
             // swiftlint:disable:next force_unwrapping
             .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
     }
@@ -91,14 +127,12 @@ public extension View {
             guard let param = AnyDestination.cast(data: param, to: type) else {
                 fatalError()
             }
-
             return AnyView (
                 destination(param)
                     .accessibilityElement(children: .contain)
                     .accessibilityRespondsToUserInteraction(true)
             )
         })
-
         return modifier(FlowDestinationModifier(dataType: type, destination: destination))
     }
 }
@@ -186,7 +220,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     private var usesInternalPath: Bool = false
 
     @State private var destinationLookup: DestinationLookup = .init()
-    @StateObject var flowDepth: FlowDepth = .init()
+    @StateObject var accessibilityManager: AccessibilityManager = .init()
 
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
@@ -231,14 +265,14 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     private func skrim(for element: FlowElement) -> some View {
         if element == pathToUse.wrappedValue.elements.last, element.context?.shouldShowSkrim == true {
             Rectangle()
-               .foregroundColor(Color.black.opacity(0.7))
-               .transition(.opacity)
-               .ignoresSafeArea()
-               .zIndex(flowDepth.zIndex - 0.1)
-               .id(element.hashValue)
-               .onTapGesture {
-                   flowDismissAction()
-               }
+                .foregroundColor(Color.black.opacity(0.7))
+                .transition(.opacity)
+                .ignoresSafeArea()
+                .zIndex(accessibilityManager.calcSkrim())
+                .id(element.hashValue)
+                .onTapGesture {
+                    flowDismissAction()
+                }
         }
     }
 
@@ -250,9 +284,9 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         FlowDismissAction(
             onDismiss: {
                 withTransaction(transaction) {
+                    accessibilityManager.decrementIndex()
                     pathToUse.wrappedValue.removeLast()
                 }
-                flowDepth.zIndex -= 1
             })
     }
 
@@ -267,35 +301,32 @@ public struct FlowStack<Root: View, Overlay: View>: View {
             root()
                 .contentShape(Rectangle())
                 .accessibilityElement(children: .contain)
-                .accessibilityHidden(flowDepth.zIndex != 0)
-
+                .accessibilityHidden(accessibilityManager.zIndex != 0)
+                .environment(\.flowDepth, 0)
 
             ForEach(pathToUse.wrappedValue.elements, id: \.self) { element in
                 if let destination = destination(for: element.value) {
 
                     skrim(for: element)
+
                     destination.content(element.value)
                         .contentShape(Rectangle())
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .id(element.hashValue)
                         .transition(.flowTransition(with: element.context ?? .init()))
-                        .zIndex(flowDepth.zIndex)
-                        .accessibilityElement(children: .contain)
-                        .accessibilityHidden(flowDepth.zIndex != Double(element.index + 1))
-                        .onAppear { flowDepth.zIndex = Double(element.index + 1) }
+                        .modifier(AccessibilityModifier(element: element.index))
                 }
             }
         }
-        .zIndex(flowDepth.zIndex)
         .accessibilityElement(children: .contain)
         .overlay(alignment: overlayAlignment) {
             overlay()
-                .zIndex(flowDepth.zIndex - 1.0)
+                .environment(\.flowDepth, -1)
         }
         .environment(\.flowPath, pathToUse)
         .environment(\.flowTransaction, transaction)
         .environmentObject(destinationLookup)
-        .environmentObject(flowDepth)
+        .environmentObject(accessibilityManager)
         .environment(\.flowDismiss, flowDismissAction)
     }
 }
