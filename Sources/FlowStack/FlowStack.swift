@@ -27,23 +27,39 @@ class DestinationLookup: ObservableObject {
 
 class AccessibilityManager: ObservableObject {
     @Published var zIndex: Double = 0.0
-    @Published var isVoiceOverRunning: Bool = false
-    @Published var isDismissing: Bool = false
+    var skrimIndex: Double { zIndex - 0.1 }
+    var behindSkrim: Double { zIndex - 0.2 }
+
+    // Setup VoiceOver Observer
+    @Published var isVoiceOverRunning: Bool = UIAccessibility.isVoiceOverRunning
+    init() {
+        NotificationCenter.default
+            .publisher(for: UIAccessibility.voiceOverStatusDidChangeNotification)
+            .map { _ in UIAccessibility.isVoiceOverRunning }
+            .assign(to: &$isVoiceOverRunning)
+    }
+
+    func setIndex(_ input: Int) { self.zIndex = Double(input + 1)}
+
+    func decrementIndex() { self.zIndex -= 1.0 }
+
+    func calcSkrim() -> Double {
+        if isVoiceOverRunning { return skrimIndex }
+        return zIndex > 1.0 ? zIndex : skrimIndex
+    }
 }
 
-final class VoiceOverObserver: ObservableObject {
-    @Published var isVoiceOverRunning: Bool = UIAccessibility.isVoiceOverRunning
-    var cancellable: AnyCancellable?
+struct AccessibilityModifier: ViewModifier {
+    @EnvironmentObject var accessibilityManager: AccessibilityManager
+    var isHidden: (Double, Int) -> Bool = { d, i in d != Double(i + 1) }
+    let element: Int
 
-    init() {
-        cancellable = NotificationCenter.default
-            .publisher(for: UIAccessibility.voiceOverStatusDidChangeNotification)
-            .sink { [weak self] _ in
-                self?.isVoiceOverRunning = UIAccessibility.isVoiceOverRunning
-            }
-    }
-    deinit {
-        cancellable?.cancel()
+    func body(content: Content) -> some View {
+        content
+            .zIndex(Double(accessibilityManager.zIndex))
+            .accessibilityElement(children: .contain)
+            .accessibilityHidden(isHidden(accessibilityManager.zIndex, element))
+            .onAppear { accessibilityManager.setIndex(element) }
     }
 }
 
@@ -52,10 +68,11 @@ struct FlowDestinationModifier<D: Hashable>: ViewModifier {
     @State var destination: AnyDestination
     @EnvironmentObject var destinationLookup: DestinationLookup
     @EnvironmentObject var accessibilityManager: AccessibilityManager
+    @Environment(\.flowDismiss) var flowDismiss
 
     func body(content: Content) -> some View {
         content
-            .zIndex(accessibilityManager.isVoiceOverRunning ? accessibilityManager.zIndex : accessibilityManager.zIndex - 0.2)
+            .zIndex(accessibilityManager.isVoiceOverRunning ? accessibilityManager.zIndex : accessibilityManager.behindSkrim)
             // swiftlint:disable:next force_unwrapping
             .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
     }
@@ -203,7 +220,6 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     @State private var destinationLookup: DestinationLookup = .init()
     @StateObject var accessibilityManager: AccessibilityManager = .init()
-    @ObservedObject var voiceOverObserver = VoiceOverObserver()
 
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
@@ -244,13 +260,6 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         return destination
     }
 
-    private func SkrimZIndex() -> Double {
-        if accessibilityManager.isVoiceOverRunning {
-            return accessibilityManager.zIndex - 0.1
-        }
-        return accessibilityManager.zIndex > 1.0 ? accessibilityManager.zIndex : accessibilityManager.zIndex - 0.1
-    }
-
     @ViewBuilder
     private func skrim(for element: FlowElement) -> some View {
         if element == pathToUse.wrappedValue.elements.last, element.context?.shouldShowSkrim == true {
@@ -258,7 +267,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 .foregroundColor(Color.black.opacity(0.7))
                 .transition(.opacity)
                 .ignoresSafeArea()
-                .zIndex(SkrimZIndex())
+                .zIndex(accessibilityManager.calcSkrim())
                 .id(element.hashValue)
                 .onTapGesture {
                     flowDismissAction()
@@ -274,7 +283,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         FlowDismissAction(
             onDismiss: {
                 withTransaction(transaction) {
-                    accessibilityManager.zIndex -= 1
+                    accessibilityManager.decrementIndex()
                     pathToUse.wrappedValue.removeLast()
                 }
             })
@@ -305,15 +314,9 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         .id(element.hashValue)
                         .transition(.flowTransition(with: element.context ?? .init()))
                         .environment(\.flowDepth, element.index + 1)
-                        .zIndex(Double(accessibilityManager.zIndex))
-                        .accessibilityElement(children: .contain)
-                        .accessibilityHidden(accessibilityManager.zIndex != Double(element.index + 1))
-                        .onAppear { accessibilityManager.zIndex = Double(element.index + 1) }
+                        .modifier(AccessibilityModifier(element: element.index))
                 }
             }
-        }
-        .onReceive(voiceOverObserver.$isVoiceOverRunning) { isRunning in
-            accessibilityManager.isVoiceOverRunning = isRunning
         }
         .accessibilityElement(children: .contain)
         .overlay(alignment: overlayAlignment) {
