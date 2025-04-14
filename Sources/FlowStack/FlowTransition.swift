@@ -69,27 +69,6 @@ extension AnyTransition {
         )
     }
 
-    static var invisible: AnyTransition {
-        AnyTransition.modifier(
-            active: InvisibleModifier(percent: 1),
-            identity: InvisibleModifier(percent: 0)
-        )
-    }
-
-    struct InvisibleModifier: AnimatableModifier {
-        var percent: Double
-
-        var animatableData: Double {
-            get { percent }
-            set { percent = newValue }
-        }
-
-        func body(content: Content) -> some View {
-            content
-                .opacity(percent == 1.0 ? 0 : 1)
-        }
-    }
-
     struct FlowPresentModifier: Animatable, ViewModifier {
         var percent: CGFloat
         var context: PathContext

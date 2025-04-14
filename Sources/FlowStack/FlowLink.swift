@@ -364,7 +364,6 @@ public struct FlowLink<Label>: View where Label: View {
         label()
             .onButtonGesture {
                 buttonPressed = true
-                print("🦦 buttonPressed -> \(buttonPressed)")
                 // check for sibling elements and return early if we already have a presented element at this depth
                 guard !hasSiblingElement else {
                     return
@@ -391,7 +390,6 @@ public struct FlowLink<Label>: View where Label: View {
                 if configuration.animateFromAnchor && overrideAnchor == nil {
                     button
                         .opacity(isShowing ? 1.0 : 0.0)
-//                        .transition(.invisible)
                 } else if configuration.animateFromAnchor {
                     button
                         .transition(.opacityPercent)
@@ -445,7 +443,6 @@ public struct FlowLink<Label>: View where Label: View {
             buttonPressed = false
         } else if isShowing == false {
             DispatchQueue.main.asyncAfter(deadline: .now() + flowDuration) { withAnimation(nil) {
-                print("🦦 isShowing")
                 isShowing = true
             }}
         }

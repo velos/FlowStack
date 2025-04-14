@@ -373,6 +373,17 @@ extension EnvironmentValues {
     }
 }
 
+struct FlowPathAnimationKey: EnvironmentKey {
+    static let defaultValue: Double = CustomSmoothAnimation.defaultAnimation.duration
+}
+
+public extension EnvironmentValues {
+    var flowAnimationDuration: Double {
+        get { self[FlowPathAnimationKey.self] }
+        set { self[FlowPathAnimationKey.self] = newValue }
+    }
+}
+
 @available(iOS 16.0, *)
 struct FlowStack_Previews: PreviewProvider {
     static var previews: some View {
