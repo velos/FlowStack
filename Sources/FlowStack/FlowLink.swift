@@ -390,7 +390,7 @@ public struct FlowLink<Label>: View where Label: View {
                 if configuration.animateFromAnchor && overrideAnchor == nil {
                     button
                         .opacity(isShowing ? 1.0 : 0.0)
-                        /// Override an animation with an animation that does nothing
+                        /// (Workaround) Override an animation with an animation that does nothing
                         /// Leaving a flowlayer too early can cause an un-wanted animation
                         .ignoreAnimation()
                 } else if configuration.animateFromAnchor {
