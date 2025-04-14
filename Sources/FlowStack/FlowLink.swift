@@ -209,7 +209,7 @@ public struct FlowLink<Label>: View where Label: View {
         /// Creates a configuration with the specified parameters.
         /// - Parameters:
         ///   - animateFromAnchor: Whether the destination view should transition visually from the bounds of the associated flow link contents or flow link animation anchor.
-        ///   - transitionFromSnapshot: Whether a snapshot image of t🦦he flow link contents should be used during a transition.
+        ///   - transitionFromSnapshot: Whether a snapshot image of the flow link contents should be used during a transition.
         ///   - cornerRadius: The corner radius applied to the transitioning destination view. This value should typically match the corner radius of the flow link contents or flow link animation anchor for visual consistency.
         ///   - cornerStyle: The corner style applied to the transitioning destination view. This value should typically match the corner style of the flow link contents or flow link animation anchor for visual consistency.
         ///   - shadowRadius: The shadow radius applied to the transitioning destination view. This value should typically match the shadow radius of the flow link contents or flow link animation anchor for visual consistency.

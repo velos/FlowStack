@@ -400,7 +400,7 @@ struct FlowStack_Previews: PreviewProvider {
     }
 }
 
-/// Object for passable parameters for .smooth Animation
+/// Object for passable parameters for smooth Animation
 /// Had to be an animation type with a duration value so that it's trackable for flowStack
 public struct CustomSmoothAnimation {
     var duration: Double
