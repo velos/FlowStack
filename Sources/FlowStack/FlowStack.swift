@@ -406,7 +406,7 @@ public struct CustomSmoothAnimation {
     var duration: Double
     var bounce: Double
 
-    static let defaultAnimation = CustomSmoothAnimation(duration: 0.20, bounce: 0.2)
+    static let defaultAnimation = CustomSmoothAnimation(duration: 0.24, bounce: 0.2)
 }
 
 public extension Animation {
