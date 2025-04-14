@@ -406,17 +406,21 @@ public struct CustomSmoothAnimation {
     var duration: Double
     var bounce: Double
 
-    static let defaultAnimation = CustomSmoothAnimation(duration: 0.24, bounce: 0.2)
+    static let `default` = CustomSmoothAnimation(duration: 0.24, bounce: 0.2)
+
+    var animation: Animation {
+        .smooth(
+            duration: duration,
+            extraBounce: bounce
+        )
+    }
 }
 
 public extension Animation {
 
     /// The default animation to use during flow transitions.
     static var defaultFlow: Animation {
-        .smooth(
-            duration: CustomSmoothAnimation.defaultAnimation.duration,
-            extraBounce: CustomSmoothAnimation.defaultAnimation.bounce
-        )
+        CustomSmoothAnimation.default.animation
     }
 }
 
