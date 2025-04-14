@@ -209,7 +209,7 @@ public struct FlowLink<Label>: View where Label: View {
         /// Creates a configuration with the specified parameters.
         /// - Parameters:
         ///   - animateFromAnchor: Whether the destination view should transition visually from the bounds of the associated flow link contents or flow link animation anchor.
-        ///   - transitionFromSnapshot: Whether a snapshot image of the flow link contents should be used during a transition.
+        ///   - transitionFromSnapshot: Whether a snapshot image of t🦦he flow link contents should be used during a transition.
         ///   - cornerRadius: The corner radius applied to the transitioning destination view. This value should typically match the corner radius of the flow link contents or flow link animation anchor for visual consistency.
         ///   - cornerStyle: The corner style applied to the transitioning destination view. This value should typically match the corner style of the flow link contents or flow link animation anchor for visual consistency.
         ///   - shadowRadius: The shadow radius applied to the transitioning destination view. This value should typically match the shadow radius of the flow link contents or flow link animation anchor for visual consistency.
@@ -251,12 +251,15 @@ public struct FlowLink<Label>: View where Label: View {
     @Environment(\.flowPath) private var path
     @Environment(\.flowDepth) private var flowDepth
     @Environment(\.flowTransaction) private var transaction
+    @Environment(\.flowAnimationDuration) private var flowDuration
 
     @State private var overrideAnchor: Anchor<CGRect>?
 
     @State private var size: CGSize?
     @State private var overrideFrame: CGRect?
     @State private var context: PathContext?
+    @State var isShowing: Bool = true
+    @State var buttonPressed: Bool = false
 
     /// Creates a flow link that presents the view corresponding to a value.
     ///
@@ -360,12 +363,12 @@ public struct FlowLink<Label>: View where Label: View {
     private var button: some View {
         label()
             .onButtonGesture {
-
+                buttonPressed = true
+                print("🦦 buttonPressed -> \(buttonPressed)")
                 // check for sibling elements and return early if we already have a presented element at this depth
                 guard !hasSiblingElement else {
                     return
                 }
-
                 Task {
                     if configuration.transitionFromSnapshot {
                         context?.snapshot = await updateSnapshot()
@@ -386,9 +389,12 @@ public struct FlowLink<Label>: View where Label: View {
                     .frame(width: size?.width, height: size?.height)
             } else {
                 if configuration.animateFromAnchor && overrideAnchor == nil {
-                    button.transition(.invisible)
+                    button
+                        .opacity(isShowing ? 1.0 : 0.0)
+//                        .transition(.invisible)
                 } else if configuration.animateFromAnchor {
-                    button.transition(.opacityPercent)
+                    button
+                        .transition(.opacityPercent)
                 } else {
                     button
                 }
@@ -407,6 +413,9 @@ public struct FlowLink<Label>: View where Label: View {
                     }
             }
         )
+        .onChange(of: path?.wrappedValue.count) { _ in
+            handleFlowLinkOpacity()
+        }
         .anchorPreference(key: PathContextKey.self, value: .bounds, transform: { anchor in
             return PathContext(
                 anchor: configuration.animateFromAnchor ? anchor : nil,
@@ -428,6 +437,17 @@ public struct FlowLink<Label>: View where Label: View {
         .onPreferenceChange(AnimationAnchorKey.self) { anchor in
             overrideAnchor = anchor.first
             context?.overrideAnchor = overrideAnchor
+        }
+    }
+    private func handleFlowLinkOpacity() {
+        if isShowing == true, buttonPressed {
+            isShowing = false
+            buttonPressed = false
+        } else if isShowing == false {
+            DispatchQueue.main.asyncAfter(deadline: .now() + flowDuration) { withAnimation(nil) {
+                print("🦦 isShowing")
+                isShowing = true
+            }}
         }
     }
 }

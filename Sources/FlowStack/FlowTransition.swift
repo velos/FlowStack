@@ -71,8 +71,8 @@ extension AnyTransition {
 
     static var invisible: AnyTransition {
         AnyTransition.modifier(
-            active: InvisibleModifier(percent: 0),
-            identity: InvisibleModifier(percent: 1)
+            active: InvisibleModifier(percent: 1),
+            identity: InvisibleModifier(percent: 0)
         )
     }
 
@@ -86,7 +86,7 @@ extension AnyTransition {
 
         func body(content: Content) -> some View {
             content
-                .opacity(percent == 1.0 ? 1 : 0)
+                .opacity(percent == 1.0 ? 0 : 1)
         }
     }
 
@@ -110,7 +110,7 @@ extension AnyTransition {
         @Environment(\.horizontalSizeClass) var horizontalSizeClass
 
         var cornerRadius: CGFloat { context.cornerRadius + ((UIScreen.displayCornerRadius ?? 20) - context.cornerRadius) * percent }
-        
+
         var isPresentedFullscreen: Bool {
             horizontalSizeClass == .compact || availableSize.width - 2 * Constants.minVerticalPadding < Constants.maxWidth
         }

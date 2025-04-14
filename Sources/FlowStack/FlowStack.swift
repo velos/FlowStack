@@ -211,7 +211,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     @Binding private var path: FlowPath
     @State private var internalPath: FlowPath = FlowPath()
-    private var animation: Animation
+    private var animation: CustomSmoothAnimation
 
     private var overlayAlignment: Alignment
     private var root: () -> Root
@@ -228,11 +228,11 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     ///   - animation: The animation to use during flow transitions.
     ///   - root: The view to display when the stack is empty.
     ///   - overlay: The view to overlay on the FlowStack. This view is always visible in front of any view presented by the flow stack.
-    public init(overlayAlignment: Alignment = .center, animation: Animation = .defaultFlow, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
+    public init(overlayAlignment: Alignment = .center, animation: CustomSmoothAnimation?=nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
         self.overlayAlignment = overlayAlignment
-        self.animation = animation
+        self.animation = animation ?? .defaultAnimation
 
         self.usesInternalPath = true
         self._path = Binding(get: { FlowPath() }, set: { _ in })
@@ -245,12 +245,12 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     ///   - animation: The animation to use during flow transitions.
     ///   - root: The view to display when the stack is empty.
     ///   - overlay: The view to overlay on the FlowStack. This view is always visible in front of any view presented by the flow stack.
-    public init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, animation: Animation = .defaultFlow, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
+    public init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, animation: CustomSmoothAnimation?=nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
         self.overlayAlignment = overlayAlignment
         self._path = path
-        self.animation = animation
+        self.animation = animation ?? .defaultAnimation
     }
 
     private func destination(for instance: any (Hashable & Equatable)) -> AnyDestination? {
@@ -291,7 +291,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     }
 
     private var transaction: Transaction {
-        var transaction = Transaction(animation: animation)
+        var transaction = Transaction(animation: animation == nil ? .defaultFlow : .smooth(duration: animation.duration, extraBounce: animation.bounce))
         transaction.disablesAnimations = true
         return transaction
     }
@@ -324,6 +324,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 .environment(\.flowDepth, -1)
         }
         .environment(\.flowPath, pathToUse)
+        .environment(\.flowAnimationDuration, animation.duration)
         .environment(\.flowTransaction, transaction)
         .environmentObject(destinationLookup)
         .environmentObject(accessibilityManager)
@@ -337,14 +338,14 @@ public extension FlowStack where Overlay == EmptyView {
     /// - Parameters:
     ///   - animation: The animation to use during flow transitions.
     ///   - root: The view to display when the stack is empty.
-    init(animation: Animation = .defaultFlow, @ViewBuilder root: @escaping () -> Root) {
+    init(animation: CustomSmoothAnimation? = nil, @ViewBuilder root: @escaping () -> Root) {
         self.root = root
         self.overlay = { EmptyView() }
         self.overlayAlignment = .center
 
         self.usesInternalPath = true
         self._path = Binding(get: { FlowPath() }, set: { _ in })
-        self.animation = animation
+        self.animation = animation ?? .defaultAnimation
     }
 
     /// Creates a flow stack with heterogeneous navigation state that you can control.
@@ -352,12 +353,12 @@ public extension FlowStack where Overlay == EmptyView {
     ///   - path: A Binding to the flow path for this stack.
     ///   - animation: The animation to use during flow transitions.
     ///   - root: The view to display when the stack is empty.
-    init(path: Binding<FlowPath>, animation: Animation = .defaultFlow, @ViewBuilder root: @escaping () -> Root) {
+    init(path: Binding<FlowPath>, animation: CustomSmoothAnimation? = nil, @ViewBuilder root: @escaping () -> Root) {
         self.root = root
         self.overlay = { EmptyView() }
         self.overlayAlignment = .center
         self._path = path
-        self.animation = animation
+        self.animation = animation ?? .defaultAnimation
     }
 }
 
@@ -388,10 +389,24 @@ struct FlowStack_Previews: PreviewProvider {
     }
 }
 
+/// Object for passable parameters for smoothAnimation
+/// Had to be an animation type with a duration value so that it's trackable for flowStack
+public struct CustomSmoothAnimation {
+    var duration: Double
+    var bounce: Double
+
+    static let defaultAnimation = CustomSmoothAnimation(duration: 0.20, bounce: 0.2)
+}
+
 public extension Animation {
 
     /// The default animation to use during flow transitions.
-    static var defaultFlow: Animation { .interpolatingSpring(stiffness: 500, damping: 35) }
+    static var defaultFlow: Animation {
+        .smooth(
+            duration: CustomSmoothAnimation.defaultAnimation.duration,
+            extraBounce: CustomSmoothAnimation.defaultAnimation.bounce
+        )
+    }
 }
 
 struct FlowTransactionModifier: ViewModifier {
