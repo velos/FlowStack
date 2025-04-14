@@ -390,6 +390,11 @@ public struct FlowLink<Label>: View where Label: View {
                 if configuration.animateFromAnchor && overrideAnchor == nil {
                     button
                         .opacity(isShowing ? 1.0 : 0.0)
+                        /// Have to disable animations coming from adding to the flowstack before dismissing
+                        .delayAppearance(bySeconds: 0)
+                            .transaction { transaction in
+                                transaction.disablesAnimations = true
+                            }
                 } else if configuration.animateFromAnchor {
                     button
                         .transition(.opacityPercent)
@@ -446,5 +451,46 @@ public struct FlowLink<Label>: View where Label: View {
                 isShowing = true
             }}
         }
+    }
+}
+
+
+struct DelayAppearanceModifier: ViewModifier {
+    @State var shouldDisplay = false
+
+    let delay: Double
+    let transition: AnyTransition
+
+    func body(content: Content) -> some View {
+        render(content)
+            // we want to allow transition, so we have to attach aninamtion and transition here
+            // To disable this, use .transaction modifier after this modifier to override this
+            .animation(nil, value: shouldDisplay)
+            .transition(transition)
+            .task {
+                try? await Task.sleep(nanoseconds: .init(delay * 1000_000_000))
+                shouldDisplay = true
+            }
+    }
+
+    @ViewBuilder
+    private func render(_ content: Content) -> some View {
+        if shouldDisplay {
+            content
+        } else {
+            content
+                .hidden()
+        }
+    }
+}
+
+extension View {
+    /// Delay the appearance of this view
+    /// - Parameters:
+    ///   - seconds: by how may seconds
+    ///   - transition: what transition effect to use on appearance
+    /// - Returns: the modifiere view
+    func delayAppearance(bySeconds seconds: Double, transition: AnyTransition = .slide) -> some View {
+        modifier(DelayAppearanceModifier(delay: seconds, transition: transition))
     }
 }
