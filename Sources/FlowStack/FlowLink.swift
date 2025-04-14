@@ -390,8 +390,9 @@ public struct FlowLink<Label>: View where Label: View {
                 if configuration.animateFromAnchor && overrideAnchor == nil {
                     button
                         .opacity(isShowing ? 1.0 : 0.0)
-                        /// Diisable animations coming from adding to the flowstack before dismissing
-                        .overrideAnimation()
+                        /// Override an animation with an animation that does nothing
+                        /// Leaving a flowlayer too early can cause an un-wanted animation
+                        .ignoreAnimation()
                 } else if configuration.animateFromAnchor {
                     button
                         .transition(.opacityPercent)
@@ -451,23 +452,22 @@ public struct FlowLink<Label>: View where Label: View {
     }
 }
 
-
-private struct OverrideAnimationModifier: ViewModifier {
+private struct IgnoreAnimationModifier: ViewModifier {
     @State var shouldDisplay = true
     let transition: AnyTransition
     func body(content: Content) -> some View {
         render(content)
             .animation(nil, value: shouldDisplay)
             .transition(transition)
-
     }
     @ViewBuilder
     private func render(_ content: Content) -> some View {
         content
     }
 }
+
 private extension View {
-    func overrideAnimation(transition: AnyTransition = .identity) -> some View {
-        modifier(OverrideAnimationModifier(transition: transition))
+    func ignoreAnimation(transition: AnyTransition = .identity) -> some View {
+        modifier(IgnoreAnimationModifier(transition: transition))
     }
 }
