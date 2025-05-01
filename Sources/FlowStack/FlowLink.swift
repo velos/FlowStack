@@ -370,7 +370,7 @@ public struct FlowLink<Label>: View where Label: View {
                 }
                 Task {
                     if configuration.transitionFromSnapshot {
-                        context?.snapshot = await updateSnapshot()
+                        context?.snapshot = updateSnapshot()
                     }
                     if let value = value {
                         withTransaction(transaction) {
