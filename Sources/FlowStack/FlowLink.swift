@@ -251,12 +251,15 @@ public struct FlowLink<Label>: View where Label: View {
     @Environment(\.flowPath) private var path
     @Environment(\.flowDepth) private var flowDepth
     @Environment(\.flowTransaction) private var transaction
+    @Environment(\.flowAnimationDuration) private var flowDuration
 
     @State private var overrideAnchor: Anchor<CGRect>?
 
     @State private var size: CGSize?
     @State private var overrideFrame: CGRect?
     @State private var context: PathContext?
+    @State var isShowing: Bool = true
+    @State var buttonPressed: Bool = false
 
     /// Creates a flow link that presents the view corresponding to a value.
     ///
@@ -360,12 +363,11 @@ public struct FlowLink<Label>: View where Label: View {
     private var button: some View {
         label()
             .onButtonGesture {
-
+                buttonPressed = true
                 // check for sibling elements and return early if we already have a presented element at this depth
                 guard !hasSiblingElement else {
                     return
                 }
-
                 Task {
                     if configuration.transitionFromSnapshot {
                         context?.snapshot = await updateSnapshot()
@@ -386,9 +388,14 @@ public struct FlowLink<Label>: View where Label: View {
                     .frame(width: size?.width, height: size?.height)
             } else {
                 if configuration.animateFromAnchor && overrideAnchor == nil {
-                    button.transition(.invisible)
+                    button
+                        .opacity(isShowing ? 1.0 : 0.0)
+                        /// (Workaround) Override an animation with an animation that does nothing
+                        /// Leaving a flowlayer too early can cause an un-wanted animation
+                        .ignoreAnimation()
                 } else if configuration.animateFromAnchor {
-                    button.transition(.opacityPercent)
+                    button
+                        .transition(.opacityPercent)
                 } else {
                     button
                 }
@@ -407,6 +414,9 @@ public struct FlowLink<Label>: View where Label: View {
                     }
             }
         )
+        .onChange(of: path?.wrappedValue.count) { _ in
+            handleFlowLinkOpacity()
+        }
         .anchorPreference(key: PathContextKey.self, value: .bounds, transform: { anchor in
             return PathContext(
                 anchor: configuration.animateFromAnchor ? anchor : nil,
@@ -429,5 +439,35 @@ public struct FlowLink<Label>: View where Label: View {
             overrideAnchor = anchor.first
             context?.overrideAnchor = overrideAnchor
         }
+    }
+    private func handleFlowLinkOpacity() {
+        if isShowing == true, buttonPressed {
+            isShowing = false
+            buttonPressed = false
+        } else if isShowing == false {
+            DispatchQueue.main.asyncAfter(deadline: .now() + flowDuration) { withAnimation(nil) {
+                isShowing = true
+            }}
+        }
+    }
+}
+
+private struct IgnoreAnimationModifier: ViewModifier {
+    @State var shouldDisplay = true
+    let transition: AnyTransition
+    func body(content: Content) -> some View {
+        render(content)
+            .animation(nil, value: shouldDisplay)
+            .transition(transition)
+    }
+    @ViewBuilder
+    private func render(_ content: Content) -> some View {
+        content
+    }
+}
+
+private extension View {
+    func ignoreAnimation(transition: AnyTransition = .identity) -> some View {
+        modifier(IgnoreAnimationModifier(transition: transition))
     }
 }
