@@ -299,7 +299,6 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     public var body: some View {
         ZStack {
             root()
-                .contentShape(Rectangle())
                 .accessibilityElement(children: .contain)
                 .accessibilityHidden(accessibilityManager.zIndex != 0)
                 .environment(\.flowDepth, 0)
@@ -310,7 +309,6 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                     skrim(for: element)
 
                     destination.content(element.value)
-                        .contentShape(Rectangle())
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .id(element.hashValue)
                         .transition(.flowTransition(with: element.context ?? .init()))
