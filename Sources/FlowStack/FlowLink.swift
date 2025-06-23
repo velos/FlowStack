@@ -295,12 +295,9 @@ public struct FlowLink<Label>: View where Label: View {
     }
 
     @State private var snapshot: UIImage?
-    @State var appendedToPath: Bool = false
-    @State var initialSnapshot: Bool = false
 
     private func updateSnapshot() -> UIImage? {
         print("🦦 updateSnapshot \(capturedEnvironment.colorScheme)")
-        initialSnapshot = true
         guard let size = size else { return nil }
 
         let frame = CGRect(origin: .zero, size: size)
@@ -325,8 +322,12 @@ public struct FlowLink<Label>: View where Label: View {
 
         let renderer = UIGraphicsImageRenderer(size: frame.size)
 
+        // PROBLEM:
+        // drawing with afterScreenUpdates:YES inside CoreAnimation commit is not supported.
+
+        // PROBLEM: Snapshotting once in new flowLayer means that It's snap shotting the article itself and not the preview this method doesn't work...
         var image = renderer.image { _ in
-            view.drawHierarchy(in: CGRect(x: 0, y: 0, width: size.width, height: size.height), afterScreenUpdates: true)
+            DispatchQueue.main.async { view.drawHierarchy(in: CGRect(x: 0, y: 0, width: size.width, height: size.height), afterScreenUpdates: false) }
         }
 
         if let overrideFrame = overrideFrame,
@@ -375,7 +376,6 @@ public struct FlowLink<Label>: View where Label: View {
                             path?.wrappedValue.append(value, context: context)
                         }
                     }
-                    appendedToPath = true
                 }
             }
     }
@@ -399,8 +399,8 @@ public struct FlowLink<Label>: View where Label: View {
                     updateSnapshot()
                 }
                 .onChange(of: colorScheme) { _ in
-                    environment = fetchedEnv
                     let changedColorScheme = colorScheme == .light ? ColorScheme.dark : ColorScheme.light
+                    environment = fetchedEnv
                     environment.colorScheme = changedColorScheme
                     updateSnapshot()
                 }
