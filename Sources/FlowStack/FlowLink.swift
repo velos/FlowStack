@@ -246,14 +246,10 @@ public struct FlowLink<Label>: View where Label: View {
     private var value: (any (Equatable & Hashable))?
     private var configuration: Configuration
 
-//    @Environment(\.self) private var capturedEnvironment
-
     @Environment(\.flowPath) private var path
     @Environment(\.flowDepth) private var flowDepth
     @Environment(\.flowTransaction) private var transaction
     @Environment(\.flowAnimationDuration) private var flowDuration
-
-    @Environment(\.colorScheme) private var colorScheme
 
     @State private var overrideAnchor: Anchor<CGRect>?
 
@@ -302,7 +298,6 @@ public struct FlowLink<Label>: View where Label: View {
     @State var appendedToPath: Bool = false
     @State var initialSnapshot: Bool = false
 
-    @MainActor
     private func updateSnapshot() -> UIImage? {
         print("🦦 updateSnapshot \(capturedEnvironment.colorScheme)")
         initialSnapshot = true
@@ -386,14 +381,29 @@ public struct FlowLink<Label>: View where Label: View {
     }
 
     private struct EnvironmentRefresher: View {
-        var onUpdate: (EnvironmentValues) -> Void
-        var onChange: (EnvironmentValues) -> Void
-        @Environment(\.self) private var environmentSnapshotSource
+        @Binding var environment: EnvironmentValues
+        var updateSnapshot: () -> (Void)
+
+        init(environment: Binding<EnvironmentValues>, updateSnapshot: @escaping () -> (Void)) {
+            self._environment = environment
+            self.updateSnapshot = updateSnapshot
+        }
+
+        @Environment(\.self) private var fetchedEnv
         @Environment(\.colorScheme) var colorScheme
         var body: some View {
             Color.clear
-                .onAppear { onUpdate(environmentSnapshotSource) }
-                .onChange(of: colorScheme) { _ in onChange(environmentSnapshotSource) }
+                .onAppear {
+                    environment = fetchedEnv
+                    environment.colorScheme = colorScheme
+                    updateSnapshot()
+                }
+                .onChange(of: colorScheme) { _ in
+                    environment = fetchedEnv
+                    let changedColorScheme = colorScheme == .light ? ColorScheme.dark : ColorScheme.light
+                    environment.colorScheme = changedColorScheme
+                    updateSnapshot()
+                }
         }
     }
 
@@ -418,28 +428,8 @@ public struct FlowLink<Label>: View where Label: View {
                 }
             }
         }
-        // Problem: Reinit happens before the snapshot is taken.
-        // So environment is setup incorrectly with new approach.
-//        .onAppear {
-//            capturedEnvironment = environmentSnapshotSource
-//            capturedEnvironment.colorScheme = colorScheme
-//            updateSnapshot()
-//        }
         .background(
-            EnvironmentRefresher { fetchedEnv in
-                print("🦦 function being called? ")
-                capturedEnvironment = fetchedEnv
-                print("🦦 colorScheme? -> \(colorScheme)")
-                capturedEnvironment.colorScheme = colorScheme
-                print("🦦 capturedEnv colorScheme? -> \(capturedEnvironment.colorScheme)")
-                updateSnapshot()
-            } onChange: { fetchedEnv in
-                let changedColorScheme = colorScheme == .dark ? ColorScheme.light : ColorScheme.dark
-                print("🦦 onChangedCalled ")
-                capturedEnvironment = fetchedEnv
-                print("🦦 colorScheme from onChange -> \(changedColorScheme)")
-                capturedEnvironment.colorScheme = changedColorScheme
-                print("🦦 capturedEnv colorScheme? -> \(capturedEnvironment.colorScheme)")
+            EnvironmentRefresher(environment: $capturedEnvironment) {
                 updateSnapshot()
             }
         )
