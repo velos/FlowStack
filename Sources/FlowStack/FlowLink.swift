@@ -246,12 +246,14 @@ public struct FlowLink<Label>: View where Label: View {
     private var value: (any (Equatable & Hashable))?
     private var configuration: Configuration
 
-    @Environment(\.self) private var capturedEnvironment
+//    @Environment(\.self) private var capturedEnvironment
 
     @Environment(\.flowPath) private var path
     @Environment(\.flowDepth) private var flowDepth
     @Environment(\.flowTransaction) private var transaction
     @Environment(\.flowAnimationDuration) private var flowDuration
+
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var overrideAnchor: Anchor<CGRect>?
 
@@ -297,23 +299,24 @@ public struct FlowLink<Label>: View where Label: View {
     }
 
     @State private var snapshot: UIImage?
+    @State var appendedToPath: Bool = false
+    @State var initialSnapshot: Bool = false
 
     @MainActor
     private func updateSnapshot() -> UIImage? {
-        guard snapshot == nil else { return snapshot }
-
+        print("🦦 updateSnapshot \(capturedEnvironment.colorScheme)")
+        initialSnapshot = true
         guard let size = size else { return nil }
 
         let frame = CGRect(origin: .zero, size: size)
 
         let controller = UIHostingController(
             rootView: label()
-                .transformEnvironment(\.self) { environment in
-                    environment = capturedEnvironment
-                }
+                .environment(\.self, capturedEnvironment)
                 .environment(\.opacityTransitionPercent, 1)
                 .ignoresSafeArea()
         )
+
         let view = controller.view
 
         guard let view = view else {
@@ -377,10 +380,24 @@ public struct FlowLink<Label>: View where Label: View {
                             path?.wrappedValue.append(value, context: context)
                         }
                     }
+                    appendedToPath = true
                 }
             }
     }
 
+    private struct EnvironmentRefresher: View {
+        var onUpdate: (EnvironmentValues) -> Void
+        var onChange: (EnvironmentValues) -> Void
+        @Environment(\.self) private var environmentSnapshotSource
+        @Environment(\.colorScheme) var colorScheme
+        var body: some View {
+            Color.clear
+                .onAppear { onUpdate(environmentSnapshotSource) }
+                .onChange(of: colorScheme) { _ in onChange(environmentSnapshotSource) }
+        }
+    }
+
+    @State private var capturedEnvironment = EnvironmentValues()
     public var body: some View {
         Group {
             if isContainedInPath && configuration.animateFromAnchor {
@@ -401,6 +418,31 @@ public struct FlowLink<Label>: View where Label: View {
                 }
             }
         }
+        // Problem: Reinit happens before the snapshot is taken.
+        // So environment is setup incorrectly with new approach.
+//        .onAppear {
+//            capturedEnvironment = environmentSnapshotSource
+//            capturedEnvironment.colorScheme = colorScheme
+//            updateSnapshot()
+//        }
+        .background(
+            EnvironmentRefresher { fetchedEnv in
+                print("🦦 function being called? ")
+                capturedEnvironment = fetchedEnv
+                print("🦦 colorScheme? -> \(colorScheme)")
+                capturedEnvironment.colorScheme = colorScheme
+                print("🦦 capturedEnv colorScheme? -> \(capturedEnvironment.colorScheme)")
+                updateSnapshot()
+            } onChange: { fetchedEnv in
+                let changedColorScheme = colorScheme == .dark ? ColorScheme.light : ColorScheme.dark
+                print("🦦 onChangedCalled ")
+                capturedEnvironment = fetchedEnv
+                print("🦦 colorScheme from onChange -> \(changedColorScheme)")
+                capturedEnvironment.colorScheme = changedColorScheme
+                print("🦦 capturedEnv colorScheme? -> \(capturedEnvironment.colorScheme)")
+                updateSnapshot()
+            }
+        )
         .background(
             GeometryReader { proxy in
                 Color.clear
@@ -471,3 +513,10 @@ private extension View {
         modifier(IgnoreAnimationModifier(transition: transition))
     }
 }
+
+//
+//extension EnvironmentValues: Equatable {
+//    public static func == (lhs: EnvironmentValues, rhs: EnvironmentValues) -> Bool {
+//        return lhs.colorScheme == rhs.colorScheme
+//    }
+//}
