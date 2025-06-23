@@ -28,6 +28,7 @@ struct PathContext: Equatable, Hashable {
     var overrideAnchor: Anchor<CGRect>?
 
     var snapshot: UIImage?
+    var snapshotDict: [ColorScheme: UIImage] = [:]
     var linkDepth: Int = 0
 
     var cornerRadius: CGFloat = 0
@@ -98,6 +99,19 @@ public struct FlowPath: Equatable, Hashable {
     ///   - newElement: The element to append to the flow path.
     public mutating func append<P>(_ newElement: P) where P: Hashable {
         self.append(newElement, context: nil)
+    }
+
+    /// Adds a method to tell flowPath to use the correct snapshot for the respective colorScheme
+    public mutating func updateSnapshots(from colorScheme: ColorScheme) {
+        for i in elements.indices {
+            guard var context = elements[i].context else { continue }
+
+            if let newSnapshot = context.snapshotDict[colorScheme] {
+                print("🦦 Entered on colorScheme -> \(colorScheme)")
+                context.snapshot = newSnapshot
+                elements[i].context = context
+            }
+        }
     }
 }
 

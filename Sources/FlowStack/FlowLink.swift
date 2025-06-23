@@ -251,6 +251,9 @@ public struct FlowLink<Label>: View where Label: View {
     @Environment(\.flowTransaction) private var transaction
     @Environment(\.flowAnimationDuration) private var flowDuration
 
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.self) private var fetchedEnvironment
+
     @State private var overrideAnchor: Anchor<CGRect>?
 
     @State private var size: CGSize?
@@ -258,6 +261,12 @@ public struct FlowLink<Label>: View where Label: View {
     @State private var context: PathContext?
     @State var isShowing: Bool = true
     @State var buttonPressed: Bool = false
+
+    @State var environmentList: [EnvironmentValues] = []
+    @State private var snapshots: [ColorScheme: UIImage] = [:]
+    @State private var environment = EnvironmentValues()
+    @State private var refreshButton = UUID()
+
 
     /// Creates a flow link that presents the view corresponding to a value.
     ///
@@ -294,26 +303,23 @@ public struct FlowLink<Label>: View where Label: View {
         return path?.wrappedValue.elements.map(\.context?.linkDepth).contains(flowDepth) ?? false
     }
 
-    @State private var snapshot: UIImage?
-
-    private func updateSnapshot() -> UIImage? {
-        print("🦦 updateSnapshot \(capturedEnvironment.colorScheme)")
+    private func updateSnapshot(colorScheme: ColorScheme) -> UIImage? {
         guard let size = size else { return nil }
 
         let frame = CGRect(origin: .zero, size: size)
+        environment = fetchedEnvironment
+        environment.colorScheme = colorScheme
 
         let controller = UIHostingController(
             rootView: label()
-                .environment(\.self, capturedEnvironment)
+                .environment(\.self, environment)
                 .environment(\.opacityTransitionPercent, 1)
                 .ignoresSafeArea()
         )
 
         let view = controller.view
 
-        guard let view = view else {
-            return nil
-        }
+        guard let view = view else { return nil}
 
         view.bounds = CGRect(origin: .zero, size: size)
         view.backgroundColor = .clear
@@ -322,12 +328,8 @@ public struct FlowLink<Label>: View where Label: View {
 
         let renderer = UIGraphicsImageRenderer(size: frame.size)
 
-        // PROBLEM:
-        // drawing with afterScreenUpdates:YES inside CoreAnimation commit is not supported.
-
-        // PROBLEM: Snapshotting once in new flowLayer means that It's snap shotting the article itself and not the preview this method doesn't work...
         var image = renderer.image { _ in
-            DispatchQueue.main.async { view.drawHierarchy(in: CGRect(x: 0, y: 0, width: size.width, height: size.height), afterScreenUpdates: false) }
+            view.drawHierarchy(in: CGRect(x: 0, y: 0, width: size.width, height: size.height), afterScreenUpdates: true)
         }
 
         if let overrideFrame = overrideFrame,
@@ -369,7 +371,8 @@ public struct FlowLink<Label>: View where Label: View {
                 }
                 Task {
                     if configuration.transitionFromSnapshot {
-                        context?.snapshot = await updateSnapshot()
+                        print("🦦 current colorScheme: -> \(colorScheme)")
+                        context?.snapshot = snapshots[colorScheme]
                     }
                     if let value = value {
                         withTransaction(transaction) {
@@ -378,36 +381,8 @@ public struct FlowLink<Label>: View where Label: View {
                     }
                 }
             }
+            .id(refreshButton)
     }
-
-    private struct EnvironmentRefresher: View {
-        @Binding var environment: EnvironmentValues
-        var updateSnapshot: () -> (Void)
-
-        init(environment: Binding<EnvironmentValues>, updateSnapshot: @escaping () -> (Void)) {
-            self._environment = environment
-            self.updateSnapshot = updateSnapshot
-        }
-
-        @Environment(\.self) private var fetchedEnv
-        @Environment(\.colorScheme) var colorScheme
-        var body: some View {
-            Color.clear
-                .onAppear {
-                    environment = fetchedEnv
-                    environment.colorScheme = colorScheme
-                    updateSnapshot()
-                }
-                .onChange(of: colorScheme) { _ in
-                    let changedColorScheme = colorScheme == .light ? ColorScheme.dark : ColorScheme.light
-                    environment = fetchedEnv
-                    environment.colorScheme = changedColorScheme
-                    updateSnapshot()
-                }
-        }
-    }
-
-    @State private var capturedEnvironment = EnvironmentValues()
     public var body: some View {
         Group {
             if isContainedInPath && configuration.animateFromAnchor {
@@ -417,8 +392,8 @@ public struct FlowLink<Label>: View where Label: View {
                 if configuration.animateFromAnchor && overrideAnchor == nil {
                     button
                         .opacity(isShowing ? 1.0 : 0.0)
-                        /// (Workaround) Override an animation with an animation that does nothing
-                        /// Leaving a flowlayer too early can cause an un-wanted animation
+                    /// (Workaround) Override an animation with an animation that does nothing
+                    /// Leaving a flowlayer too early can cause an un-wanted animation
                         .ignoreAnimation()
                 } else if configuration.animateFromAnchor {
                     button
@@ -428,11 +403,17 @@ public struct FlowLink<Label>: View where Label: View {
                 }
             }
         }
-        .background(
-            EnvironmentRefresher(environment: $capturedEnvironment) {
-                updateSnapshot()
-            }
-        )
+        .onChange(of: colorScheme) { newScheme in
+            refreshButton = UUID()
+            snapshots[newScheme]
+            path?.wrappedValue.updateSnapshots(from: newScheme)
+        }
+        .onAppear {
+            let lightImage = updateSnapshot(colorScheme: .light)
+            let darkImage = updateSnapshot(colorScheme: .dark)
+            snapshots[.light] = lightImage
+            snapshots[.dark] = darkImage
+        }
         .background(
             GeometryReader { proxy in
                 Color.clear
@@ -453,7 +434,8 @@ public struct FlowLink<Label>: View where Label: View {
             return PathContext(
                 anchor: configuration.animateFromAnchor ? anchor : nil,
                 overrideAnchor: configuration.animateFromAnchor ? overrideAnchor : nil,
-                snapshot: configuration.animateFromAnchor && configuration.transitionFromSnapshot ? snapshot : nil,
+                snapshot: configuration.animateFromAnchor && configuration.transitionFromSnapshot ? snapshots[colorScheme] : nil,
+                snapshotDict: snapshots,
                 linkDepth: flowDepth,
                 cornerRadius: configuration.cornerRadius,
                 cornerStyle: configuration.cornerStyle,
@@ -472,6 +454,7 @@ public struct FlowLink<Label>: View where Label: View {
             context?.overrideAnchor = overrideAnchor
         }
     }
+
     private func handleFlowLinkOpacity() {
         if isShowing == true, buttonPressed {
             isShowing = false
@@ -483,6 +466,7 @@ public struct FlowLink<Label>: View where Label: View {
         }
     }
 }
+
 
 private struct IgnoreAnimationModifier: ViewModifier {
     @State var shouldDisplay = true
@@ -503,10 +487,3 @@ private extension View {
         modifier(IgnoreAnimationModifier(transition: transition))
     }
 }
-
-//
-//extension EnvironmentValues: Equatable {
-//    public static func == (lhs: EnvironmentValues, rhs: EnvironmentValues) -> Bool {
-//        return lhs.colorScheme == rhs.colorScheme
-//    }
-//}
