@@ -371,7 +371,6 @@ public struct FlowLink<Label>: View where Label: View {
                 }
                 Task {
                     if configuration.transitionFromSnapshot {
-                        print("🦦 current colorScheme: -> \(colorScheme)")
                         context?.snapshot = snapshots[colorScheme]
                     }
                     if let value = value {
