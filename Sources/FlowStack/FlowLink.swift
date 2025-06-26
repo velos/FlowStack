@@ -455,9 +455,9 @@ public struct FlowLink<Label>: View where Label: View {
             buttonPressed = false
         } else if isShowing == false {
             if configuration.transitionWithOpacity {
-                DispatchQueue.main.asyncAfter(deadline: .now() + flowDuration) { withAnimation(.easeIn) {isShowing = true } }
-            } else {
                 withAnimation(.easeIn) { isShowing = true }
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + flowDuration) { isShowing = true }
             }
         }
     }
