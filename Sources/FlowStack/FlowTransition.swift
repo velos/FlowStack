@@ -80,6 +80,10 @@ extension AnyTransition {
         @State private var snapCornerRadiusZero: Bool = true
         @State private var availableSize: CGSize = .zero
 
+        @State var transitionWithOpacity: Bool = true
+        @State var isPanDismiss: Bool = false
+        @State private var panOpacity: CGFloat = 1
+
         private var snapshotPercent: CGFloat {
             max(0, 1 - percent / 0.2)
         }
@@ -160,20 +164,21 @@ extension AnyTransition {
             GeometryReader { proxy in
                 let zoomRect = zoomRect(with: proxy, anchor: context.overrideAnchor ?? context.anchor, percent: percent, pullOffset: panOffset)
                 let scaleRatio = context.shouldScaleHorizontally ? zoomRect.size.width / proxy.size.width : 1.0
-
                 content
                     .onInteractiveDismissGesture(threshold: 80, isEnabled: !isDisabled, isDismissing: isDismissing, onDismiss: {
-                        dismiss()
+                        withAnimation(transaction.animation) { dismiss() }
                         isDismissing = true
-                    }, onPan: { offset in
+                    }, onPan: { offset, shouldDismiss in
                         snapCornerRadiusZero = false
                         isEnded = false
                         panOffset = offset
+                        if shouldDismiss, transitionWithOpacity { isPanDismiss = true }
                     }, onEnded: { isDismissing in
                         // TODO: FS-34: Handle snap corner radius 0 on interactive dismiss cancel
                         withTransaction(transaction) {
                             panOffset = .zero
                             isEnded = true
+                            if isPanDismiss { panOpacity = .zero }
                         }
                     })
                     .onPreferenceChange(InteractiveDismissDisabledKey.self) { isDisabled in
@@ -203,9 +208,27 @@ extension AnyTransition {
                         x: zoomRect.origin.x,
                         y: zoomRect.origin.y
                     )
-                    .opacity(context.anchor == nil ? percent : 1)
+                    .modifier(OpacityViewModifier(transitionWithOpacity: transitionWithOpacity, context: context, isDismissing: isDismissing, percent: percent, panOpacity: panOpacity))
             }
             .ignoresSafeArea(.container, edges: .all)
+        }
+
+        private struct OpacityViewModifier: ViewModifier {
+            let transitionWithOpacity: Bool
+            let context: PathContext
+            let isDismissing: Bool
+            var percent: CGFloat
+            var panOpacity: CGFloat
+            func body(content: Content) -> some View {
+                if !transitionWithOpacity {
+                    content
+                        .opacity(context.anchor == nil ? percent : 1)
+                } else {
+                    content
+                        .opacity(panOpacity)
+                        .opacity(isDismissing ? 1 : percent)
+                }
+            }
         }
     }
 }

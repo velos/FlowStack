@@ -252,6 +252,7 @@ public struct FlowLink<Label>: View where Label: View {
     @Environment(\.flowDepth) private var flowDepth
     @Environment(\.flowTransaction) private var transaction
     @Environment(\.flowAnimationDuration) private var flowDuration
+    @SwiftUI.Environment(\.opacityTransitionPercent) var percent
 
     @State private var overrideAnchor: Anchor<CGRect>?
 
@@ -392,7 +393,7 @@ public struct FlowLink<Label>: View where Label: View {
                         .opacity(isShowing ? 1.0 : 0.0)
                         /// (Workaround) Override an animation with an animation that does nothing
                         /// Leaving a flowlayer too early can cause an un-wanted animation
-                        .ignoreAnimation()
+//                        .ignoreAnimation()
                 } else if configuration.animateFromAnchor {
                     button
                         .transition(.opacityPercent)
@@ -442,12 +443,15 @@ public struct FlowLink<Label>: View where Label: View {
     }
     private func handleFlowLinkOpacity() {
         if isShowing == true, buttonPressed {
-            isShowing = false
+            withAnimation(.easeOut) { isShowing = false }
             buttonPressed = false
         } else if isShowing == false {
-            DispatchQueue.main.asyncAfter(deadline: .now() + flowDuration) { withAnimation(nil) {
+//            DispatchQueue.main.asyncAfter(deadline: .now() + flowDuration * 0.5) { withAnimation(.easeIn) {
+//                isShowing = true
+//            }}
+            withAnimation(.easeIn) {
                 isShowing = true
-            }}
+            }
         }
     }
 }
