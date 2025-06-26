@@ -40,10 +40,10 @@ struct FlowDismissActionKey: EnvironmentKey {
 
 extension AnyTransition {
 
-    static func flowTransition(with context: PathContext) -> AnyTransition {
+    static func flowTransition(with context: PathContext, transitionWithOpacity: Bool) -> AnyTransition {
         AnyTransition.modifier(
-            active: FlowPresentModifier(percent: 0, context: context),
-            identity: FlowPresentModifier(percent: 1, context: context)
+            active: FlowPresentModifier(percent: 0, context: context, transitionWithOpacity: transitionWithOpacity),
+            identity: FlowPresentModifier(percent: 1, context: context, transitionWithOpacity: transitionWithOpacity)
         )
     }
 
@@ -72,6 +72,7 @@ extension AnyTransition {
     struct FlowPresentModifier: Animatable, ViewModifier {
         var percent: CGFloat
         var context: PathContext
+        var transitionWithOpacity: Bool
 
         @State var panOffset: CGPoint = .zero
         @State var isEnded: Bool = false
@@ -80,7 +81,6 @@ extension AnyTransition {
         @State private var snapCornerRadiusZero: Bool = true
         @State private var availableSize: CGSize = .zero
 
-        @State var transitionWithOpacity: Bool = true
         @State var isPanDismiss: Bool = false
         @State private var panOpacity: CGFloat = 1
 

@@ -216,9 +216,10 @@ public struct FlowLink<Label>: View where Label: View {
         ///   - shadowColor: The shadow color applied to the transitioning destination view. This value should typically match the shadow color of the flow link contents or flow link animation anchor for visual consistency.
         ///   - shadowOffset: The shadow offset applied to the transitioning destination view. This value should typically match the shadow offset of the flow link contents or flow link animation anchor for visual consistency.
         ///   - zoomStyle: The zoom style applied to the transitioning destination view
-        public init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally) {
+        public init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, transitionWithOpacity: Bool = false, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally) {
             self.animateFromAnchor = animateFromAnchor
             self.transitionFromSnapshot = transitionFromSnapshot
+            self.transitionWithOpacity = transitionWithOpacity
             self.cornerRadius = cornerRadius
             self.cornerStyle = cornerStyle
             self.shadowRadius = shadowRadius
@@ -229,6 +230,8 @@ public struct FlowLink<Label>: View where Label: View {
 
         let animateFromAnchor: Bool
         let transitionFromSnapshot: Bool
+
+        let transitionWithOpacity: Bool
 
         let cornerRadius: CGFloat
         let cornerStyle: RoundedCornerStyle
@@ -430,7 +433,8 @@ public struct FlowLink<Label>: View where Label: View {
                 shadowColor: configuration.shadowColor,
                 shadowOffset: configuration.shadowOffset,
                 shouldShowSkrim: configuration.showsSkrim,
-                shouldScaleHorizontally: configuration.zoomStyle == .scaleHorizontally
+                shouldScaleHorizontally: configuration.zoomStyle == .scaleHorizontally,
+                transitionWithOpacity: configuration.transitionWithOpacity
             )
         })
         .onPreferenceChange(PathContextKey.self) { value in
@@ -443,14 +447,17 @@ public struct FlowLink<Label>: View where Label: View {
     }
     private func handleFlowLinkOpacity() {
         if isShowing == true, buttonPressed {
-            withAnimation(.easeOut) { isShowing = false }
+            if configuration.transitionWithOpacity {
+                withAnimation(.easeOut) { isShowing = false }
+            } else {
+                isShowing = false
+            }
             buttonPressed = false
         } else if isShowing == false {
-//            DispatchQueue.main.asyncAfter(deadline: .now() + flowDuration * 0.5) { withAnimation(.easeIn) {
-//                isShowing = true
-//            }}
-            withAnimation(.easeIn) {
-                isShowing = true
+            if configuration.transitionWithOpacity {
+                DispatchQueue.main.asyncAfter(deadline: .now() + flowDuration) { withAnimation(.easeIn) {isShowing = true } }
+            } else {
+                withAnimation(.easeIn) { isShowing = true }
             }
         }
     }

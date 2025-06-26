@@ -305,13 +305,12 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
             ForEach(pathToUse.wrappedValue.elements, id: \.self) { element in
                 if let destination = destination(for: element.value) {
-
                     skrim(for: element)
 
                     destination.content(element.value)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .id(element.hashValue)
-                        .transition(.flowTransition(with: element.context ?? .init()))
+                        .transition(.flowTransition(with: element.context ?? .init(), transitionWithOpacity: element.context?.transitionWithOpacity ?? false))
                         .modifier(AccessibilityModifier(element: element.index))
                 }
             }
