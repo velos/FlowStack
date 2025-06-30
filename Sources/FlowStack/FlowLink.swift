@@ -395,8 +395,8 @@ public struct FlowLink<Label>: View where Label: View {
                     button
                         .opacity(isShowing ? 1.0 : 0.0)
                         /// (Workaround) Override an animation with an animation that does nothing
-                        /// Leaving a flowlayer too early can cause an un-wanted animation
-//                        .ignoreAnimation()
+                        /// Leaving a flowlayer too early when panning can cause an un-wanted animation
+                        .ifTransitionWithOpacity(configuration.transitionWithOpacity)
                 } else if configuration.animateFromAnchor {
                     button
                         .transition(.opacityPercent)
@@ -480,5 +480,14 @@ private struct IgnoreAnimationModifier: ViewModifier {
 private extension View {
     func ignoreAnimation(transition: AnyTransition = .identity) -> some View {
         modifier(IgnoreAnimationModifier(transition: transition))
+    }
+
+    @ViewBuilder
+    func ifTransitionWithOpacity(_ condition: Bool) -> some View {
+        if condition {
+            self
+        } else {
+            self.ignoreAnimation()
+        }
     }
 }

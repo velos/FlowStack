@@ -40,7 +40,6 @@ struct PathContext: Equatable, Hashable {
     var shouldShowSkrim: Bool = true
     var shouldScaleHorizontally: Bool = true
 
-    // animation with opacity ???
     var transitionWithOpacity: Bool = false
 }
 
