@@ -50,13 +50,11 @@ struct FlowElement: Equatable, Hashable {
     static func == (lhs: FlowElement, rhs: FlowElement) -> Bool {
         lhs.value.hashValue == rhs.value.hashValue &&
         _mangledTypeName(type(of: lhs.value)) == _mangledTypeName(type(of: rhs.value)) &&
-        lhs.context == rhs.context &&
         lhs.index == rhs.index
     }
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(_mangledTypeName(type(of: value)))
-        hasher.combine(context)
         hasher.combine(index)
     }
 }
@@ -103,13 +101,14 @@ public struct FlowPath: Equatable, Hashable {
 
     /// Adds a method to tell flowPath to use the correct snapshot for the respective colorScheme
     public mutating func updateSnapshots(from colorScheme: ColorScheme) {
+        print("🦦 \(elements.count)")
         for i in elements.indices {
             guard var context = elements[i].context else { continue }
 
             if let newSnapshot = context.snapshotDict[colorScheme] {
-                print("🦦 Entered on colorScheme -> \(colorScheme)")
+
                 context.snapshot = newSnapshot
-                elements[i].context = context
+                elements[i].context?.snapshot = context.snapshot
             }
         }
     }

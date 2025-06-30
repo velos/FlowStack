@@ -303,7 +303,7 @@ public struct FlowLink<Label>: View where Label: View {
         return path?.wrappedValue.elements.map(\.context?.linkDepth).contains(flowDepth) ?? false
     }
 
-    private func updateSnapshot(colorScheme: ColorScheme) -> UIImage? {
+    private func createSnapshot(colorScheme: ColorScheme) -> UIImage? {
         guard let size = size else { return nil }
 
         let frame = CGRect(origin: .zero, size: size)
@@ -407,12 +407,7 @@ public struct FlowLink<Label>: View where Label: View {
             snapshots[newScheme]
             path?.wrappedValue.updateSnapshots(from: newScheme)
         }
-        .onAppear {
-            let lightImage = updateSnapshot(colorScheme: .light)
-            let darkImage = updateSnapshot(colorScheme: .dark)
-            snapshots[.light] = lightImage
-            snapshots[.dark] = darkImage
-        }
+        .onAppear { initSnapshots() }
         .background(
             GeometryReader { proxy in
                 Color.clear
@@ -446,6 +441,8 @@ public struct FlowLink<Label>: View where Label: View {
             )
         })
         .onPreferenceChange(PathContextKey.self) { value in
+//            print("🦦 value hash id? \(value?.hashValue)")
+//            print("🦦 \(value?.linkDepth ?? 0)")
             context = value
         }
         .onPreferenceChange(AnimationAnchorKey.self) { anchor in
@@ -462,6 +459,17 @@ public struct FlowLink<Label>: View where Label: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + flowDuration) { withAnimation(nil) {
                 isShowing = true
             }}
+        }
+    }
+
+    private func initSnapshots() {
+        Task {
+            // Prevent Snapshot from being taken too early
+            try? await Task.sleep(10000)
+                let lightImage = createSnapshot(colorScheme: .light)
+                let darkImage = createSnapshot(colorScheme: .dark)
+                snapshots[.light] = lightImage
+                snapshots[.dark] = darkImage
         }
     }
 }
