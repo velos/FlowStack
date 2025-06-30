@@ -267,7 +267,6 @@ public struct FlowLink<Label>: View where Label: View {
     @State private var environment = EnvironmentValues()
     @State private var refreshButton = UUID()
 
-
     /// Creates a flow link that presents the view corresponding to a value.
     ///
     /// When someone activates the flow link that this initializer
@@ -441,8 +440,6 @@ public struct FlowLink<Label>: View where Label: View {
             )
         })
         .onPreferenceChange(PathContextKey.self) { value in
-//            print("🦦 value hash id? \(value?.hashValue)")
-//            print("🦦 \(value?.linkDepth ?? 0)")
             context = value
         }
         .onPreferenceChange(AnimationAnchorKey.self) { anchor in
@@ -464,7 +461,7 @@ public struct FlowLink<Label>: View where Label: View {
 
     private func initSnapshots() {
         Task {
-            // Prevent Snapshot from being taken too early
+            // Prevent Snapshot from being taken too early before Fetchable content loads
             try? await Task.sleep(10000)
                 let lightImage = createSnapshot(colorScheme: .light)
                 let darkImage = createSnapshot(colorScheme: .dark)
@@ -473,7 +470,6 @@ public struct FlowLink<Label>: View where Label: View {
         }
     }
 }
-
 
 private struct IgnoreAnimationModifier: ViewModifier {
     @State var shouldDisplay = true

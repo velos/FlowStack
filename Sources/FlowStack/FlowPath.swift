@@ -99,14 +99,13 @@ public struct FlowPath: Equatable, Hashable {
         self.append(newElement, context: nil)
     }
 
-    /// Adds a method to tell flowPath to use the correct snapshot for the respective colorScheme
+    /// Adds a method to tell flow path to use the correct snapshot for the currently set colorScheme
+    /// - Parameters:
+    ///    - colorScheme: The new color scheme to be used for snapshots
     public mutating func updateSnapshots(from colorScheme: ColorScheme) {
-        print("🦦 \(elements.count)")
         for i in elements.indices {
             guard var context = elements[i].context else { continue }
-
             if let newSnapshot = context.snapshotDict[colorScheme] {
-
                 context.snapshot = newSnapshot
                 elements[i].context?.snapshot = context.snapshot
             }
