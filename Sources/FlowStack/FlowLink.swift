@@ -405,7 +405,6 @@ public struct FlowLink<Label>: View where Label: View {
         }
         .onChange(of: colorScheme) { newScheme in
             refreshButton = UUID()
-            snapshots[newScheme]
             path?.wrappedValue.updateSnapshots(from: newScheme)
         }
         .onAppear { initSnapshots() }
@@ -471,7 +470,7 @@ public struct FlowLink<Label>: View where Label: View {
     private func initSnapshots() {
         Task {
             // Prevent Snapshot from being taken too early before Fetchable content loads
-            try? await Task.sleep(10000)
+            try? await Task.sleep(nanoseconds: 10_000)
                 let lightImage = createSnapshot(colorScheme: .light)
                 let darkImage = createSnapshot(colorScheme: .dark)
                 snapshots[.light] = lightImage
