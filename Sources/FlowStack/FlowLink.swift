@@ -216,9 +216,10 @@ public struct FlowLink<Label>: View where Label: View {
         ///   - shadowColor: The shadow color applied to the transitioning destination view. This value should typically match the shadow color of the flow link contents or flow link animation anchor for visual consistency.
         ///   - shadowOffset: The shadow offset applied to the transitioning destination view. This value should typically match the shadow offset of the flow link contents or flow link animation anchor for visual consistency.
         ///   - zoomStyle: The zoom style applied to the transitioning destination view
-        public init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally) {
+        public init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, transitionWithOpacity: Bool = false, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally) {
             self.animateFromAnchor = animateFromAnchor
             self.transitionFromSnapshot = transitionFromSnapshot
+            self.transitionWithOpacity = transitionWithOpacity
             self.cornerRadius = cornerRadius
             self.cornerStyle = cornerStyle
             self.shadowRadius = shadowRadius
@@ -229,6 +230,8 @@ public struct FlowLink<Label>: View where Label: View {
 
         let animateFromAnchor: Bool
         let transitionFromSnapshot: Bool
+
+        let transitionWithOpacity: Bool
 
         let cornerRadius: CGFloat
         let cornerStyle: RoundedCornerStyle
@@ -250,6 +253,7 @@ public struct FlowLink<Label>: View where Label: View {
     @Environment(\.flowDepth) private var flowDepth
     @Environment(\.flowTransaction) private var transaction
     @Environment(\.flowAnimationDuration) private var flowDuration
+    @SwiftUI.Environment(\.opacityTransitionPercent) var percent
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.self) private var fetchedEnvironment
@@ -390,9 +394,7 @@ public struct FlowLink<Label>: View where Label: View {
                 if configuration.animateFromAnchor && overrideAnchor == nil {
                     button
                         .opacity(isShowing ? 1.0 : 0.0)
-                    /// (Workaround) Override an animation with an animation that does nothing
-                    /// Leaving a flowlayer too early can cause an un-wanted animation
-                        .ignoreAnimation()
+                        .ifTransitionWithOpacity(configuration.transitionWithOpacity)
                 } else if configuration.animateFromAnchor {
                     button
                         .transition(.opacityPercent)
@@ -403,7 +405,6 @@ public struct FlowLink<Label>: View where Label: View {
         }
         .onChange(of: colorScheme) { newScheme in
             refreshButton = UUID()
-            snapshots[newScheme]
             path?.wrappedValue.updateSnapshots(from: newScheme)
         }
         .onAppear { initSnapshots() }
@@ -436,7 +437,8 @@ public struct FlowLink<Label>: View where Label: View {
                 shadowColor: configuration.shadowColor,
                 shadowOffset: configuration.shadowOffset,
                 shouldShowSkrim: configuration.showsSkrim,
-                shouldScaleHorizontally: configuration.zoomStyle == .scaleHorizontally
+                shouldScaleHorizontally: configuration.zoomStyle == .scaleHorizontally,
+                transitionWithOpacity: configuration.transitionWithOpacity
             )
         })
         .onPreferenceChange(PathContextKey.self) { value in
@@ -450,19 +452,25 @@ public struct FlowLink<Label>: View where Label: View {
 
     private func handleFlowLinkOpacity() {
         if isShowing == true, buttonPressed {
-            isShowing = false
+            if configuration.transitionWithOpacity {
+                withAnimation(.easeOut) { isShowing = false }
+            } else {
+                isShowing = false
+            }
             buttonPressed = false
         } else if isShowing == false {
-            DispatchQueue.main.asyncAfter(deadline: .now() + flowDuration) { withAnimation(nil) {
-                isShowing = true
-            }}
+            if configuration.transitionWithOpacity {
+                withAnimation(.easeIn) { isShowing = true }
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + flowDuration) { isShowing = true }
+            }
         }
     }
 
     private func initSnapshots() {
         Task {
             // Prevent Snapshot from being taken too early before Fetchable content loads
-            try? await Task.sleep(10000)
+            try? await Task.sleep(nanoseconds: 10_000)
                 let lightImage = createSnapshot(colorScheme: .light)
                 let darkImage = createSnapshot(colorScheme: .dark)
                 snapshots[.light] = lightImage
@@ -488,5 +496,16 @@ private struct IgnoreAnimationModifier: ViewModifier {
 private extension View {
     func ignoreAnimation(transition: AnyTransition = .identity) -> some View {
         modifier(IgnoreAnimationModifier(transition: transition))
+    }
+
+    @ViewBuilder
+    func ifTransitionWithOpacity(_ condition: Bool) -> some View {
+        if condition {
+            self
+        } else {
+            /// (Workaround) Override an animation with an animation that does nothing
+            /// Leaving a flowlayer too early can cause an un-wanted animation
+            self.ignoreAnimation()
+        }
     }
 }
