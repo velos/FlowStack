@@ -249,13 +249,14 @@ public struct FlowLink<Label>: View where Label: View {
     private var value: (any (Equatable & Hashable))?
     private var configuration: Configuration
 
-    @Environment(\.self) private var capturedEnvironment
-
     @Environment(\.flowPath) private var path
     @Environment(\.flowDepth) private var flowDepth
     @Environment(\.flowTransaction) private var transaction
     @Environment(\.flowAnimationDuration) private var flowDuration
     @SwiftUI.Environment(\.opacityTransitionPercent) var percent
+
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.self) private var fetchedEnvironment
 
     @State private var overrideAnchor: Anchor<CGRect>?
 
@@ -264,6 +265,11 @@ public struct FlowLink<Label>: View where Label: View {
     @State private var context: PathContext?
     @State var isShowing: Bool = true
     @State var buttonPressed: Bool = false
+
+    @State var environmentList: [EnvironmentValues] = []
+    @State private var snapshots: [ColorScheme: UIImage] = [:]
+    @State private var environment = EnvironmentValues()
+    @State private var refreshButton = UUID()
 
     /// Creates a flow link that presents the view corresponding to a value.
     ///
@@ -300,29 +306,23 @@ public struct FlowLink<Label>: View where Label: View {
         return path?.wrappedValue.elements.map(\.context?.linkDepth).contains(flowDepth) ?? false
     }
 
-    @State private var snapshot: UIImage?
-
-    @MainActor
-    private func updateSnapshot() -> UIImage? {
-        guard snapshot == nil else { return snapshot }
-
+    private func createSnapshot(colorScheme: ColorScheme) -> UIImage? {
         guard let size = size else { return nil }
 
         let frame = CGRect(origin: .zero, size: size)
+        environment = fetchedEnvironment
+        environment.colorScheme = colorScheme
 
         let controller = UIHostingController(
             rootView: label()
-                .transformEnvironment(\.self) { environment in
-                    environment = capturedEnvironment
-                }
+                .environment(\.self, environment)
                 .environment(\.opacityTransitionPercent, 1)
                 .ignoresSafeArea()
         )
+
         let view = controller.view
 
-        guard let view = view else {
-            return nil
-        }
+        guard let view = view else { return nil}
 
         view.bounds = CGRect(origin: .zero, size: size)
         view.backgroundColor = .clear
@@ -374,7 +374,7 @@ public struct FlowLink<Label>: View where Label: View {
                 }
                 Task {
                     if configuration.transitionFromSnapshot {
-                        context?.snapshot = await updateSnapshot()
+                        context?.snapshot = snapshots[colorScheme]
                     }
                     if let value = value {
                         withTransaction(transaction) {
@@ -383,8 +383,8 @@ public struct FlowLink<Label>: View where Label: View {
                     }
                 }
             }
+            .id(refreshButton)
     }
-
     public var body: some View {
         Group {
             if isContainedInPath && configuration.animateFromAnchor {
@@ -394,8 +394,6 @@ public struct FlowLink<Label>: View where Label: View {
                 if configuration.animateFromAnchor && overrideAnchor == nil {
                     button
                         .opacity(isShowing ? 1.0 : 0.0)
-                        /// (Workaround) Override an animation with an animation that does nothing
-                        /// Leaving a flowlayer too early when panning can cause an un-wanted animation
                         .ifTransitionWithOpacity(configuration.transitionWithOpacity)
                 } else if configuration.animateFromAnchor {
                     button
@@ -405,6 +403,12 @@ public struct FlowLink<Label>: View where Label: View {
                 }
             }
         }
+        .onChange(of: colorScheme) { newScheme in
+            refreshButton = UUID()
+            snapshots[newScheme]
+            path?.wrappedValue.updateSnapshots(from: newScheme)
+        }
+        .onAppear { initSnapshots() }
         .background(
             GeometryReader { proxy in
                 Color.clear
@@ -425,7 +429,8 @@ public struct FlowLink<Label>: View where Label: View {
             return PathContext(
                 anchor: configuration.animateFromAnchor ? anchor : nil,
                 overrideAnchor: configuration.animateFromAnchor ? overrideAnchor : nil,
-                snapshot: configuration.animateFromAnchor && configuration.transitionFromSnapshot ? snapshot : nil,
+                snapshot: configuration.animateFromAnchor && configuration.transitionFromSnapshot ? snapshots[colorScheme] : nil,
+                snapshotDict: snapshots,
                 linkDepth: flowDepth,
                 cornerRadius: configuration.cornerRadius,
                 cornerStyle: configuration.cornerStyle,
@@ -445,6 +450,7 @@ public struct FlowLink<Label>: View where Label: View {
             context?.overrideAnchor = overrideAnchor
         }
     }
+
     private func handleFlowLinkOpacity() {
         if isShowing == true, buttonPressed {
             if configuration.transitionWithOpacity {
@@ -459,6 +465,17 @@ public struct FlowLink<Label>: View where Label: View {
             } else {
                 DispatchQueue.main.asyncAfter(deadline: .now() + flowDuration) { isShowing = true }
             }
+        }
+    }
+
+    private func initSnapshots() {
+        Task {
+            // Prevent Snapshot from being taken too early before Fetchable content loads
+            try? await Task.sleep(10000)
+                let lightImage = createSnapshot(colorScheme: .light)
+                let darkImage = createSnapshot(colorScheme: .dark)
+                snapshots[.light] = lightImage
+                snapshots[.dark] = darkImage
         }
     }
 }
@@ -487,6 +504,8 @@ private extension View {
         if condition {
             self
         } else {
+            /// (Workaround) Override an animation with an animation that does nothing
+            /// Leaving a flowlayer too early can cause an un-wanted animation
             self.ignoreAnimation()
         }
     }
