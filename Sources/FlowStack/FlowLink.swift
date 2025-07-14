@@ -302,7 +302,7 @@ public struct FlowLink<Label>: View where Label: View {
         return path?.wrappedValue.elements.map(\.context?.linkDepth).contains(flowDepth) ?? false
     }
 
-    private func createSnapshot(colorScheme: ColorScheme) -> UIImage? {
+    private func createSnapshot(colorScheme: ColorScheme) async -> UIImage? {
         guard let size = size else { return nil }
 
         let frame = CGRect(origin: .zero, size: size)
@@ -365,13 +365,13 @@ public struct FlowLink<Label>: View where Label: View {
             .onButtonGesture {
                 buttonPressed = true
                 // check for sibling elements and return early if we already have a presented element at this depth
-                guard !hasSiblingElement else {
-                    return
-                }
+                guard !hasSiblingElement else { return }
                 Task {
                     if configuration.transitionFromSnapshot {
-                        context?.snapshot = snapshots[colorScheme]
+                        await initSnapshots()
+                        self.context?.snapshot = snapshots[colorScheme]
                     }
+
                     if let value = value {
                         withTransaction(transaction) {
                             path?.wrappedValue.append(value, context: context)
@@ -406,7 +406,7 @@ public struct FlowLink<Label>: View where Label: View {
             snapshots[newScheme]
             path?.wrappedValue.updateSnapshots(from: newScheme)
         }
-        .onAppear { initSnapshots() }
+//        .onAppear { initSnapshots() }
         .background(
             GeometryReader { proxy in
                 Color.clear
@@ -459,15 +459,12 @@ public struct FlowLink<Label>: View where Label: View {
         }
     }
 
-    private func initSnapshots() {
-        Task {
-            // Prevent Snapshot from being taken too early before Fetchable content loads
-            try? await Task.sleep(10000)
-                let lightImage = createSnapshot(colorScheme: .light)
-                let darkImage = createSnapshot(colorScheme: .dark)
-                snapshots[.light] = lightImage
-                snapshots[.dark] = darkImage
-        }
+    private func initSnapshots() async {
+        guard snapshots.isEmpty else { return }
+        let lightImage = await createSnapshot(colorScheme: .light)
+        let darkImage = await createSnapshot(colorScheme: .dark)
+        self.snapshots[.light] = lightImage
+        self.snapshots[.dark] = darkImage
     }
 }
 
