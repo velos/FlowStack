@@ -369,6 +369,7 @@ public struct FlowLink<Label>: View where Label: View {
                 Task {
                     if configuration.transitionFromSnapshot {
                         await initSnapshots()
+                        self.context?.snapshotDict = snapshots
                         self.context?.snapshot = snapshots[colorScheme]
                     }
 
@@ -402,11 +403,9 @@ public struct FlowLink<Label>: View where Label: View {
             }
         }
         .onChange(of: colorScheme) { newScheme in
-            refreshButton = UUID()
-            snapshots[newScheme]
             path?.wrappedValue.updateSnapshots(from: newScheme)
+            refreshButton = UUID()
         }
-//        .onAppear { initSnapshots() }
         .background(
             GeometryReader { proxy in
                 Color.clear
