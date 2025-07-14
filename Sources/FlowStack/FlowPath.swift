@@ -104,15 +104,7 @@ public struct FlowPath: Equatable, Hashable {
     ///    - colorScheme: The new color scheme to be used for snapshots
     public mutating func updateSnapshots(from colorScheme: ColorScheme) {
         for i in elements.indices {
-            // This isn't running on inital go !?!?!??!
-            print("🦦 item \(elements.count)")
-            print("🦦 elements context? \(elements[i].context)")
-            print("🦦 elements dict? \(elements[i].context?.snapshotDict)")
             guard var context = elements[i].context else { continue }
-//            print("🦦 item \(elements.count) entered here? ")
-//            context.snapshot = context.snapshotDict[colorScheme]
-//            elements[i].context?.snapshot = context.snapshot
-            print("🦦 \(context.snapshotDict[colorScheme])\nDictionary? \(context.snapshotDict)")
             if let newSnapshot = context.snapshotDict[colorScheme] {
                 context.snapshot = newSnapshot
                 elements[i].context?.snapshot = context.snapshot
