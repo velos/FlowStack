@@ -302,7 +302,7 @@ public struct FlowLink<Label>: View where Label: View {
         return path?.wrappedValue.elements.map(\.context?.linkDepth).contains(flowDepth) ?? false
     }
 
-    private func createSnapshot(colorScheme: ColorScheme) async -> UIImage? {
+    private func createSnapshot(colorScheme: ColorScheme) -> UIImage? {
         guard let size = size else { return nil }
 
         let frame = CGRect(origin: .zero, size: size)
@@ -368,7 +368,7 @@ public struct FlowLink<Label>: View where Label: View {
                 guard !hasSiblingElement else { return }
                 Task {
                     if configuration.transitionFromSnapshot {
-                        await initSnapshots()
+                        initSnapshots()
                         self.context?.snapshotDict = snapshots
                         self.context?.snapshot = snapshots[colorScheme]
                     }
@@ -458,10 +458,10 @@ public struct FlowLink<Label>: View where Label: View {
         }
     }
 
-    private func initSnapshots() async {
+    private func initSnapshots() {
         guard snapshots.isEmpty else { return }
-        let lightImage = await createSnapshot(colorScheme: .light)
-        let darkImage = await createSnapshot(colorScheme: .dark)
+        let lightImage = createSnapshot(colorScheme: .light)
+        let darkImage = createSnapshot(colorScheme: .dark)
         self.snapshots[.light] = lightImage
         self.snapshots[.dark] = darkImage
     }
