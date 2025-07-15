@@ -365,13 +365,14 @@ public struct FlowLink<Label>: View where Label: View {
             .onButtonGesture {
                 buttonPressed = true
                 // check for sibling elements and return early if we already have a presented element at this depth
-                guard !hasSiblingElement else {
-                    return
-                }
+                guard !hasSiblingElement else { return }
                 Task {
                     if configuration.transitionFromSnapshot {
-                        context?.snapshot = snapshots[colorScheme]
+                        initSnapshots()
+                        self.context?.snapshotDict = snapshots
+                        self.context?.snapshot = snapshots[colorScheme]
                     }
+
                     if let value = value {
                         withTransaction(transaction) {
                             path?.wrappedValue.append(value, context: context)
@@ -402,11 +403,9 @@ public struct FlowLink<Label>: View where Label: View {
             }
         }
         .onChange(of: colorScheme) { newScheme in
-            refreshButton = UUID()
-            snapshots[newScheme]
             path?.wrappedValue.updateSnapshots(from: newScheme)
+            refreshButton = UUID()
         }
-        .onAppear { initSnapshots() }
         .background(
             GeometryReader { proxy in
                 Color.clear
@@ -460,14 +459,11 @@ public struct FlowLink<Label>: View where Label: View {
     }
 
     private func initSnapshots() {
-        Task {
-            // Prevent Snapshot from being taken too early before Fetchable content loads
-            try? await Task.sleep(10000)
-                let lightImage = createSnapshot(colorScheme: .light)
-                let darkImage = createSnapshot(colorScheme: .dark)
-                snapshots[.light] = lightImage
-                snapshots[.dark] = darkImage
-        }
+        guard snapshots.isEmpty else { return }
+        let lightImage = createSnapshot(colorScheme: .light)
+        let darkImage = createSnapshot(colorScheme: .dark)
+        self.snapshots[.light] = lightImage
+        self.snapshots[.dark] = darkImage
     }
 }
 
