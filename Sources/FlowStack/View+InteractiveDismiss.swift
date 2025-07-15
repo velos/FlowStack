@@ -65,7 +65,7 @@ struct InteractiveDismissContainer<T: View>: UIViewControllerRepresentable {
 
 class InteractiveDismissViewController<Content: View>: UIHostingController<Content> {
 
-    var coordinator: InteractiveDismissCoordinator
+    private var coordinator: InteractiveDismissCoordinator
     private var frameObservation: NSKeyValueObservation?
 
     init(rootView: Content, coordinator: InteractiveDismissCoordinator) {
@@ -83,7 +83,7 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
         frameObservation = view.observe(\.frame) { [weak self] theView, _ in
             guard let self = self else { return }
             self.additionalSafeAreaInsets = UIEdgeInsets(
-                top: theView.overlappingTopInset,
+                top: coordinator.isUpdating ? theView.overlappingTopInset : 0,
                 left: 0,
                 bottom: 0,
                 right: 0
@@ -144,6 +144,9 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
     private var panGestureRecognizer: UIPanGestureRecognizer!
     private var edgeGestureRecognizer: UIScreenEdgePanGestureRecognizer!
 
+    /// Bool that tracks active dragging to be used to track tool bar position for overlappingTopInset
+    @Published var isUpdating: Bool = false
+
     private var isPastThreshold: Bool = false
     private var impactGenerator: UIImpactFeedbackGenerator
 
@@ -197,7 +200,6 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
     private func edgeGestureUpdated(recognizer: UIScreenEdgePanGestureRecognizer) {
         guard let view = recognizer.view else { return }
         let offset = recognizer.translation(in: view)
-
         update(offset: offset, isEdge: true, hasEnded: recognizer.state == .ended)
     }
 
@@ -210,6 +212,7 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
     }
 
     private func update(offset: CGPoint, isEdge: Bool, hasEnded: Bool) {
+        isUpdating = true
         onPan(offset)
 
         let shouldDismiss = offset.y > threshold || (offset.x > threshold && isEdge)
@@ -224,8 +227,9 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
                 isEnabled = false
                 onDismiss()
                 isPastThreshold = false
+            } else {
+                isUpdating = false
             }
-
             onEnded(shouldDismiss)
         }
     }
