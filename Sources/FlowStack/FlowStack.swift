@@ -211,7 +211,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     @Binding private var path: FlowPath
     @State private var internalPath: FlowPath = FlowPath()
-    var customSmoothAnimation: CustomSmoothAnimation
+    private var customSmoothAnimation: CustomSmoothAnimation
 
     private var overlayAlignment: Alignment
     private var root: () -> Root
