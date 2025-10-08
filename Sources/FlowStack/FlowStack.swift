@@ -404,6 +404,11 @@ public struct CustomSmoothAnimation {
     var duration: Double
     var bounce: Double
 
+    public init(duration: Double = 0.24, bounce: Double = 0.2) {
+        self.duration = duration
+        self.bounce = bounce
+    }
+
     static let `default` = CustomSmoothAnimation(duration: 0.24, bounce: 0.2)
 
     var animation: Animation {
