@@ -211,7 +211,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     @Binding private var path: FlowPath
     @State private var internalPath: FlowPath = FlowPath()
-    private var customSmoothAnimation: CustomSmoothAnimation
+    var customSmoothAnimation: CustomSmoothAnimation
 
     private var overlayAlignment: Alignment
     private var root: () -> Root
@@ -403,6 +403,11 @@ struct FlowStack_Previews: PreviewProvider {
 public struct CustomSmoothAnimation {
     var duration: Double
     var bounce: Double
+
+    public init(duration: Double = 0.24, bounce: Double = 0.2) {
+        self.duration = duration
+        self.bounce = bounce
+    }
 
     static let `default` = CustomSmoothAnimation(duration: 0.24, bounce: 0.2)
 
