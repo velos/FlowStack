@@ -210,15 +210,17 @@ public struct FlowLink<Label>: View where Label: View {
         /// - Parameters:
         ///   - animateFromAnchor: Whether the destination view should transition visually from the bounds of the associated flow link contents or flow link animation anchor.
         ///   - transitionFromSnapshot: Whether a snapshot image of the flow link contents should be used during a transition.
+        ///   - retakeSnapshots: Whether a snapshot image is retaken everytime a user taps a FlowLink
         ///   - cornerRadius: The corner radius applied to the transitioning destination view. This value should typically match the corner radius of the flow link contents or flow link animation anchor for visual consistency.
         ///   - cornerStyle: The corner style applied to the transitioning destination view. This value should typically match the corner style of the flow link contents or flow link animation anchor for visual consistency.
         ///   - shadowRadius: The shadow radius applied to the transitioning destination view. This value should typically match the shadow radius of the flow link contents or flow link animation anchor for visual consistency.
         ///   - shadowColor: The shadow color applied to the transitioning destination view. This value should typically match the shadow color of the flow link contents or flow link animation anchor for visual consistency.
         ///   - shadowOffset: The shadow offset applied to the transitioning destination view. This value should typically match the shadow offset of the flow link contents or flow link animation anchor for visual consistency.
         ///   - zoomStyle: The zoom style applied to the transitioning destination view
-        public init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally) {
+        public init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, retakeSnapshots: Bool = false, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally) {
             self.animateFromAnchor = animateFromAnchor
             self.transitionFromSnapshot = transitionFromSnapshot
+            self.retakeSnapshots = retakeSnapshots
             self.cornerRadius = cornerRadius
             self.cornerStyle = cornerStyle
             self.shadowRadius = shadowRadius
@@ -229,6 +231,7 @@ public struct FlowLink<Label>: View where Label: View {
 
         let animateFromAnchor: Bool
         let transitionFromSnapshot: Bool
+        let retakeSnapshots: Bool
 
         let cornerRadius: CGFloat
         let cornerStyle: RoundedCornerStyle
@@ -459,7 +462,7 @@ public struct FlowLink<Label>: View where Label: View {
     }
 
     private func initSnapshots() {
-        guard snapshots.isEmpty else { return }
+        guard snapshots.isEmpty || configuration.retakeSnapshots else { return }
         let lightImage = createSnapshot(colorScheme: .light)
         let darkImage = createSnapshot(colorScheme: .dark)
         self.snapshots[.light] = lightImage
