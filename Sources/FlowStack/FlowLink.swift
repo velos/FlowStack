@@ -388,27 +388,25 @@ public struct FlowLink<Label>: View where Label: View {
         }
     }
 
+    @ViewBuilder
     private var button: some View {
         switch activation {
         case .overlayButton:
-            return AnyView(
-                label()
-                    .onButtonGesture {
-                        trigger()
-                    }
-                    .id(refreshButton)
-            )
+            label()
+                .onButtonGesture {
+                    trigger()
+                }
+                .id(refreshButton)
         case .tapGesture:
-            return AnyView(
-                label()
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        trigger()
-                    }
-                    .id(refreshButton)
-            )
+            label()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    trigger()
+                }
+                .id(refreshButton)
         }
     }
+
     public var body: some View {
         Group {
             if isContainedInPath && configuration.animateFromAnchor {
@@ -511,17 +509,5 @@ private struct IgnoreAnimationModifier: ViewModifier {
 private extension View {
     func ignoreAnimation(transition: AnyTransition = .identity) -> some View {
         modifier(IgnoreAnimationModifier(transition: transition))
-    }
-}
-
-
-public extension View {
-    /// Wraps this view in a FlowLink powered by a SwiftUI tap gesture (no overlay UIButton),
-    /// preserving FlowLink's animation/context behavior while allowing inner Buttons to receive touches.
-    func flowTap<P>(
-        value: P?,
-        configuration: FlowLink<Self>.Configuration = .init()
-    ) -> some View where P: Hashable & Equatable {
-        FlowLink(value: value, configuration: configuration, activation: .tapGesture) { self }
     }
 }
