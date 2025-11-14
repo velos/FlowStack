@@ -244,6 +244,10 @@ public struct FlowLink<Label>: View where Label: View {
         let zoomStyle: ZoomStyle
     }
 
+    public enum Activation { case overlayButton, tapGesture }
+
+    private var activation: Activation = .overlayButton
+
     var label: () -> Label
 
     private var value: (any (Equatable & Hashable))?
@@ -285,11 +289,13 @@ public struct FlowLink<Label>: View where Label: View {
     /// - Parameters:
     ///   - value: An optional value to present.
     ///   - configuration: An object that allows for customization of the flow transition appearance. For example, matching the transition corner radius with that of the FlowLink Label contents.
+    ///   - activation: The activation mode, either `.overlayButton` or `.tapGesture`.
     ///   - label: A label that describes the view that this link presents.
-    public init<P>(value: P?, configuration: Configuration = .init(), @ViewBuilder label: @escaping () -> Label) where P: Hashable, P: Equatable {
+    public init<P>(value: P?, configuration: Configuration = .init(), activation: Activation = .overlayButton, @ViewBuilder label: @escaping () -> Label) where P: Hashable, P: Equatable {
         self.label = label
         self.value = value
         self.configuration = configuration
+        self.activation = activation
     }
 
     var isContainedInPath: Bool {
@@ -363,28 +369,44 @@ public struct FlowLink<Label>: View where Label: View {
         return croppedImage
     }
 
-    private var button: some View {
-        label()
-            .onButtonGesture {
-                buttonPressed = true
-                // check for sibling elements and return early if we already have a presented element at this depth
-                guard !hasSiblingElement else { return }
-                Task {
-                    if configuration.transitionFromSnapshot {
-                        initSnapshots()
-                        self.context?.snapshotDict = snapshots
-                        self.context?.snapshot = snapshots[colorScheme]
-                    }
+    private func trigger() {
+        buttonPressed = true
+        // check for sibling elements and return early if we already have a presented element at this depth
+        guard !hasSiblingElement else { return }
+        Task {
+            if configuration.transitionFromSnapshot {
+                initSnapshots()
+                self.context?.snapshotDict = snapshots
+                self.context?.snapshot = snapshots[colorScheme]
+            }
 
-                    if let value = value {
-                        withTransaction(transaction) {
-                            path?.wrappedValue.append(value, context: context)
-                        }
-                    }
+            if let value = value {
+                withTransaction(transaction) {
+                    path?.wrappedValue.append(value, context: context)
                 }
             }
-            .id(refreshButton)
+        }
     }
+
+    @ViewBuilder
+    private var button: some View {
+        switch activation {
+        case .overlayButton:
+            label()
+                .onButtonGesture {
+                    trigger()
+                }
+                .id(refreshButton)
+        case .tapGesture:
+            label()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    trigger()
+                }
+                .id(refreshButton)
+        }
+    }
+
     public var body: some View {
         Group {
             if isContainedInPath && configuration.animateFromAnchor {
