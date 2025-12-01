@@ -214,8 +214,8 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
     private func update(offset: CGPoint, isEdge: Bool, hasEnded: Bool) {
         isUpdating = true
         onPan(offset)
-
-        let shouldDismiss = offset.y > threshold || (offset.x > threshold && isEdge)
+        print("🦦 offset.y \(offset.y). threshold \(threshold)")
+        let shouldDismiss = abs(offset.y) > threshold || (offset.x > threshold && isEdge)
         if shouldDismiss != isPastThreshold && shouldDismiss {
             impactGenerator.impactOccurred()
         }
@@ -237,9 +237,11 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         guard gestureRecognizer == panGestureRecognizer, let scrollView = scrollView else { return true }
 
-        guard panGestureRecognizer.translation(in: scrollView).y > 0 else { return false }
-
-        return scrollView.contentOffset.y - 5 <= -scrollView.contentInset.top
+        if panGestureRecognizer.translation(in: scrollView).y > 0 {
+            return scrollView.contentOffset.y - 5 <= -scrollView.contentInset.top
+        } else {
+            return scrollView.contentOffset.y + UIScreen.main.bounds.height + 15 > scrollView.contentSize.height
+        }
     }
 
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
@@ -263,7 +265,6 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
             otherGestureRecognizer.isEnabled = false
             otherGestureRecognizer.isEnabled = true
         }
-
         return true
     }
 
