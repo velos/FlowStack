@@ -214,7 +214,6 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
     private func update(offset: CGPoint, isEdge: Bool, hasEnded: Bool) {
         isUpdating = true
         onPan(offset)
-        print("🦦 offset.y \(offset.y). threshold \(threshold)")
         let shouldDismiss = abs(offset.y) > threshold || (offset.x > threshold && isEdge)
         if shouldDismiss != isPastThreshold && shouldDismiss {
             impactGenerator.impactOccurred()
