@@ -214,7 +214,7 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
     private func update(offset: CGPoint, isEdge: Bool, hasEnded: Bool) {
         isUpdating = true
         onPan(offset)
-        let shouldDismiss = abs(offset.y) > threshold || (offset.x > threshold && isEdge)
+        let shouldDismiss = offset.y > threshold || (offset.x > threshold && isEdge) || -offset.y > threshold * 2
         if shouldDismiss != isPastThreshold && shouldDismiss {
             impactGenerator.impactOccurred()
         }
@@ -239,7 +239,7 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
         if panGestureRecognizer.translation(in: scrollView).y > 0 {
             return scrollView.contentOffset.y - 5 <= -scrollView.contentInset.top
         } else {
-            return scrollView.contentOffset.y + UIScreen.main.bounds.height + 15 > scrollView.contentSize.height
+            return scrollView.contentOffset.y + UIScreen.main.bounds.height > scrollView.contentSize.height + 20
         }
     }
 
