@@ -40,6 +40,8 @@ struct PathContext: Equatable, Hashable {
 
     var shouldShowSkrim: Bool = true
     var shouldScaleHorizontally: Bool = true
+
+    var swipeUpToDismiss: Bool = false
 }
 
 struct FlowElement: Equatable, Hashable {
