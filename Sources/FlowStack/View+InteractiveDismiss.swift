@@ -247,7 +247,9 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
         if panGestureRecognizer.translation(in: scrollView).y > 0 {
             return scrollView.contentOffset.y - 5 <= -scrollView.contentInset.top
         } else {
-            return scrollView.contentOffset.y + UIScreen.main.bounds.height > scrollView.contentSize.height + 20 && swipeUpToDismiss
+            let belowBounds = scrollView.contentOffset.y + UIScreen.main.bounds.height > scrollView.contentSize.height + 20 && swipeUpToDismiss
+            scrollView.isScrollEnabled = !belowBounds
+            return belowBounds
         }
     }
 
@@ -256,6 +258,8 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
         guard (gestureRecognizer == panGestureRecognizer || gestureRecognizer == panGestureRecognizer), let scrollView = scrollView else {
             return true
         }
+
+        scrollView.isScrollEnabled = true
 
         if gestureRecognizer == panGestureRecognizer && otherGestureRecognizer == edgeGestureRecognizer {
             return false
