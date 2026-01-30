@@ -129,8 +129,8 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
     var onPan: (CGPoint) -> Void
     var isEnabled: Bool {
         didSet {
-            panGestureRecognizer.isEnabled = isEnabled
-            edgeGestureRecognizer.isEnabled = isEnabled
+            panGestureRecognizer.isEnabled = true
+            edgeGestureRecognizer.isEnabled = true
         }
     }
     var isDismissing: Bool {
@@ -223,7 +223,7 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
         onPan(offset)
 
         let shouldDismiss = offset.y > threshold || (offset.x > threshold && isEdge) || (-offset.y > threshold * 2 && swipeUpToDismiss)
-        if shouldDismiss != isPastThreshold && shouldDismiss {
+        if shouldDismiss != isPastThreshold && shouldDismiss, isEnabled {
             impactGenerator.impactOccurred()
         }
 

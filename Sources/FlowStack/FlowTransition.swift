@@ -163,12 +163,15 @@ extension AnyTransition {
 
                 content
                     .onInteractiveDismissGesture(threshold: 80, isEnabled: !isDisabled, isDismissing: isDismissing, swipeUpToDismiss: context.swipeUpToDismiss, onDismiss: {
+                        defer { isDismissing = true }
+                        guard !isDisabled else { return }
                         dismiss()
                         isDismissing = true
                     }, onPan: { offset in
-                        snapCornerRadiusZero = false
-                        isEnded = false
-                        panOffset = offset
+                        defer { self.isEnded = false }
+                        guard !isDisabled else { return }
+                        self.snapCornerRadiusZero = false
+                        self.panOffset = offset
                     }, onEnded: { isDismissing in
                         // TODO: FS-34: Handle snap corner radius 0 on interactive dismiss cancel
                         withTransaction(transaction) {
