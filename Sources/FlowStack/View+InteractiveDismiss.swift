@@ -184,12 +184,10 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
 
         self.panGestureRecognizer = UIPanGestureRecognizer(target: self, action: #selector(panGestureUpdated(recognizer:)))
         self.panGestureRecognizer.delegate = self
-        self.panGestureRecognizer.isEnabled = true
 
         self.edgeGestureRecognizer = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(edgeGestureUpdated(recognizer:)))
         self.edgeGestureRecognizer.edges = [.left]
         self.edgeGestureRecognizer.delegate = self
-        self.edgeGestureRecognizer.isEnabled = true
 
         self.panGestureRecognizer.require(toFail: self.edgeGestureRecognizer)
     }
