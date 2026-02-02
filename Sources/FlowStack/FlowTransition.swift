@@ -179,7 +179,6 @@ extension AnyTransition {
                         }
                     })
                     .onPreferenceChange(InteractiveDismissDisabledKey.self) { isDisabled in
-                        print("🦦 isDisabled \(isDisabled)")
                         self.isDisabled = isDisabled
                     }
                     .preference(key: SizePreferenceKey.self, value: proxy.size)
