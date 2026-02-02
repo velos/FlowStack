@@ -162,13 +162,16 @@ extension AnyTransition {
                 let scaleRatio = context.shouldScaleHorizontally ? zoomRect.size.width / proxy.size.width : 1.0
 
                 content
-                    .onInteractiveDismissGesture(threshold: 80, isEnabled: !isDisabled, isDismissing: isDismissing, swipeUpToDismiss: context.swipeUpToDismiss, onDismiss: {
+                    .onInteractiveDismissGesture(threshold: 80, isDismissing: isDismissing, swipeUpToDismiss: context.swipeUpToDismiss, onDismiss: {
+                        defer { isDismissing = true }
+                        guard !isDisabled else { return }
                         dismiss()
                         isDismissing = true
                     }, onPan: { offset in
-                        snapCornerRadiusZero = false
-                        isEnded = false
-                        panOffset = offset
+                        defer { self.isEnded = false }
+                        guard !isDisabled else { return }
+                        self.snapCornerRadiusZero = false
+                        self.panOffset = offset
                     }, onEnded: { isDismissing in
                         // TODO: FS-34: Handle snap corner radius 0 on interactive dismiss cancel
                         withTransaction(transaction) {
