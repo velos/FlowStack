@@ -234,7 +234,9 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
     }
 
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        guard gestureRecognizer == panGestureRecognizer, let scrollView = scrollView else { return true }
+        guard let scrollView = scrollView else { return true }
+        scrollView.isScrollEnabled = true
+        guard gestureRecognizer == panGestureRecognizer else { return true }
 
         if panGestureRecognizer.translation(in: scrollView).y > 0 {
             return scrollView.contentOffset.y - 5 <= -scrollView.contentInset.top
@@ -246,7 +248,6 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
     }
 
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-
         guard (gestureRecognizer == panGestureRecognizer || gestureRecognizer == panGestureRecognizer), let scrollView = scrollView else {
             return true
         }
