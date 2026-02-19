@@ -230,6 +230,8 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
                 isUpdating = false
             }
             onEnded(shouldDismiss)
+            guard let scrollView = scrollView else { return }
+            scrollView.isScrollEnabled = true
         }
     }
 
@@ -251,7 +253,6 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
         guard (gestureRecognizer == panGestureRecognizer || gestureRecognizer == panGestureRecognizer), let scrollView = scrollView else {
             return true
         }
-
         scrollView.isScrollEnabled = true
 
         if gestureRecognizer == panGestureRecognizer && otherGestureRecognizer == edgeGestureRecognizer {
