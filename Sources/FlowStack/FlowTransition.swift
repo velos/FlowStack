@@ -80,6 +80,8 @@ extension AnyTransition {
         @State private var snapCornerRadiusZero: Bool = true
         @State private var availableSize: CGSize = .zero
 
+        @Environment(\.colorScheme) private var colorScheme
+
         private var snapshotPercent: CGFloat {
             max(0, 1 - percent / 0.2)
         }
@@ -87,6 +89,10 @@ extension AnyTransition {
         @Environment(\.flowDismiss) var dismiss
         @Environment(\.flowTransaction) var transaction
         @Environment(\.horizontalSizeClass) var horizontalSizeClass
+
+        private var activeSnapshot: UIImage? {
+            context.snapshotDict[colorScheme] ?? context.snapshot
+        }
 
         var cornerRadius: CGFloat { context.cornerRadius + ((UIScreen.displayCornerRadius ?? 20) - context.cornerRadius) * percent }
 
@@ -186,7 +192,7 @@ extension AnyTransition {
                         availableSize = value
                     })
                     .overlay(alignment: .top) {
-                        if let image = context.snapshot, percent < 1 {
+                        if let image = activeSnapshot, percent < 1 {
                             Image(uiImage: image)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)

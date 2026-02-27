@@ -276,7 +276,6 @@ public struct FlowLink<Label>: View where Label: View {
     @State var environmentList: [EnvironmentValues] = []
     @State private var snapshots: [ColorScheme: UIImage] = [:]
     @State private var environment = EnvironmentValues()
-    @State private var refreshButton = UUID()
 
     /// Creates a flow link that presents the view corresponding to a value.
     ///
@@ -400,14 +399,12 @@ public struct FlowLink<Label>: View where Label: View {
                 .onButtonGesture {
                     trigger()
                 }
-                .id(refreshButton)
         case .tapGesture:
             label()
                 .contentShape(Rectangle())
                 .onTapGesture {
                     trigger()
                 }
-                .id(refreshButton)
         }
     }
 
@@ -433,7 +430,6 @@ public struct FlowLink<Label>: View where Label: View {
         }
         .onChange(of: colorScheme) { newScheme in
             path?.wrappedValue.updateSnapshots(from: newScheme)
-            refreshButton = UUID()
         }
         .background(
             GeometryReader { proxy in
