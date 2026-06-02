@@ -287,7 +287,9 @@ public struct FlowLink<Label>: View where Label: View {
     @State private var context: PathContext?
     @State var isShowing: Bool = true
     @State var buttonPressed: Bool = false
+
     @State private var tracksLiveGeometry: Bool = false
+    /// A value that updates if the geometry of the FlowLink changes
     @State private var liveGeometryTrackingGeneration: Int = 0
 
     @State var environmentList: [EnvironmentValues] = []
@@ -489,10 +491,10 @@ public struct FlowLink<Label>: View where Label: View {
         .onPreferenceChange(PathContextKey.self) {
             context = $0
         }
-        .overlayPreferenceValue(PathContextKey.self) { passedContext in
+        .overlayPreferenceValue(PathContextKey.self) { pathContext in
             if shouldTrackLiveGeometry {
                 GeometryReader { proxy in
-                    let geometry = geometry(for: passedContext, in: proxy)
+                    let geometry = geometry(for: pathContext, in: proxy)
 
                     Color.clear
                         .preference(
@@ -501,19 +503,19 @@ public struct FlowLink<Label>: View where Label: View {
                         )
                         .preference(
                             key: FlowLinkContextKey.self,
-                            value: contextPreference(from: passedContext, geometry: geometry)
+                            value: contextPreference(from: pathContext, geometry: geometry)
                         )
                 }
                 .onPreferenceChange(FlowLinkGeometryKey.self) { geometry in
-                    updateContext(from: passedContext, geometry: geometry)
+                    updateContext(from: pathContext, geometry: geometry)
                 }
             }
         }
         .onAppear {
             updateLiveGeometryTracking(isContainedInPath)
         }
-        .onChange(of: isContainedInPath) { _, isContainedInPath in
-            updateLiveGeometryTracking(isContainedInPath)
+        .onChange(of: isContainedInPath) {
+            updateLiveGeometryTracking($1)
         }
     }
 
@@ -619,7 +621,6 @@ public struct FlowLink<Label>: View where Label: View {
 
     private func updatePresentedContext(_ context: PathContext) {
         guard let id = contextID() else { return }
-
         path?.wrappedValue.updateContext(context, matching: id)
     }
 
