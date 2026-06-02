@@ -28,6 +28,20 @@ struct PathContextKey: PreferenceKey {
     }
 }
 
+struct FlowLinkGeometry: Equatable {
+    var size: CGSize
+    var globalFrame: CGRect
+    var overrideFrame: CGRect?
+}
+
+struct FlowLinkGeometryKey: PreferenceKey {
+    static var defaultValue: FlowLinkGeometry?
+
+    static func reduce(value: inout FlowLinkGeometry?, nextValue: () -> FlowLinkGeometry?) {
+        value = nextValue()
+    }
+}
+
 struct AnimationAnchorKey: PreferenceKey {
     static var defaultValue: [Anchor<CGRect>] = []
 
@@ -268,10 +282,13 @@ public struct FlowLink<Label>: View where Label: View {
     @State private var overrideAnchor: Anchor<CGRect>?
 
     @State private var size: CGSize?
+    @State private var origin: CGPoint?
     @State private var overrideFrame: CGRect?
     @State private var context: PathContext?
     @State var isShowing: Bool = true
     @State var buttonPressed: Bool = false
+    @State private var tracksLiveGeometry: Bool = false
+    @State private var liveGeometryTrackingGeneration: Int = 0
 
     @State var environmentList: [EnvironmentValues] = []
     @State private var snapshots: [ColorScheme: UIImage] = [:]
@@ -428,7 +445,7 @@ public struct FlowLink<Label>: View where Label: View {
                 }
             }
         }
-        .onChange(of: colorScheme) { newScheme in
+        .onChange(of: colorScheme) { _, newScheme in
             path?.wrappedValue.updateSnapshots(from: newScheme)
         }
         .background(
@@ -437,6 +454,7 @@ public struct FlowLink<Label>: View where Label: View {
                     .onAppear {
                         if let anchor = context?.anchor {
                             size = proxy[anchor].size
+                            origin = globalFrame(in: proxy).origin
                         }
                         if let overrideAnchor = overrideAnchor {
                             overrideFrame = proxy[overrideAnchor]
@@ -444,7 +462,7 @@ public struct FlowLink<Label>: View where Label: View {
                     }
             }
         )
-        .onChange(of: path?.wrappedValue.count) { _ in
+        .onChange(of: path?.wrappedValue.count) { _, _ in
             handleFlowLinkOpacity()
         }
         .anchorPreference(key: PathContextKey.self, value: .bounds, transform: { anchor in
@@ -464,13 +482,145 @@ public struct FlowLink<Label>: View where Label: View {
                 swipeUpToDismiss: configuration.swipeUpToDismiss
             )
         })
-        .onPreferenceChange(PathContextKey.self) { value in
-            context = value
-        }
         .onPreferenceChange(AnimationAnchorKey.self) { anchor in
             overrideAnchor = anchor.first
             context?.overrideAnchor = overrideAnchor
         }
+        .onPreferenceChange(PathContextKey.self) {
+            context = $0
+        }
+        .overlayPreferenceValue(PathContextKey.self) { passedContext in
+            if shouldTrackLiveGeometry {
+                GeometryReader { proxy in
+                    let geometry = geometry(for: passedContext, in: proxy)
+
+                    Color.clear
+                        .preference(
+                            key: FlowLinkGeometryKey.self,
+                            value: geometry
+                        )
+                        .preference(
+                            key: FlowLinkContextKey.self,
+                            value: contextPreference(from: passedContext, geometry: geometry)
+                        )
+                }
+                .onPreferenceChange(FlowLinkGeometryKey.self) { geometry in
+                    updateContext(from: passedContext, geometry: geometry)
+                }
+            }
+        }
+        .onAppear {
+            updateLiveGeometryTracking(isContainedInPath)
+        }
+        .onChange(of: isContainedInPath) { _, isContainedInPath in
+            updateLiveGeometryTracking(isContainedInPath)
+        }
+    }
+
+    private var shouldTrackLiveGeometry: Bool {
+        configuration.animateFromAnchor && tracksLiveGeometry
+    }
+
+    private func updateLiveGeometryTracking(_ shouldTrack: Bool) {
+        guard configuration.animateFromAnchor else { return }
+
+        liveGeometryTrackingGeneration += 1
+
+        if shouldTrack {
+            tracksLiveGeometry = true
+            return
+        }
+
+        let generation = liveGeometryTrackingGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now() + flowDuration) {
+            guard liveGeometryTrackingGeneration == generation else { return }
+            tracksLiveGeometry = false
+        }
+    }
+
+    private func globalFrame(in proxy: GeometryProxy) -> CGRect {
+        proxy.frame(in: .global)
+    }
+
+    private func globalFrame(for localFrame: CGRect, in proxy: GeometryProxy) -> CGRect {
+        let containerOrigin = globalFrame(in: proxy).origin
+
+        return CGRect(
+            x: containerOrigin.x + localFrame.minX,
+            y: containerOrigin.y + localFrame.minY,
+            width: localFrame.width,
+            height: localFrame.height
+        )
+    }
+
+    private func geometry(for passedContext: PathContext?, in proxy: GeometryProxy) -> FlowLinkGeometry {
+        let currentOverrideAnchor = passedContext?.overrideAnchor ?? overrideAnchor
+        let overrideFrame = currentOverrideAnchor.map { proxy[$0] }
+        let measuredGlobalFrame = overrideFrame.map { globalFrame(for: $0, in: proxy) } ?? globalFrame(in: proxy)
+        let size = overrideFrame?.size ?? passedContext?.anchor.map { proxy[$0].size } ?? proxy.size
+
+        return FlowLinkGeometry(size: size, globalFrame: measuredGlobalFrame, overrideFrame: overrideFrame)
+    }
+
+    private func contextID() -> FlowLinkContextID? {
+        guard let value else { return nil }
+
+        return FlowLinkContextID(
+            valueHash: value.hashValue,
+            typeName: _mangledTypeName(type(of: value)),
+            level: flowDepth == -1 ? nil : flowDepth
+        )
+    }
+
+    private func updatedContext(from passedContext: PathContext?, geometry: FlowLinkGeometry?) -> PathContext? {
+        guard var passedContext else { return nil }
+        guard let geometry else { return nil }
+
+        passedContext.globalFrame = geometry.globalFrame
+
+        let currentOverrideAnchor = passedContext.overrideAnchor ?? overrideAnchor
+        if let currentOverrideAnchor {
+            passedContext.overrideAnchor = currentOverrideAnchor
+        }
+
+        return passedContext
+    }
+
+    private func contextPreference(from passedContext: PathContext?, geometry: FlowLinkGeometry?) -> [FlowLinkContextID: PathContext] {
+        guard let id = contextID(),
+              let context = updatedContext(from: passedContext, geometry: geometry) else { return [:] }
+
+        return [id: context]
+    }
+
+    private func updateContext(from passedContext: PathContext?, geometry: FlowLinkGeometry?) {
+        guard let geometry else { return }
+        guard var passedContext = updatedContext(from: passedContext, geometry: geometry) else { return }
+
+        let currentOverrideAnchor = passedContext.overrideAnchor ?? overrideAnchor
+        let nextOverrideFrame = currentOverrideAnchor == nil ? nil : geometry.overrideFrame
+        if let currentOverrideAnchor {
+            passedContext.overrideAnchor = currentOverrideAnchor
+        }
+
+        let nextOrigin = passedContext.globalFrame?.origin
+        guard context != passedContext ||
+              size != geometry.size ||
+              overrideFrame != nextOverrideFrame ||
+              origin != nextOrigin else { return }
+
+        size = geometry.size
+        overrideFrame = nextOverrideFrame
+        origin = nextOrigin
+
+        context = passedContext
+        updatePresentedContext(passedContext)
+    }
+
+    private func updatePresentedContext(_ context: PathContext) {
+        guard let id = contextID() else { return }
+
+        path?.wrappedValue.updateContext(context, matching: id)
     }
 
     private func handleFlowLinkOpacity() {

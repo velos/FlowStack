@@ -219,20 +219,26 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     private var usesInternalPath: Bool = false
 
+    private var dismissAction: (() async -> Void)?
+
     @State private var destinationLookup: DestinationLookup = .init()
+    @State private var latestFlowLinkContexts: [FlowLinkContextID: PathContext] = [:]
     @StateObject var accessibilityManager: AccessibilityManager = .init()
 
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
     ///   - overlayAlignment: The alignment applied to the overlay.
     ///   - animation: The animation to use during flow transitions.
+    ///   - dismissAction: An optional function to call when dismissing a FlowStack View
+
     ///   - root: The view to display when the stack is empty.
     ///   - overlay: The view to overlay on the FlowStack. This view is always visible in front of any view presented by the flow stack.
-    public init(overlayAlignment: Alignment = .center, customSmoothAnimation: CustomSmoothAnimation?=nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
+    public init(overlayAlignment: Alignment = .center, customSmoothAnimation: CustomSmoothAnimation? = nil, dismissAction: (() async -> Void)? = nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
         self.overlayAlignment = overlayAlignment
         self.customSmoothAnimation = customSmoothAnimation ?? CustomSmoothAnimation.default
+        self.dismissAction = dismissAction
 
         self.usesInternalPath = true
         self._path = Binding(get: { FlowPath() }, set: { _ in })
@@ -243,14 +249,16 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     ///   - path: A Binding to the flow path for this stack.
     ///   - overlayAlignment: The alignment applied to the overlay.
     ///   - animation: The animation to use during flow transitions.
+    ///   - dismissAction: An optional function to call when dismissing a FlowStack View
     ///   - root: The view to display when the stack is empty.
     ///   - overlay: The view to overlay on the FlowStack. This view is always visible in front of any view presented by the flow stack.
-    public init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, customSmoothAnimation: CustomSmoothAnimation?=nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
+    public init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, customSmoothAnimation: CustomSmoothAnimation? = nil, dismissAction: (() async -> Void)? = nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
         self.overlayAlignment = overlayAlignment
         self._path = path
         self.customSmoothAnimation = customSmoothAnimation ?? CustomSmoothAnimation.default
+        self.dismissAction = dismissAction
     }
 
     private func destination(for instance: any (Hashable & Equatable)) -> AnyDestination? {
@@ -283,11 +291,33 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     private var flowDismissAction: FlowDismissAction {
         FlowDismissAction(
             onDismiss: {
-                withTransaction(transaction) {
-                    accessibilityManager.decrementIndex()
-                    pathToUse.wrappedValue.removeLast()
+                Task {
+                    await dismissAction?()
+                    withTransaction(transaction) {
+                        refreshLastElementContext()
+                        accessibilityManager.decrementIndex()
+                        pathToUse.wrappedValue.removeLast()
+                    }
                 }
             })
+    }
+
+    private func refreshLastElementContext() {
+        guard let element = pathToUse.wrappedValue.elements.last,
+              let context = latestFlowLinkContexts[element.contextID] else { return }
+
+        pathToUse.wrappedValue.updateContext(context, matching: element.contextID)
+    }
+
+    private func updateLatestFlowLinkContexts(_ contexts: [FlowLinkContextID: PathContext]) {
+        guard !contexts.isEmpty else { return }
+
+        for (id, context) in contexts {
+            guard latestFlowLinkContexts[id] != context else { continue }
+
+            latestFlowLinkContexts[id] = context
+            pathToUse.wrappedValue.updateContext(context, matching: id)
+        }
     }
 
     private var transaction: Transaction {
@@ -311,10 +341,13 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                     destination.content(element.value)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .id(element.hashValue)
-                        .transition(.flowTransition(with: element.context ?? .init()))
+                        .transition(.flowTransition(with: element.context ?? .init(), contextID: element.contextID))
                         .modifier(AccessibilityModifier(element: element.index))
                 }
             }
+        }
+        .onPreferenceChange(FlowLinkContextKey.self) { contexts in
+            updateLatestFlowLinkContexts(contexts)
         }
         .accessibilityElement(children: .contain)
         .overlay(alignment: overlayAlignment) {
@@ -322,6 +355,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 .environment(\.flowDepth, -1)
         }
         .environment(\.flowPath, pathToUse)
+        .environment(\.flowLinkContextCache, latestFlowLinkContexts)
         .environment(\.flowAnimationDuration, customSmoothAnimation.duration)
         .environment(\.flowTransaction, transaction)
         .environmentObject(destinationLookup)
@@ -335,8 +369,10 @@ public extension FlowStack where Overlay == EmptyView {
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
     ///   - animation: The animation to use during flow transitions.
+    ///   - dismissAction: An optional function to call when dismissing a FlowStack View
     ///   - root: The view to display when the stack is empty.
-    init(customSmoothAnimation: CustomSmoothAnimation? = nil, @ViewBuilder root: @escaping () -> Root) {
+
+    init(customSmoothAnimation: CustomSmoothAnimation? = nil, dismissAction: (() async -> Void)? = nil, @ViewBuilder root: @escaping () -> Root) {
         self.root = root
         self.overlay = { EmptyView() }
         self.overlayAlignment = .center
@@ -344,19 +380,22 @@ public extension FlowStack where Overlay == EmptyView {
         self.usesInternalPath = true
         self._path = Binding(get: { FlowPath() }, set: { _ in })
         self.customSmoothAnimation = customSmoothAnimation ?? CustomSmoothAnimation.default
+        self.dismissAction = dismissAction
     }
 
     /// Creates a flow stack with heterogeneous navigation state that you can control.
     /// - Parameters:
     ///   - path: A Binding to the flow path for this stack.
     ///   - animation: The animation to use during flow transitions.
+    ///   - dismissAction: An optional function to call when dismissing a FlowStack View
     ///   - root: The view to display when the stack is empty.
-    init(path: Binding<FlowPath>, customSmoothAnimation: CustomSmoothAnimation? = nil, @ViewBuilder root: @escaping () -> Root) {
+    init(path: Binding<FlowPath>, customSmoothAnimation: CustomSmoothAnimation? = nil, dismissAction: (() async -> Void)? = nil, @ViewBuilder root: @escaping () -> Root) {
         self.root = root
         self.overlay = { EmptyView() }
         self.overlayAlignment = .center
         self._path = path
         self.customSmoothAnimation = customSmoothAnimation ??  CustomSmoothAnimation.default
+        self.dismissAction = dismissAction
     }
 }
 
@@ -430,6 +469,7 @@ public extension Animation {
 struct FlowTransactionModifier: ViewModifier {
     @Environment(\.flowTransaction) var transaction
     @Environment(\.flowPath) var flowPath
+    @Environment(\.flowDismiss) var flowDismiss
 
     @State var initialPathCount: Int = 0
     @State var dismissCalled: Bool = false
@@ -442,6 +482,7 @@ struct FlowTransactionModifier: ViewModifier {
 
             if path.elements.count < initialPathCount, !dismissCalled {
                 DispatchQueue.main.async {
+                    flowDismiss()
                     dismissCalled = true
                     withTransaction(transaction) {
                         onDismiss?()
@@ -471,7 +512,9 @@ struct FlowTransactionModifier: ViewModifier {
             })
             // (Workaround) onChange not passing value to `perform` closure.
             // Used to trigger the `path` getter where manual "onChange" is handled.
-            .onChange(of: path, perform: { _ in })
+            .onChange(of: path) { _, _ in
+
+            }
     }
 }
 

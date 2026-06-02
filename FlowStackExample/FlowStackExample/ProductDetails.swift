@@ -7,7 +7,6 @@
 
 import SwiftUI
 import FlowStack
-import CachedAsyncImage
 
 struct ProductDetails: View {
     @Environment(\.flowDismiss) var flowDismiss
@@ -84,15 +83,16 @@ struct ProductDetails: View {
     }
 
     private func image(url: URL) -> some View {
-        CachedAsyncImage(url: url, urlCache: .imageCache) { image in
-            image
-                .resizable()
-                .scaledToFill()
-                .frame(minWidth: 0, minHeight: 0)
-                .accessibilityHidden(true)
-        } placeholder: {
-            Color(uiColor: .secondarySystemFill)
-        }
+//        CachedAsyncImage(url: url, urlCache: .imageCache) { image in
+//            image
+//                .resizable()
+//                .scaledToFill()
+//                .frame(minWidth: 0, minHeight: 0)
+//                .accessibilityHidden(true)
+//        } placeholder: {
+//            Color(uiColor: .secondarySystemFill)
+//        }
+        EmptyView()
     }
 
     private func stat(label: String, value: String) -> some View {

@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import CachedAsyncImage
 
 struct ProductRow: View {
     var product: Product
@@ -32,14 +31,15 @@ struct ProductRow: View {
     }
 
     private func image(url: URL) -> some View {
-        CachedAsyncImage(url: url, urlCache: .imageCache) { image in
-            image
-                .resizable()
-                .scaledToFill()
-                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-        } placeholder: {
-            Color(uiColor: .secondarySystemFill)
-        }
+//        CachedAsyncImage(url: url, urlCache: .imageCache) { image in
+//            image
+//                .resizable()
+//                .scaledToFill()
+//                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+//        } placeholder: {
+//            Color(uiColor: .secondarySystemFill)
+//        }
+        EmptyView()
     }
 }
 

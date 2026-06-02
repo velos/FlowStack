@@ -7,7 +7,7 @@
 import Foundation
 import SwiftUI
 
-extension CGRect: Hashable {
+extension CGRect {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(minX)
         hasher.combine(minY)
@@ -16,7 +16,7 @@ extension CGRect: Hashable {
     }
 }
 
-extension CGPoint: Hashable {
+extension CGPoint {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(x)
         hasher.combine(y)
@@ -26,6 +26,7 @@ extension CGPoint: Hashable {
 struct PathContext: Equatable, Hashable {
     var anchor: Anchor<CGRect>?
     var overrideAnchor: Anchor<CGRect>?
+    var globalFrame: CGRect?
 
     var snapshot: UIImage?
     var snapshotDict: [ColorScheme: UIImage] = [:]
@@ -44,10 +45,43 @@ struct PathContext: Equatable, Hashable {
     var swipeUpToDismiss: Bool = false
 }
 
+struct FlowLinkContextID: Equatable, Hashable {
+    var valueHash: Int
+    var typeName: String?
+    var level: Int?
+}
+
+struct FlowLinkContextKey: PreferenceKey {
+    static var defaultValue: [FlowLinkContextID: PathContext] = [:]
+
+    static func reduce(value: inout [FlowLinkContextID: PathContext], nextValue: () -> [FlowLinkContextID: PathContext]) {
+        value.merge(nextValue()) { _, newValue in newValue }
+    }
+}
+
+struct FlowLinkContextCacheKey: EnvironmentKey {
+    static var defaultValue: [FlowLinkContextID: PathContext] = [:]
+}
+
+extension EnvironmentValues {
+    var flowLinkContextCache: [FlowLinkContextID: PathContext] {
+        get { self[FlowLinkContextCacheKey.self] }
+        set { self[FlowLinkContextCacheKey.self] = newValue }
+    }
+}
+
 struct FlowElement: Equatable, Hashable {
     var value: (any (Equatable & Hashable))
     var context: PathContext?
     var index: Int
+
+    var contextID: FlowLinkContextID {
+        FlowLinkContextID(
+            valueHash: value.hashValue,
+            typeName: _mangledTypeName(type(of: value)),
+            level: index
+        )
+    }
 
     static func == (lhs: FlowElement, rhs: FlowElement) -> Bool {
         lhs.value.hashValue == rhs.value.hashValue &&
@@ -92,6 +126,28 @@ public struct FlowPath: Equatable, Hashable {
 
     mutating func append<P>(_ newElement: P, context: PathContext?) where P: Hashable {
         self.elements.append(.init(value: newElement, context: context, index: elements.count))
+    }
+
+    mutating func updateContext<P>(_ context: PathContext?, for element: P, atLevel level: Int?) where P: Hashable {
+        let depth = level == -1 ? nil : level
+
+        guard let index = elements.firstIndex(where: {
+            $0 == FlowElement(value: element, context: $0.context, index: depth ?? $0.index)
+        }) else { return }
+        guard elements[index].context != context else { return }
+
+        elements[index].context = context
+    }
+
+    mutating func updateContext(_ context: PathContext?, matching id: FlowLinkContextID) {
+        guard let index = elements.firstIndex(where: {
+            $0.value.hashValue == id.valueHash &&
+            _mangledTypeName(type(of: $0.value)) == id.typeName &&
+            (id.level == nil || $0.index == id.level)
+        }) else { return }
+        guard elements[index].context != context else { return }
+
+        elements[index].context = context
     }
 
     /// Adds a new element at the end of the flow path.

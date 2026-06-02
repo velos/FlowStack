@@ -40,10 +40,10 @@ struct FlowDismissActionKey: EnvironmentKey {
 
 extension AnyTransition {
 
-    static func flowTransition(with context: PathContext) -> AnyTransition {
+    static func flowTransition(with context: PathContext, contextID: FlowLinkContextID? = nil) -> AnyTransition {
         AnyTransition.modifier(
-            active: FlowPresentModifier(percent: 0, context: context),
-            identity: FlowPresentModifier(percent: 1, context: context)
+            active: FlowPresentModifier(percent: 0, context: context, contextID: contextID),
+            identity: FlowPresentModifier(percent: 1, context: context, contextID: contextID)
         )
     }
 
@@ -72,6 +72,7 @@ extension AnyTransition {
     struct FlowPresentModifier: Animatable, ViewModifier {
         var percent: CGFloat
         var context: PathContext
+        var contextID: FlowLinkContextID?
 
         @State var panOffset: CGPoint = .zero
         @State var isEnded: Bool = false
@@ -81,6 +82,7 @@ extension AnyTransition {
         @State private var availableSize: CGSize = .zero
 
         @Environment(\.colorScheme) private var colorScheme
+        @Environment(\.flowLinkContextCache) private var flowLinkContextCache
 
         private var snapshotPercent: CGFloat {
             max(0, 1 - percent / 0.2)
@@ -123,9 +125,14 @@ extension AnyTransition {
             set { percent = newValue }
         }
 
-        func zoomRect(with proxy: GeometryProxy, anchor: Anchor<CGRect>?, percent: CGFloat, pullOffset: CGPoint?) -> CGRect {
+        func zoomRect(with proxy: GeometryProxy, context: PathContext, percent: CGFloat, pullOffset: CGPoint?) -> CGRect {
             let rect: CGRect
-            if let anchor = anchor {
+            if let contextID,
+               let globalFrame = flowLinkContextCache[contextID]?.globalFrame {
+                rect = globalFrame
+            } else if let globalFrame = context.globalFrame {
+                rect = globalFrame
+            } else if let anchor = context.overrideAnchor ?? context.anchor {
                 rect = proxy[anchor]
             } else {
                 rect = proxy.frame(in: .global)
@@ -164,7 +171,7 @@ extension AnyTransition {
 
         func body(content: Content) -> some View {
             GeometryReader { proxy in
-                let zoomRect = zoomRect(with: proxy, anchor: context.overrideAnchor ?? context.anchor, percent: percent, pullOffset: panOffset)
+                let zoomRect = zoomRect(with: proxy, context: context, percent: percent, pullOffset: panOffset)
                 let scaleRatio = context.shouldScaleHorizontally ? zoomRect.size.width / proxy.size.width : 1.0
 
                 content
