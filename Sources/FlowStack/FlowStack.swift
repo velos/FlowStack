@@ -5,7 +5,10 @@
 //
 
 import Combine
+import OSLog
 import SwiftUI
+
+let flowStackLogger = Logger(subsystem: "com.velosmobile.FlowStack", category: "FlowStack")
 
 struct AnyDestination: Equatable {
 
@@ -74,8 +77,13 @@ struct FlowDestinationModifier<D: Hashable>: ViewModifier {
     func body(content: Content) -> some View {
         content
             .zIndex(accessibilityManager.isVoiceOverRunning ? accessibilityManager.zIndex : accessibilityManager.behindSkrim)
-            // swiftlint:disable:next force_unwrapping
-            .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
+            .onAppear {
+                guard let typeName = _mangledTypeName(dataType) else {
+                    assertionFailure("FlowStack: Unable to resolve a mangled type name for \(dataType).")
+                    return
+                }
+                destinationLookup.table.merge([typeName: destination], uniquingKeysWith: { _, rhs in rhs })
+            }
     }
 }
 
@@ -125,7 +133,8 @@ public extension View {
     func flowDestination<D, C>(for type: D.Type, @ViewBuilder destination: @escaping (D) -> C) -> some View where D: Hashable, C: View {
         let destination = AnyDestination(dataType: type, content: { param in
             guard let param = AnyDestination.cast(data: param, to: type) else {
-                fatalError()
+                assertionFailure("FlowStack: Expected value of type \(type) but received \(Swift.type(of: param)).")
+                return AnyView(EmptyView())
             }
             return AnyView (
                 destination(param)
@@ -219,7 +228,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     private var usesInternalPath: Bool = false
 
-    @State private var destinationLookup: DestinationLookup = .init()
+    @StateObject private var destinationLookup: DestinationLookup = .init()
     @StateObject var accessibilityManager: AccessibilityManager = .init()
 
     /// Creates a flow stack that manages its own navigation state.
@@ -255,6 +264,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     private func destination(for instance: any (Hashable & Equatable)) -> AnyDestination? {
         guard let typeName = _mangledTypeName(type(of: instance)), let destination = destinationLookup.table[typeName] else {
+            flowStackLogger.warning("No flowDestination(for:destination:) registered for value of type \(String(describing: type(of: instance))). The value will not be presented. Ensure the flowDestination modifier is attached to a view that has appeared inside this FlowStack (and is not inside a lazy container).")
             return nil
         }
 
@@ -295,7 +305,6 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         transaction.disablesAnimations = true
         return transaction
     }
-    @Environment(\.flowDismiss) var flowDismiss
     public var body: some View {
         ZStack {
             root()
@@ -464,7 +473,7 @@ struct FlowTransactionModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onAppear(perform: {
-                initialPathCount = path!.elements.count
+                initialPathCount = path?.elements.count ?? 0
                 withTransaction(transaction) {
                     onPresent?()
                 }

@@ -280,10 +280,9 @@ public struct FlowLink<Label>: View where Label: View {
     @State private var size: CGSize?
     @State private var overrideFrame: CGRect?
     @State private var context: PathContext?
-    @State var isShowing: Bool = true
-    @State var buttonPressed: Bool = false
+    @State private var isShowing: Bool = true
+    @State private var buttonPressed: Bool = false
 
-    @State var environmentList: [EnvironmentValues] = []
     @State private var snapshots: [ColorScheme: UIImage] = [:]
     @State private var environment = EnvironmentValues()
 

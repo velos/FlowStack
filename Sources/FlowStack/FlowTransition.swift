@@ -74,7 +74,6 @@ extension AnyTransition {
         var context: PathContext
 
         @State var panOffset: CGPoint = .zero
-        @State var isEnded: Bool = false
         @State private var isDisabled: Bool = false
         @State var isDismissing: Bool = false
         @State private var snapCornerRadiusZero: Bool = true
@@ -173,7 +172,6 @@ extension AnyTransition {
                         defer { isDismissing = true }
                         dismiss()
                     }, onPan: { offset in
-                        defer { self.isEnded = false }
                         guard !isDisabled else { return }
                         self.snapCornerRadiusZero = false
                         self.panOffset = offset
@@ -181,7 +179,6 @@ extension AnyTransition {
                         // TODO: FS-34: Handle snap corner radius 0 on interactive dismiss cancel
                         withTransaction(transaction) {
                             panOffset = .zero
-                            isEnded = true
                         }
                     })
                     .onPreferenceChange(InteractiveDismissDisabledKey.self) { isDisabled in
