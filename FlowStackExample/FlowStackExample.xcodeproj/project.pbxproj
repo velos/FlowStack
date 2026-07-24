@@ -10,12 +10,12 @@
 		ED8DE1652A6765F600215165 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ED8DE1642A6765F600215165 /* Assets.xcassets */; };
 		ED8DE1682A6765F600215165 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ED8DE1672A6765F600215165 /* Preview Assets.xcassets */; };
 		ED8DE1742A6767B900215165 /* FlowStack in Frameworks */ = {isa = PBXBuildFile; productRef = ED8DE1732A6767B900215165 /* FlowStack */; };
-		EDCA5E012E3000000000A001 /* CachedAsyncImage in Frameworks */ = {isa = PBXBuildFile; productRef = EDCA5E022E3000000000A002 /* CachedAsyncImage */; };
 		EDA1DD382A67693A00D82A9D /* URLCache+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA1DD362A67693A00D82A9D /* URLCache+Extensions.swift */; };
 		EDA1DD392A67693A00D82A9D /* ProductDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA1DD352A67693A00D82A9D /* ProductDetails.swift */; };
 		EDA1DD3A2A67693A00D82A9D /* FlowStackExampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA1DD372A67693A00D82A9D /* FlowStackExampleApp.swift */; };
 		EDA1DD3B2A67693A00D82A9D /* Product.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA1DD332A67693A00D82A9D /* Product.swift */; };
 		EDA1DD3C2A67693A00D82A9D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA1DD342A67693A00D82A9D /* ContentView.swift */; };
+		EDCA5E012E3000000000A001 /* CachedAsyncImage in Frameworks */ = {isa = PBXBuildFile; productRef = EDCA5E022E3000000000A002 /* CachedAsyncImage */; };
 		EDFD07BC2A6F319E00CB0737 /* ProductRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDFD07BB2A6F319E00CB0737 /* ProductRow.swift */; };
 /* End PBXBuildFile section */
 
