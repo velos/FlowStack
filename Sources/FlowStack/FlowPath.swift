@@ -22,7 +22,7 @@ struct PathContext: Equatable, Hashable {
     var shadowColor: Color?
     var shadowOffset: CGPoint = .zero
 
-    var shouldShowSkrim: Bool = true
+    var shouldShowScrim: Bool = true
     var shouldScaleHorizontally: Bool = true
 
     var swipeUpToDismiss: Bool = false
@@ -36,7 +36,7 @@ struct PathContext: Equatable, Hashable {
         hasher.combine(cornerRadius)
         hasher.combine(shadowRadius)
         hasher.combine(shadowColor)
-        hasher.combine(shouldShowSkrim)
+        hasher.combine(shouldShowScrim)
         hasher.combine(shouldScaleHorizontally)
         hasher.combine(swipeUpToDismiss)
     }

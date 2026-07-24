@@ -30,8 +30,8 @@ class DestinationLookup: ObservableObject {
 
 class AccessibilityManager: ObservableObject {
     @Published var zIndex: Double = 0.0
-    var skrimIndex: Double { zIndex - 0.1 }
-    var behindSkrim: Double { zIndex - 0.2 }
+    var scrimIndex: Double { zIndex - 0.1 }
+    var behindScrim: Double { zIndex - 0.2 }
 
     // Setup VoiceOver Observer
     @Published var isVoiceOverRunning: Bool = UIAccessibility.isVoiceOverRunning
@@ -46,9 +46,9 @@ class AccessibilityManager: ObservableObject {
 
     func decrementIndex() { self.zIndex -= 1.0 }
 
-    func calcSkrim() -> Double {
-        if isVoiceOverRunning { return skrimIndex }
-        return zIndex > 1.0 ? zIndex : skrimIndex
+    func calcScrim() -> Double {
+        if isVoiceOverRunning { return scrimIndex }
+        return zIndex > 1.0 ? zIndex : scrimIndex
     }
 }
 
@@ -76,7 +76,7 @@ struct FlowDestinationModifier<D: Hashable>: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .zIndex(accessibilityManager.isVoiceOverRunning ? accessibilityManager.zIndex : accessibilityManager.behindSkrim)
+            .zIndex(accessibilityManager.isVoiceOverRunning ? accessibilityManager.zIndex : accessibilityManager.behindScrim)
             .onAppear {
                 guard let typeName = _mangledTypeName(dataType) else {
                     assertionFailure("FlowStack: Unable to resolve a mangled type name for \(dataType).")
@@ -234,10 +234,10 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
     ///   - overlayAlignment: The alignment applied to the overlay.
-    ///   - animation: The animation to use during flow transitions.
+    ///   - customSmoothAnimation: The animation to use during flow transitions.
     ///   - root: The view to display when the stack is empty.
     ///   - overlay: The view to overlay on the FlowStack. This view is always visible in front of any view presented by the flow stack.
-    public init(overlayAlignment: Alignment = .center, customSmoothAnimation: CustomSmoothAnimation?=nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
+    public init(overlayAlignment: Alignment = .center, customSmoothAnimation: CustomSmoothAnimation? = nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
         self.overlayAlignment = overlayAlignment
@@ -251,10 +251,10 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     /// - Parameters:
     ///   - path: A Binding to the flow path for this stack.
     ///   - overlayAlignment: The alignment applied to the overlay.
-    ///   - animation: The animation to use during flow transitions.
+    ///   - customSmoothAnimation: The animation to use during flow transitions.
     ///   - root: The view to display when the stack is empty.
     ///   - overlay: The view to overlay on the FlowStack. This view is always visible in front of any view presented by the flow stack.
-    public init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, customSmoothAnimation: CustomSmoothAnimation?=nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
+    public init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, customSmoothAnimation: CustomSmoothAnimation? = nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
         self.overlayAlignment = overlayAlignment
@@ -272,13 +272,13 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     }
 
     @ViewBuilder
-    private func skrim(for element: FlowElement) -> some View {
-        if element == pathToUse.wrappedValue.elements.last, element.context?.shouldShowSkrim == true {
+    private func scrim(for element: FlowElement) -> some View {
+        if element == pathToUse.wrappedValue.elements.last, element.context?.shouldShowScrim == true {
             Rectangle()
                 .foregroundColor(Color.black.opacity(0.7))
                 .transition(.opacity)
                 .ignoresSafeArea()
-                .zIndex(accessibilityManager.calcSkrim())
+                .zIndex(accessibilityManager.calcScrim())
                 .id(element.hashValue)
                 .onTapGesture {
                     flowDismissAction()
@@ -315,7 +315,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
             ForEach(pathToUse.wrappedValue.elements, id: \.self) { element in
                 if let destination = destination(for: element.value) {
 
-                    skrim(for: element)
+                    scrim(for: element)
 
                     destination.content(element.value)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -349,7 +349,7 @@ public extension FlowStack where Overlay == EmptyView {
 
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
-    ///   - animation: The animation to use during flow transitions.
+    ///   - customSmoothAnimation: The animation to use during flow transitions.
     ///   - root: The view to display when the stack is empty.
     init(customSmoothAnimation: CustomSmoothAnimation? = nil, @ViewBuilder root: @escaping () -> Root) {
         self.root = root
@@ -364,14 +364,14 @@ public extension FlowStack where Overlay == EmptyView {
     /// Creates a flow stack with heterogeneous navigation state that you can control.
     /// - Parameters:
     ///   - path: A Binding to the flow path for this stack.
-    ///   - animation: The animation to use during flow transitions.
+    ///   - customSmoothAnimation: The animation to use during flow transitions.
     ///   - root: The view to display when the stack is empty.
     init(path: Binding<FlowPath>, customSmoothAnimation: CustomSmoothAnimation? = nil, @ViewBuilder root: @escaping () -> Root) {
         self.root = root
         self.overlay = { EmptyView() }
         self.overlayAlignment = .center
         self._path = path
-        self.customSmoothAnimation = customSmoothAnimation ??  CustomSmoothAnimation.default
+        self.customSmoothAnimation = customSmoothAnimation ?? CustomSmoothAnimation.default
     }
 }
 

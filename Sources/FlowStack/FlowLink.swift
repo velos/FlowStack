@@ -229,7 +229,8 @@ public struct FlowLink<Label>: View where Label: View {
         ///   - shadowOffset: The shadow offset applied to the transitioning destination view. This value should typically match the shadow offset of the flow link contents or flow link animation anchor for visual consistency.
         ///   - zoomStyle: The zoom style applied to the transitioning destination view
         ///   - swipeUpToDismiss: Whether the destination view should allow swipe up to dismiss
-        public init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, retakeSnapshots: Bool = false, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally, swipeUpToDismiss: Bool = false) {
+        ///   - showsScrim: Whether a dimming scrim is shown behind the presented destination view. Tapping the scrim dismisses the view.
+        public init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, retakeSnapshots: Bool = false, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally, swipeUpToDismiss: Bool = false, showsScrim: Bool = true) {
             self.animateFromAnchor = animateFromAnchor
             self.transitionFromSnapshot = transitionFromSnapshot
             self.retakeSnapshots = retakeSnapshots
@@ -240,6 +241,7 @@ public struct FlowLink<Label>: View where Label: View {
             self.shadowOffset = shadowOffset
             self.zoomStyle = zoomStyle
             self.swipeUpToDismiss = swipeUpToDismiss
+            self.showsScrim = showsScrim
         }
 
         let animateFromAnchor: Bool
@@ -253,7 +255,7 @@ public struct FlowLink<Label>: View where Label: View {
         let shadowColor: Color?
         let shadowOffset: CGPoint
 
-        let showsSkrim: Bool = true
+        let showsScrim: Bool
         let zoomStyle: ZoomStyle
 
         let swipeUpToDismiss: Bool
@@ -469,7 +471,7 @@ public struct FlowLink<Label>: View where Label: View {
                 shadowRadius: configuration.shadowRadius,
                 shadowColor: configuration.shadowColor,
                 shadowOffset: configuration.shadowOffset,
-                shouldShowSkrim: configuration.showsSkrim,
+                shouldShowScrim: configuration.showsScrim,
                 shouldScaleHorizontally: configuration.zoomStyle == .scaleHorizontally,
                 swipeUpToDismiss: configuration.swipeUpToDismiss
             )
