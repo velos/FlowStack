@@ -57,7 +57,12 @@ struct InteractiveDismissContainer<T: View>: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ uiViewController: InteractiveDismissViewController<T>, context: Context) {
+        context.coordinator.threshold = threshold
         context.coordinator.isEnabled = isEnabled
+        context.coordinator.swipeUpToDismiss = swipeUpToDismiss
+        context.coordinator.onPan = onPan
+        context.coordinator.onDismiss = onDismiss
+        context.coordinator.onEnded = onEnded
         context.coordinator.isDismissing = isDismissing
     }
 
@@ -267,7 +272,7 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
         if panGestureRecognizer.translation(in: scrollView).y > 0 {
             return scrollView.contentOffset.y - 5 <= -scrollView.contentInset.top
         } else {
-            let belowBounds = scrollView.contentOffset.y + UIScreen.main.bounds.height > scrollView.contentSize.height + 20 && swipeUpToDismiss
+            let belowBounds = scrollView.contentOffset.y + scrollView.bounds.height > scrollView.contentSize.height + 20 && swipeUpToDismiss
             scrollView.isScrollEnabled = !belowBounds
             return belowBounds
         }
@@ -275,7 +280,7 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
 
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
         guard isEnabled else { return true }
-        guard (gestureRecognizer == panGestureRecognizer || gestureRecognizer == panGestureRecognizer), let scrollView = scrollView else {
+        guard gestureRecognizer == panGestureRecognizer, let scrollView = scrollView else {
             return true
         }
         scrollView.isScrollEnabled = true

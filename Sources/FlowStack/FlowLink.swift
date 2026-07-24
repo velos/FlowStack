@@ -73,25 +73,25 @@ struct GestureContainer: UIViewRepresentable {
     var onTap: () -> Void
 
     class Coordinator {
-        @Binding var isPressed: Bool
+        var isPressed: Binding<Bool>
         var onTap: () -> Void
 
         init(isPressed: Binding<Bool>, onTap: @escaping () -> Void) {
-            self._isPressed = isPressed
+            self.isPressed = isPressed
             self.onTap = onTap
         }
 
         @objc func onTouchUpInside() {
-            isPressed = false
+            isPressed.wrappedValue = false
             onTap()
         }
 
         @objc func onEnter() {
-            isPressed = true
+            isPressed.wrappedValue = true
         }
 
         @objc func onExit() {
-            isPressed = false
+            isPressed.wrappedValue = false
         }
     }
 
@@ -104,6 +104,7 @@ struct GestureContainer: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UIViewType, context: Context) {
+        context.coordinator.isPressed = $isPressed
         // The coordinator is made once and reused for the life of the
         // representable, so without this the button keeps calling the very
         // first onTap it was given — and that closure captured the FlowLink
