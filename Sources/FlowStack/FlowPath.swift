@@ -50,13 +50,12 @@ struct FlowElement: Equatable, Hashable {
     var index: Int
 
     static func == (lhs: FlowElement, rhs: FlowElement) -> Bool {
-        lhs.value.hashValue == rhs.value.hashValue &&
-        _mangledTypeName(type(of: lhs.value)) == _mangledTypeName(type(of: rhs.value)) &&
+        AnyHashable(lhs.value) == AnyHashable(rhs.value) &&
         lhs.index == rhs.index
     }
 
     func hash(into hasher: inout Hasher) {
-        hasher.combine(_mangledTypeName(type(of: value)))
+        hasher.combine(AnyHashable(value))
         hasher.combine(index)
     }
 }
@@ -70,7 +69,8 @@ public struct FlowPath: Equatable, Hashable {
         elements = []
     }
 
-    var isEmpty: Bool {
+    /// A Boolean that indicates whether the flow path is empty.
+    public var isEmpty: Bool {
         elements.isEmpty
     }
 
@@ -84,10 +84,15 @@ public struct FlowPath: Equatable, Hashable {
     }
 
     /// Removes the specified number of elements from the end of the flow path.
-    /// - Parameter count: The number of elements to remove from the collection. Count must be greater than or equal to zero and must not exceed the number of elements in the flow path.
+    /// - Parameter count: The number of elements to remove from the flow path. If `count` exceeds the
+    ///   number of elements in the flow path, all elements are removed.
     public mutating func removeLast(_ count: Int = 1) {
-        guard !isEmpty else { return }
-        elements.removeLast(count)
+        elements.removeLast(Swift.min(Swift.max(count, 0), elements.count))
+    }
+
+    /// Removes all elements from the flow path, returning to the root view.
+    public mutating func removeAll() {
+        elements.removeAll()
     }
 
     mutating func append<P>(_ newElement: P, context: PathContext?) where P: Hashable {
