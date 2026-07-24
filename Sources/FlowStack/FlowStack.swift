@@ -336,6 +336,12 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         .environmentObject(destinationLookup)
         .environmentObject(accessibilityManager)
         .environment(\.flowDismiss, flowDismissAction)
+        // Keep the accessibility z-index in sync with the path even when the
+        // path is mutated directly (e.g. flowPath.removeLast(2), removeAll()),
+        // which bypasses FlowDismissAction's decrement.
+        .onChange(of: pathToUse.wrappedValue.count) { newCount in
+            accessibilityManager.setIndex(newCount - 1)
+        }
     }
 }
 
