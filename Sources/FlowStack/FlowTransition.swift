@@ -93,7 +93,7 @@ extension AnyTransition {
             context.snapshotDict[colorScheme] ?? context.snapshot
         }
 
-        var cornerRadius: CGFloat { context.cornerRadius + ((UIScreen.displayCornerRadius ?? 20) - context.cornerRadius) * percent }
+        var cornerRadius: CGFloat { context.cornerRadius + (UIScreen.displayCornerRadius - context.cornerRadius) * percent }
 
         var isPresentedFullscreen: Bool {
             horizontalSizeClass == .compact || availableSize.width - 2 * Constants.minVerticalPadding < Constants.maxWidth
