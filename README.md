@@ -1,11 +1,11 @@
 <img src="Logo.svg" height="144">
 
-**FlowStack** is a SwiftUI library for creating stack-based navigation with "flow" (aka "zooming") transition animations and interactive pull-to-dismiss gestures. FlowStack's API is modeled after Apple's [NavigationStack](https://developer.apple.com/documentation/swiftui/navigationstack), and though no prior experience with NavigationStack is required to get started with FlowStack, the similarities in use make it easy and intuitive to add FlowStack to a new project or migrate an existing project currently using NavigationStack. An added bonus is that FlowStack is compatible with iOS 15+ where NavigationStack is only available for iOS 16+.
+**FlowStack** is a SwiftUI library for creating stack-based navigation with "flow" (aka "zooming") transition animations and interactive pull-to-dismiss gestures. FlowStack's API is modeled after Apple's [NavigationStack](https://developer.apple.com/documentation/swiftui/navigationstack), and though no prior experience with NavigationStack is required to get started with FlowStack, the similarities in use make it easy and intuitive to add FlowStack to a new project or migrate an existing project currently using NavigationStack. An added bonus is that FlowStack is compatible with iOS 15+ where NavigationStack is only available for iOS 16+. (iOS 18 introduced a built-in zoom transition via `navigationTransition(.zoom)`; FlowStack provides similar transitions back to iOS 15, along with interactive pull-to-dismiss and per-link transition customization.)
 
-[![License](https://img.shields.io/badge/License-MIT-black.svg)](https://github.com/velos/FlowStack/blob/develop/LICENSE)
-![Xcode 15.0+](https://img.shields.io/badge/Xcode-14.0+-blue.svg)
-![iOS 17.0+](https://img.shields.io/badge/iOS-15.0+-blue.svg)
-![Swift 5.0+](https://img.shields.io/badge/Swift-5.0+-orange.svg)
+[![License](https://img.shields.io/badge/License-MIT-black.svg)](https://github.com/velos/FlowStack/blob/main/LICENSE)
+![Xcode 15.0+](https://img.shields.io/badge/Xcode-15.0+-blue.svg)
+![iOS 15.0+](https://img.shields.io/badge/iOS-15.0+-blue.svg)
+![Swift 5.9+](https://img.shields.io/badge/Swift-5.9+-orange.svg)
 
 <img width="263" alt="image" src="https://temp.tejen.net/23flowstack/demo.gif">
 
@@ -13,8 +13,8 @@
 
 To integrate using Apple's Swift package manager, add the following as a dependency to your `Package.swift`:
 
-```
-.package(url: "https://github.com/velos/FlowStack.git", .branch("develop"))
+```swift
+.package(url: "https://github.com/velos/FlowStack.git", branch: "main")
 ```
 
 ## Getting started
@@ -42,13 +42,13 @@ NavigationStack {
 
 1. Add the root view inside the **FlowStack**.
    - For scrolling lists, use a ScrollView with a LazyVStack instead of a List for best animation results.
-1. Add a **flowDestination(for:destination:)** modifier within the **FlowStack** hierarchy to associate a data type with it's corresponding destination view.
+1. Add a **flowDestination(for:destination:)** modifier within the **FlowStack** hierarchy to associate a data type with its corresponding destination view.
 1. Initialize a **FlowLink** with...
    1. A value of the same data type handled by the corresponding **flowDestination(for:destination:)** modifier. 
    1. A **FlowLink.Configuration** to customize aspects of the transition. In the below example, a corner radius value is passed in to the configuration to match the corner radius of the ParkRow during transition.
    1. A view to serve as the content for the **FlowLink**. A common use case would be for this view to contain an image (or other elements) also present in the destination view.
   
-In this example, similar to the NavigationStack, when a user selects a given flow link, the park value associated with the link is handled by the corresponding flow destination modifier with matching data type which adds the associated destination view to the stack (in this case, ParkDetails) and presents it via a "zooming" transiton animation. Views can be removed from the stack and dismissed programmatically (by calling the **FlowDismiss** action accessible via the Environment) or by the user dragging down to initiate an interactive dismiss gesture.
+In this example, similar to the NavigationStack, when a user selects a given flow link, the park value associated with the link is handled by the corresponding flow destination modifier with matching data type which adds the associated destination view to the stack (in this case, ParkDetails) and presents it via a "zooming" transition animation. Views can be removed from the stack and dismissed programmatically (by calling the **FlowDismiss** action accessible via the Environment) or by the user dragging down to initiate an interactive dismiss gesture.
 
 ```swift
 FlowStack {
@@ -86,7 +86,7 @@ Button("Dismiss") {
 }
 ```
 
-## Manage naviagtion state
+## Manage navigation state
 
 By default, a flow stack manages state for any view contained, added or removed from the stack. If you need direct access and control of the state, you can create a binding to a FlowPath and initialize a flow stack with the flow path binding.
 
@@ -119,11 +119,13 @@ func present(product: Product) {
 }
 ```
 
+Views can also be removed programmatically: `flowPath.removeLast()` dismisses the top view, and `flowPath.removeAll()` pops all presented views to return to the root.
+
 ## Animation anchors
 
 ![flow_animation_anchor_example_1](https://github.com/velos/FlowStack/assets/11927517/fa6b20da-be32-45d4-a00e-b0aba4f0602d)
 
-By defrault, flow transition animations originate from the bounds of the view provided as content to a FlowLink. However, depending on the given UI, it's sometimes preferable for the transition animation to originate from a subview within the FlowLink's content view.
+By default, flow transition animations originate from the bounds of the view provided as content to a FlowLink. However, depending on the given UI, it's sometimes preferable for the transition animation to originate from a subview within the FlowLink's content view.
 
 A common use case is when a FlowLink's view contains an image along with additional view elements, but you only want the transition animation to emanate from the image, not the entire view containing the other elements. You can achieve this effect by adding a **.flowAnimationAnchor()** modifier to the view you want the transition animation to emanate from.
 
@@ -173,7 +175,11 @@ VStack {
 
 ## Image snapshots
 
-When displaying async images within a FlowLink, use [CachedAsyncImage](https://github.com/lorenzofiamingo/swiftui-cached-async-image) (included in the *FlowStack* library) instead of SwiftUI's provided [AsyncImage](https://developer.apple.com/documentation/swiftui/asyncimage). AsyncImage does not cache fetched images and as a result, will not load a previously fetched image fast enough to be included in transition snapshots (i.e. when `transitionFromSnapshot: true` in FlowLink Configuration).
+When displaying async images within a FlowLink, use [CachedAsyncImage](https://github.com/lorenzofiamingo/swiftui-cached-async-image) instead of SwiftUI's provided [AsyncImage](https://developer.apple.com/documentation/swiftui/asyncimage). AsyncImage does not cache fetched images and as a result, will not load a previously fetched image fast enough to be included in transition snapshots (i.e. when `transitionFromSnapshot: true` in FlowLink Configuration). FlowStack itself has no dependencies, so add CachedAsyncImage to your project separately:
+
+```swift
+.package(url: "https://github.com/lorenzofiamingo/swiftui-cached-async-image.git", from: "2.1.0")
+```
 
 [CachedAsyncImage docs](https://github.com/lorenzofiamingo/swiftui-cached-async-image) has a similar API to AsyncImage with the added ability to specify a cache for caching images. Setting a larger custom cache size is often necessary to get images to actually be cached; images must not be larger than 5% of the disk cache. [See discussion](https://developer.apple.com/documentation/foundation/nsurlsessiondatadelegate/1411612-urlsession#discussion)
 
