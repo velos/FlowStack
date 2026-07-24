@@ -7,22 +7,6 @@
 import Foundation
 import SwiftUI
 
-extension CGRect: Hashable {
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(minX)
-        hasher.combine(minY)
-        hasher.combine(width)
-        hasher.combine(height)
-    }
-}
-
-extension CGPoint: Hashable {
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(x)
-        hasher.combine(y)
-    }
-}
-
 struct PathContext: Equatable, Hashable {
     var anchor: Anchor<CGRect>?
     var overrideAnchor: Anchor<CGRect>?
@@ -42,6 +26,20 @@ struct PathContext: Equatable, Hashable {
     var shouldScaleHorizontally: Bool = true
 
     var swipeUpToDismiss: Bool = false
+
+    // Hashes a subset of the equated properties (anchors and shadowOffset are
+    // excluded because Anchor<CGRect> and CGPoint are not Hashable), which
+    // still satisfies the Hashable contract: equal values hash equally.
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(snapshot)
+        hasher.combine(linkDepth)
+        hasher.combine(cornerRadius)
+        hasher.combine(shadowRadius)
+        hasher.combine(shadowColor)
+        hasher.combine(shouldShowSkrim)
+        hasher.combine(shouldScaleHorizontally)
+        hasher.combine(swipeUpToDismiss)
+    }
 }
 
 struct FlowElement: Equatable, Hashable {
