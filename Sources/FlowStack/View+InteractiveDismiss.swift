@@ -280,7 +280,7 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
 
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
         guard isEnabled else { return true }
-        guard gestureRecognizer == panGestureRecognizer, let scrollView = scrollView else {
+        guard gestureRecognizer == panGestureRecognizer || gestureRecognizer == edgeGestureRecognizer, let scrollView = scrollView else {
             return true
         }
         scrollView.isScrollEnabled = true
