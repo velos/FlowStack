@@ -26,6 +26,7 @@ struct ProductDetails: View {
                                 .fontWeight(.black)
                                 .foregroundStyle(.white)
                                 .padding()
+                                .padding(.leading, proxy.safeAreaInsets.leading)
                                 .opacity(opacity)
                         })
                         .overlay(alignment: .topTrailing, content: {
@@ -40,8 +41,11 @@ struct ProductDetails: View {
                                             .foregroundStyle(Color(uiColor: .white))
                                     }
                             })
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, proxy.safeAreaInsets.top + 12)
+                            // The image extends under system UI, which isn't always along
+                            // the top edge: iPhone Duo's camera and status items sit in
+                            // the trailing corner and are reported as a trailing inset.
+                            .padding(.top, proxy.safeAreaInsets.top + 12)
+                            .padding(.trailing, proxy.safeAreaInsets.trailing + 12)
                             .opacity(opacity)
                         })
                         .accessibilitySortPriority(100)
@@ -69,6 +73,8 @@ struct ProductDetails: View {
                         .overlay(.quaternary, in: RoundedRectangle(cornerRadius: 24, style: /*@START_MENU_TOKEN@*/.continuous/*@END_MENU_TOKEN@*/).stroke())
                     }
                     .padding()
+                    .padding(.leading, proxy.safeAreaInsets.leading)
+                    .padding(.trailing, proxy.safeAreaInsets.trailing)
                     .opacity(opacity)
                 }
                 .accessibilityElement(children: .contain)
