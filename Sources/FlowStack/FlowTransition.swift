@@ -77,7 +77,6 @@ extension AnyTransition {
         @State private var isDisabled: Bool = false
         @State var isDismissing: Bool = false
         @State private var snapCornerRadiusZero: Bool = true
-        @State private var availableSize: CGSize = .zero
 
         @Environment(\.colorScheme) private var colorScheme
 
@@ -93,26 +92,47 @@ extension AnyTransition {
             context.snapshotDict[colorScheme] ?? context.snapshot
         }
 
-        var cornerRadius: CGFloat { context.cornerRadius + (UIScreen.displayCornerRadius - context.cornerRadius) * percent }
-
-        var isPresentedFullscreen: Bool {
+        private func isPresentedFullscreen(availableSize: CGSize) -> Bool {
             horizontalSizeClass == .compact || availableSize.width - 2 * Constants.minVerticalPadding < Constants.maxWidth
         }
 
-        var conditionalCornerRadius: CGFloat {
-            if isPresentedFullscreen {
-                if percent >= 1 {
-                    if snapCornerRadiusZero {
-                        return 0
-                    } else {
-                        return cornerRadius
-                    }
-                } else {
-                    return cornerRadius
-                }
-            } else {
-                return cornerRadius
+        /// The corner radii of the fully presented view, which the transition
+        /// animates toward from the flow link's corner radius.
+        private func presentedCornerRadii(with proxy: GeometryProxy) -> CornerRadii {
+            // The display's corner radius only suits a view whose corners sit on
+            // the display's corners. Anything floating away from them gets a
+            // sheet-like radius instead, which on displays with very round
+            // corners is considerably smaller.
+            let floatingRadius = min(UIScreen.displayCornerRadius, Constants.maxFloatingCornerRadius)
+
+            guard isPresentedFullscreen(availableSize: proxy.size) else {
+                return CornerRadii(uniform: floatingRadius)
             }
+
+            #if compiler(>=6.4)
+            // Displays can have a different radius at each corner (e.g. the
+            // hinge side of a foldable), which a single value can't describe.
+            if #available(iOS 27.0, *), let radii = proxy.concentricCornerRadii {
+                // A corner resolves to zero when it isn't near a corner of the container.
+                return CornerRadii(
+                    topLeft: radii.topLeading,
+                    topRight: radii.topTrailing,
+                    bottomLeft: radii.bottomLeading,
+                    bottomRight: radii.bottomTrailing
+                ).map { $0 > 0 ? $0 : floatingRadius }
+            }
+            #endif
+
+            return CornerRadii(uniform: UIScreen.displayCornerRadius)
+        }
+
+        private func cornerRadii(with proxy: GeometryProxy) -> CornerRadii {
+            // At rest a fullscreen view is clipped by the display itself.
+            if isPresentedFullscreen(availableSize: proxy.size), percent >= 1, snapCornerRadiusZero {
+                return .zero
+            }
+
+            return presentedCornerRadii(with: proxy).interpolated(from: context.cornerRadius, percent: percent)
         }
 
         var cornerStyle: RoundedCornerStyle { percent > 0.5 ? .continuous : context.cornerStyle }
@@ -148,6 +168,8 @@ extension AnyTransition {
             static let maxWidth: CGFloat = 706
             static let maxHeight: CGFloat = 998
             static let minVerticalPadding: CGFloat = 44
+            /// Matches the corner radius of system sheets.
+            static let maxFloatingCornerRadius: CGFloat = 40
         }
 
         private func presentationSize(availableSize: CGSize) -> CGSize {
@@ -184,10 +206,6 @@ extension AnyTransition {
                     .onPreferenceChange(InteractiveDismissDisabledKey.self) { isDisabled in
                         self.isDisabled = isDisabled
                     }
-                    .preference(key: SizePreferenceKey.self, value: proxy.size)
-                    .onPreferenceChange(SizePreferenceKey.self, perform: { value in
-                        availableSize = value
-                    })
                     .overlay(alignment: .top) {
                         if let image = activeSnapshot, percent < 1 {
                             Image(uiImage: image)
@@ -196,7 +214,7 @@ extension AnyTransition {
                                 .opacity(snapshotPercent)
                         }
                     }
-                    .clipShape(RoundedRectangle(cornerRadius: conditionalCornerRadius / scaleRatio, style: cornerStyle))
+                    .clipShape(UnevenCornerShape(radii: cornerRadii(with: proxy).map { $0 / scaleRatio }, style: cornerStyle))
                     .shadow(color: context.shadowColor ?? .clear, radius: context.shadowRadius, x: context.shadowOffset.x, y: context.shadowOffset.y)
                     .frame(
                         width: context.shouldScaleHorizontally ? proxy.size.width : zoomRect.size.width,
@@ -213,12 +231,4 @@ extension AnyTransition {
             .ignoresSafeArea(.all, edges: .all)
         }
     }
-}
-
-struct SizePreferenceKey: PreferenceKey {
-    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
-        value = nextValue()
-    }
-
-    static var defaultValue: CGSize = .zero
 }

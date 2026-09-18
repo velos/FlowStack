@@ -152,3 +152,53 @@ final class FlowElementTests: XCTestCase {
         XCTAssertNotEqual(lhs.hashValue, rhs.hashValue)
     }
 }
+
+final class CornerRadiiTests: XCTestCase {
+
+    private let duo = CornerRadii(topLeft: 8, topRight: 59, bottomLeft: 8, bottomRight: 59)
+
+    func testUniformInitializer() {
+        let radii = CornerRadii(uniform: 12)
+        XCTAssertTrue(radii.isUniform)
+        XCTAssertEqual(radii.maximum, 12)
+    }
+
+    func testIsUniformDetectsDifferingCorners() {
+        XCTAssertFalse(duo.isUniform)
+        XCTAssertEqual(duo.maximum, 59)
+    }
+
+    func testInterpolationStartsAtSharedRadius() {
+        XCTAssertEqual(duo.interpolated(from: 20, percent: 0), CornerRadii(uniform: 20))
+    }
+
+    func testInterpolationEndsAtEachCornersRadius() {
+        XCTAssertEqual(duo.interpolated(from: 20, percent: 1), duo)
+    }
+
+    func testInterpolationMovesEachCornerIndependently() {
+        let halfway = duo.interpolated(from: 20, percent: 0.5)
+        XCTAssertEqual(halfway.topLeft, 14)
+        XCTAssertEqual(halfway.bottomLeft, 14)
+        XCTAssertEqual(halfway.topRight, 39.5)
+        XCTAssertEqual(halfway.bottomRight, 39.5)
+    }
+
+    func testInterpolationNeverProducesNegativeRadii() {
+        // Bouncy animations overshoot percent past 1, which extrapolates a
+        // corner that shrinks (20 -> 8) toward and beyond zero.
+        let overshot = duo.interpolated(from: 20, percent: 3)
+        XCTAssertEqual(overshot.topLeft, 0)
+        XCTAssertEqual(overshot.bottomLeft, 0)
+    }
+
+    func testAnimatableDataRoundTrips() {
+        var radii = CornerRadii.zero
+        radii.animatableData = duo.animatableData
+        XCTAssertEqual(radii, duo)
+    }
+
+    func testMapTransformsEveryCorner() {
+        XCTAssertEqual(duo.map { $0 / 2 }, CornerRadii(topLeft: 4, topRight: 29.5, bottomLeft: 4, bottomRight: 29.5))
+    }
+}

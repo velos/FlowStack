@@ -30,6 +30,10 @@ extension UIScreen {
 
     /// The corner radius of the display. Uses a private property of `UIScreen`
     /// and falls back to a sensible default if the API changes.
+    ///
+    /// This is a single value, so on displays whose corners differ (e.g. the
+    /// hinge side of a foldable) it only describes the roundest ones. Prefer
+    /// `GeometryProxy.concentricCornerRadii` where it's available.
     static var displayCornerRadius: CGFloat {
         if let cached = cachedDisplayCornerRadius {
             return cached
