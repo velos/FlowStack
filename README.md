@@ -140,7 +140,7 @@ FlowLink(value: video, configuration: .init(cornerRadius: cornerRadius, presenta
 | `.fullScreen` | Always fills the flow stack. |
 | `.card` | A card whenever the flow stack is wide enough to fit one, on any device. |
 
-Destinations that extend under system UI should respect the safe area on *every* edge their content touches, not just the top: on iPhone Duo, the camera and status items sit in the trailing corner and are reported as a trailing inset.
+Destinations that extend under system UI should respect the safe area on *every* edge their content touches, not just the top: on iPhone Duo, the camera and status items sit in the trailing corner and are reported as a trailing inset. For controls like a close button, prefer a toolbar item inside a `NavigationStack` in the destination over positioning one by hand; the system places toolbar items clear of system UI on every device.
 
 ## Animation anchors
 

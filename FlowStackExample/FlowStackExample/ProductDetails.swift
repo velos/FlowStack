@@ -15,6 +15,48 @@ struct ProductDetails: View {
     var product: Product
 
     var body: some View {
+        NavigationContainer {
+            content
+                // The system positions toolbar items clear of system UI wherever it
+                // is, e.g. beside iPhone Duo's camera and status items, which sit in
+                // the trailing corner rather than along the top edge.
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        closeButton
+                            .opacity(opacity)
+                    }
+                }
+                .hiddenNavigationBarBackground()
+        }
+        .withFlowAnimation {
+            opacity = 0.78
+        } onDismiss: {
+            opacity = 0
+        }
+    }
+
+    @ViewBuilder
+    private var closeButton: some View {
+        if #available(iOS 26.0, *) {
+            Button(role: .close) {
+                flowDismiss()
+            }
+        } else {
+            Button(action: { flowDismiss() }, label: {
+                Image(systemName: "xmark")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Color(uiColor: .darkGray))
+                    .padding(8)
+                    .background {
+                        Circle()
+                            .foregroundStyle(Color(uiColor: .white))
+                    }
+            })
+            .accessibilityLabel("Close")
+        }
+    }
+
+    private var content: some View {
         GeometryReader { proxy in
             ScrollView {
                 VStack {
@@ -28,25 +70,6 @@ struct ProductDetails: View {
                                 .padding()
                                 .padding(.leading, proxy.safeAreaInsets.leading)
                                 .opacity(opacity)
-                        })
-                        .overlay(alignment: .topTrailing, content: {
-                            Button(action: {
-                                flowDismiss()
-                            }, label: {
-                                Image(systemName: "xmark")
-                                    .foregroundStyle(Color(uiColor: .darkGray))
-                                    .padding(10)
-                                    .background {
-                                        Circle()
-                                            .foregroundStyle(Color(uiColor: .white))
-                                    }
-                            })
-                            // The image extends under system UI, which isn't always along
-                            // the top edge: iPhone Duo's camera and status items sit in
-                            // the trailing corner and are reported as a trailing inset.
-                            .padding(.top, proxy.safeAreaInsets.top + 12)
-                            .padding(.trailing, proxy.safeAreaInsets.trailing + 12)
-                            .opacity(opacity)
                         })
                         .accessibilitySortPriority(100)
                         .clipped()
@@ -82,11 +105,6 @@ struct ProductDetails: View {
             }
             .ignoresSafeArea()
         }
-        .withFlowAnimation {
-            opacity = 0.78
-        } onDismiss: {
-            opacity = 0
-        }
     }
 
     private func image(url: URL) -> some View {
@@ -118,6 +136,32 @@ struct ProductDetails: View {
         Rectangle()
             .frame(height: 1)
             .foregroundStyle(.quaternary)
+    }
+}
+
+/// A navigation container, so the destination can host toolbar items.
+private struct NavigationContainer<Content: View>: View {
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        if #available(iOS 16.0, *) {
+            NavigationStack(root: content)
+        } else {
+            NavigationView(content: content)
+                .navigationViewStyle(.stack)
+        }
+    }
+}
+
+private extension View {
+    /// Keeps the navigation bar transparent so the image shows through it.
+    @ViewBuilder
+    func hiddenNavigationBarBackground() -> some View {
+        if #available(iOS 16.0, *) {
+            toolbarBackground(.hidden, for: .navigationBar)
+        } else {
+            self
+        }
     }
 }
 
