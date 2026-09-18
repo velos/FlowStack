@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import FlowStack
 
@@ -200,5 +201,39 @@ final class CornerRadiiTests: XCTestCase {
 
     func testMapTransformsEveryCorner() {
         XCTAssertEqual(duo.map { $0 / 2 }, CornerRadii(topLeft: 4, topRight: 29.5, bottomLeft: 4, bottomRight: 29.5))
+    }
+}
+
+final class FlowPresentationStyleTests: XCTestCase {
+
+    func testFullScreenAlwaysFills() {
+        for idiom in [UIUserInterfaceIdiom.phone, .pad] {
+            XCTAssertTrue(FlowPresentationStyle.fullScreen.isFullScreen(cardFits: true, idiom: idiom))
+            XCTAssertTrue(FlowPresentationStyle.fullScreen.isFullScreen(cardFits: false, idiom: idiom))
+        }
+    }
+
+    func testCardPresentsCardWheneverOneFits() {
+        for idiom in [UIUserInterfaceIdiom.phone, .pad] {
+            XCTAssertFalse(FlowPresentationStyle.card.isFullScreen(cardFits: true, idiom: idiom))
+            XCTAssertTrue(FlowPresentationStyle.card.isFullScreen(cardFits: false, idiom: idiom))
+        }
+    }
+
+    func testAutomaticFillsOnPhoneEvenWhenCardFits() {
+        // e.g. an unfolded iPhone Duo or a landscape iPhone Pro Max.
+        XCTAssertTrue(FlowPresentationStyle.automatic.isFullScreen(cardFits: true, idiom: .phone))
+        XCTAssertTrue(FlowPresentationStyle.automatic.isFullScreen(cardFits: false, idiom: .phone))
+    }
+
+    func testAutomaticPresentsCardOnPadWhenOneFits() {
+        XCTAssertFalse(FlowPresentationStyle.automatic.isFullScreen(cardFits: true, idiom: .pad))
+        // e.g. iPad Split View or Slide Over at compact width.
+        XCTAssertTrue(FlowPresentationStyle.automatic.isFullScreen(cardFits: false, idiom: .pad))
+    }
+
+    func testConfigurationDefaultsToAutomatic() {
+        XCTAssertEqual(FlowLink<EmptyView>.Configuration().presentationStyle, .automatic)
+        XCTAssertEqual(PathContext().presentationStyle, .automatic)
     }
 }

@@ -121,6 +121,27 @@ func present(product: Product) {
 
 Views can also be removed programmatically: `flowPath.removeLast()` dismisses the top view, and `flowPath.removeAll()` pops all presented views to return to the root.
 
+## Presentation style
+
+On iPhone, a destination view fills the flow stack. On iPad, when the flow stack is wide enough, the destination is instead presented as a centered card over the dimmed flow stack. Wide iPhone displays, like an unfolded iPhone Duo or a landscape iPhone Pro Max, present full screen.
+
+To override this for a given link, pass a **FlowPresentationStyle** to its configuration:
+
+```swift
+// Always fill the flow stack, even on iPad.
+FlowLink(value: video, configuration: .init(cornerRadius: cornerRadius, presentationStyle: .fullScreen)) {
+    VideoRow(video: video)
+}
+```
+
+| Style | Behavior |
+|---|---|
+| `.automatic` | Full screen on iPhone; a card on other devices when one fits. The default. |
+| `.fullScreen` | Always fills the flow stack. |
+| `.card` | A card whenever the flow stack is wide enough to fit one, on any device. |
+
+Destinations that extend under system UI should respect the safe area on *every* edge their content touches, not just the top: on iPhone Duo, the camera and status items sit in the trailing corner and are reported as a trailing inset.
+
 ## Animation anchors
 
 ![flow_animation_anchor_example_1](https://github.com/velos/FlowStack/assets/11927517/fa6b20da-be32-45d4-a00e-b0aba4f0602d)

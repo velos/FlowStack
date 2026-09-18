@@ -93,7 +93,8 @@ extension AnyTransition {
         }
 
         private func isPresentedFullscreen(availableSize: CGSize) -> Bool {
-            horizontalSizeClass == .compact || availableSize.width - 2 * Constants.minVerticalPadding < Constants.maxWidth
+            let cardFits = horizontalSizeClass == .regular && availableSize.width - 2 * Constants.minVerticalPadding >= Constants.maxWidth
+            return context.presentationStyle.isFullScreen(cardFits: cardFits, idiom: UIDevice.current.userInterfaceIdiom)
         }
 
         /// The corner radii of the fully presented view, which the transition
@@ -174,12 +175,12 @@ extension AnyTransition {
 
         private func presentationSize(availableSize: CGSize) -> CGSize {
 
-            if horizontalSizeClass == .regular && availableSize.width - 2 * Constants.minVerticalPadding >= Constants.maxWidth {
+            if isPresentedFullscreen(availableSize: availableSize) {
+                return availableSize
+            } else {
                 let width = Constants.maxWidth
                 let height = min(Constants.maxHeight, availableSize.height - Constants.minVerticalPadding * 2)
                 return CGSize(width: width, height: height)
-            } else {
-                return availableSize
             }
         }
 

@@ -27,6 +27,8 @@ struct PathContext: Equatable, Hashable {
 
     var swipeUpToDismiss: Bool = false
 
+    var presentationStyle: FlowPresentationStyle = .automatic
+
     // Hashes a subset of the equated properties (anchors and shadowOffset are
     // excluded because Anchor<CGRect> and CGPoint are not Hashable), which
     // still satisfies the Hashable contract: equal values hash equally.
@@ -39,6 +41,7 @@ struct PathContext: Equatable, Hashable {
         hasher.combine(shouldShowScrim)
         hasher.combine(shouldScaleHorizontally)
         hasher.combine(swipeUpToDismiss)
+        hasher.combine(presentationStyle)
     }
 }
 

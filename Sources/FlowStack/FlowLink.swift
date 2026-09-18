@@ -230,7 +230,8 @@ public struct FlowLink<Label>: View where Label: View {
         ///   - zoomStyle: The zoom style applied to the transitioning destination view
         ///   - swipeUpToDismiss: Whether the destination view should allow swipe up to dismiss
         ///   - showsScrim: Whether a dimming scrim is shown behind the presented destination view. Tapping the scrim dismisses the view.
-        public init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, retakeSnapshots: Bool = false, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally, swipeUpToDismiss: Bool = false, showsScrim: Bool = true) {
+        ///   - presentationStyle: Whether the destination view fills the flow stack or is presented as a card when the flow stack is wide enough to fit one.
+        public init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, retakeSnapshots: Bool = false, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally, swipeUpToDismiss: Bool = false, showsScrim: Bool = true, presentationStyle: FlowPresentationStyle = .automatic) {
             self.animateFromAnchor = animateFromAnchor
             self.transitionFromSnapshot = transitionFromSnapshot
             self.retakeSnapshots = retakeSnapshots
@@ -242,6 +243,7 @@ public struct FlowLink<Label>: View where Label: View {
             self.zoomStyle = zoomStyle
             self.swipeUpToDismiss = swipeUpToDismiss
             self.showsScrim = showsScrim
+            self.presentationStyle = presentationStyle
         }
 
         let animateFromAnchor: Bool
@@ -259,6 +261,8 @@ public struct FlowLink<Label>: View where Label: View {
         let zoomStyle: ZoomStyle
 
         let swipeUpToDismiss: Bool
+
+        let presentationStyle: FlowPresentationStyle
     }
 
     public enum Activation { case overlayButton, tapGesture }
@@ -473,7 +477,8 @@ public struct FlowLink<Label>: View where Label: View {
                 shadowOffset: configuration.shadowOffset,
                 shouldShowScrim: configuration.showsScrim,
                 shouldScaleHorizontally: configuration.zoomStyle == .scaleHorizontally,
-                swipeUpToDismiss: configuration.swipeUpToDismiss
+                swipeUpToDismiss: configuration.swipeUpToDismiss,
+                presentationStyle: configuration.presentationStyle
             )
         })
         .onPreferenceChange(PathContextKey.self) { value in
