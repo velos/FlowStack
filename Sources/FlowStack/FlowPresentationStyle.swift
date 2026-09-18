@@ -8,7 +8,7 @@ import SwiftUI
 ///
 /// Set a style with `FlowLink.Configuration`. Destinations presented by
 /// appending to a `FlowPath` directly use ``automatic``.
-public enum FlowPresentationStyle: Hashable, Sendable {
+public enum FlowPresentationStyle: Hashable, Sendable, CaseIterable {
 
     /// Fills the flow stack on iPhone — including wide iPhone displays, like an
     /// unfolded iPhone Duo or a landscape iPhone Pro Max — and behaves like

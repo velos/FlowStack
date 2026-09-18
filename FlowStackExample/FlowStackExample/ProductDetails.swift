@@ -139,20 +139,6 @@ struct ProductDetails: View {
     }
 }
 
-/// A navigation container, so the destination can host toolbar items.
-private struct NavigationContainer<Content: View>: View {
-    @ViewBuilder var content: () -> Content
-
-    var body: some View {
-        if #available(iOS 16.0, *) {
-            NavigationStack(root: content)
-        } else {
-            NavigationView(content: content)
-                .navigationViewStyle(.stack)
-        }
-    }
-}
-
 private extension View {
     /// Keeps the navigation bar transparent so the image shows through it.
     @ViewBuilder
