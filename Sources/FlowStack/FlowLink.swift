@@ -292,9 +292,9 @@ public struct FlowLink<Label>: View where Label: View {
     @State private var context: PathContext?
 
     @State private var snapshots: [ColorScheme: UIImage] = [:]
-    /// The size of the link when `snapshots` were taken. A snapshot taken at another size
-    /// shows the link as it was laid out then, stretched to fit how it is laid out now.
-    @State private var snapshotSize: CGSize?
+    /// What `snapshots` were taken with. A snapshot taken with anything else shows the link
+    /// as it was then: at another size, say, stretched to fit how it is laid out now.
+    @State private var snapshotInputsTaken: SnapshotInputs?
     @State private var environment = EnvironmentValues()
 
     /// Creates a flow link that presents the view corresponding to a value.
@@ -462,9 +462,11 @@ public struct FlowLink<Label>: View where Label: View {
                     .onChange(of: overrideAnchor) { _ in updateGeometry(with: proxy) }
             }
         )
-        .onChange(of: size) { _ in refreshSnapshotsIfPresented() }
-        .onChange(of: colorScheme) { _ in refreshSnapshotsIfPresented() }
-        .onChange(of: isContainedInPath) { _ in refreshSnapshotsIfPresented() }
+        // Not onChange, whose closure belongs to the view as it was before the change. A
+        // snapshot taken from there is rendered with the environment that was just replaced.
+        .task(id: SnapshotRefreshTrigger(inputs: snapshotInputs, colorScheme: colorScheme, isPresented: isContainedInPath)) {
+            refreshSnapshotsIfPresented()
+        }
         .background(
             ScrollRevealView(controller: scrollReveal)
                 .allowsHitTesting(false)
@@ -520,8 +522,25 @@ public struct FlowLink<Label>: View where Label: View {
         overrideFrame = overrideAnchor.map { proxy[$0] }
     }
 
+    /// What a snapshot depends on, besides the color scheme, that the link can see change.
+    /// Several of these can restyle a link without resizing it: text set in a larger Dynamic
+    /// Type size can reflow inside the same frame, for one. What the link can't see is a
+    /// change to the data behind its label, which is what `retakeSnapshots` is for.
+    private var snapshotInputs: SnapshotInputs {
+        SnapshotInputs(
+            value: value.map { AnyHashable($0) },
+            size: size,
+            dynamicTypeSize: fetchedEnvironment.dynamicTypeSize,
+            legibilityWeight: fetchedEnvironment.legibilityWeight,
+            colorSchemeContrast: fetchedEnvironment.colorSchemeContrast,
+            layoutDirection: fetchedEnvironment.layoutDirection,
+            locale: fetchedEnvironment.locale,
+            displayScale: fetchedEnvironment.displayScale
+        )
+    }
+
     private var hasCurrentSnapshots: Bool {
-        snapshots[colorScheme] != nil && snapshotSize == size
+        snapshots[colorScheme] != nil && snapshotInputsTaken == snapshotInputs
     }
 
     /// Makes sure there is a snapshot for a dismissal to end on, just before it begins.
@@ -533,11 +552,11 @@ public struct FlowLink<Label>: View where Label: View {
     private func prepareSnapshotForDismissal() {
         guard configuration.animateFromAnchor, configuration.transitionFromSnapshot, size != nil, !hasCurrentSnapshots else { return }
 
-        if snapshotSize != size {
+        if snapshotInputsTaken != snapshotInputs {
             snapshots = [:]
         }
         snapshots[colorScheme] = createSnapshot(colorScheme: colorScheme)
-        snapshotSize = size
+        snapshotInputsTaken = snapshotInputs
     }
 
     /// Retakes the snapshots of a link whose destination is presented, if they no longer show
@@ -546,7 +565,7 @@ public struct FlowLink<Label>: View where Label: View {
     /// activated would show it at the wrong size, and then jump as the real link replaces it.
     /// This also covers a link created while its destination is presented, which has none.
     private func refreshSnapshotsIfPresented() {
-        guard configuration.animateFromAnchor, configuration.transitionFromSnapshot else { return }
+        guard configuration.animateFromAnchor, configuration.transitionFromSnapshot, isContainedInPath else { return }
 
         // Deferred because taking a snapshot lays out a view, which can't happen mid-update.
         DispatchQueue.main.async {
@@ -561,6 +580,25 @@ public struct FlowLink<Label>: View where Label: View {
         let darkImage = createSnapshot(colorScheme: .dark)
         self.snapshots[.light] = lightImage
         self.snapshots[.dark] = darkImage
-        self.snapshotSize = size
+        self.snapshotInputsTaken = snapshotInputs
     }
+}
+
+/// The inputs to a flow link's snapshot that the link can observe changing.
+struct SnapshotInputs: Equatable {
+    var value: AnyHashable?
+    var size: CGSize?
+    var dynamicTypeSize: DynamicTypeSize
+    var legibilityWeight: LegibilityWeight?
+    var colorSchemeContrast: ColorSchemeContrast
+    var layoutDirection: LayoutDirection
+    var locale: Locale
+    var displayScale: CGFloat
+}
+
+/// Everything that can leave a presented flow link without a current snapshot.
+struct SnapshotRefreshTrigger: Equatable {
+    var inputs: SnapshotInputs
+    var colorScheme: ColorScheme
+    var isPresented: Bool
 }

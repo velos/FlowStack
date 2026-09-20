@@ -411,3 +411,36 @@ final class FlowLinkRevealTests: XCTestCase {
         XCTAssertTrue(completed)
     }
 }
+
+final class SnapshotInputsTests: XCTestCase {
+
+    private func inputs(size: CGSize? = CGSize(width: 300, height: 200), dynamicTypeSize: DynamicTypeSize = .large, value: AnyHashable? = AnyHashable("a")) -> SnapshotInputs {
+        SnapshotInputs(
+            value: value,
+            size: size,
+            dynamicTypeSize: dynamicTypeSize,
+            legibilityWeight: .regular,
+            colorSchemeContrast: .standard,
+            layoutDirection: .leftToRight,
+            locale: Locale(identifier: "en_US"),
+            displayScale: 3
+        )
+    }
+
+    func testUnchangedInputsKeepASnapshotCurrent() {
+        XCTAssertEqual(inputs(), inputs())
+    }
+
+    func testResizingMakesASnapshotStale() {
+        XCTAssertNotEqual(inputs(), inputs(size: CGSize(width: 150, height: 100)))
+    }
+
+    func testRestylingWithoutResizingMakesASnapshotStale() {
+        // Larger text can reflow inside a frame that doesn't change.
+        XCTAssertNotEqual(inputs(), inputs(dynamicTypeSize: .accessibility2))
+    }
+
+    func testPresentingAnotherValueMakesASnapshotStale() {
+        XCTAssertNotEqual(inputs(), inputs(value: AnyHashable("b")))
+    }
+}
