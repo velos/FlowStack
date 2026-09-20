@@ -355,3 +355,26 @@ final class FlowLinkContextStoreTests: XCTestCase {
         XCTAssertEqual(revealed, ["b", "a"])
     }
 }
+
+final class FlowLinkRevealTests: XCTestCase {
+
+    func testRevealingAnExistingLinkCompletesImmediately() {
+        let store = FlowLinkContextStore()
+        var events: [String] = []
+        store.update(PathContext(), for: .init(value: AnyHashable("a"), level: 0), owner: UUID(), reveal: { events.append("reveal") })
+
+        store.revealLink(for: AnyHashable("a"), atLevel: 0) { events.append("completion") }
+
+        XCTAssertEqual(events, ["reveal", "completion"])
+    }
+
+    func testRevealingWithNothingToScrollCompletesImmediately() {
+        // No link and no scroll view to find one in: the dismissal must not be held up.
+        let store = FlowLinkContextStore()
+        var completed = false
+
+        store.revealLink(for: AnyHashable("a"), atLevel: 0) { completed = true }
+
+        XCTAssertTrue(completed)
+    }
+}

@@ -294,9 +294,16 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     private var flowDismissAction: FlowDismissAction {
         FlowDismissAction(
             onDismiss: {
-                withTransaction(transaction) {
-                    accessibilityManager.decrementIndex()
-                    pathToUse.wrappedValue.removeLast()
+                guard let element = pathToUse.wrappedValue.elements.last else { return }
+
+                // The link comes into view first, so that it is already standing in for
+                // the destination when the destination starts zooming back into it.
+                linkContexts.revealLink(for: AnyHashable(element.value), atLevel: element.index) {
+                    guard pathToUse.wrappedValue.elements.last == element else { return }
+                    withTransaction(transaction) {
+                        accessibilityManager.decrementIndex()
+                        pathToUse.wrappedValue.removeLast()
+                    }
                 }
             })
     }
@@ -308,17 +315,23 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     }
     public var body: some View {
         ZStack {
-            root()
-                .accessibilityElement(children: .contain)
-                .accessibilityHidden(accessibilityManager.zIndex != 0)
-                .environment(\.flowDepth, 0)
+            ScrollViewReader { proxy in
+                root()
+                    .onAppear { linkContexts.setScrollProxy(proxy, forLevel: 0) }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityHidden(accessibilityManager.zIndex != 0)
+            .environment(\.flowDepth, 0)
 
             ForEach(pathToUse.wrappedValue.elements, id: \.self) { element in
                 if let destination = destination(for: element.value) {
 
                     scrim(for: element)
 
-                    destination.content(element.value)
+                    ScrollViewReader { proxy in
+                        destination.content(element.value)
+                            .onAppear { linkContexts.setScrollProxy(proxy, forLevel: element.index + 1) }
+                    }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .id(element.hashValue)
                         .transition(.flowTransition(with: element.context, value: AnyHashable(element.value), level: element.index))
