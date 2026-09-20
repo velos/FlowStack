@@ -277,7 +277,6 @@ public struct FlowLink<Label>: View where Label: View {
     @Environment(\.flowPath) private var path
     @Environment(\.flowDepth) private var flowDepth
     @Environment(\.flowTransaction) private var transaction
-    @Environment(\.flowAnimationDuration) private var flowDuration
     @Environment(\.flowLinkContexts) private var linkContexts
 
     @State private var id = UUID()
@@ -291,8 +290,6 @@ public struct FlowLink<Label>: View where Label: View {
     @State private var size: CGSize?
     @State private var overrideFrame: CGRect?
     @State private var context: PathContext?
-    @State private var isShowing: Bool = true
-    @State private var buttonPressed: Bool = false
 
     @State private var snapshots: [ColorScheme: UIImage] = [:]
     @State private var environment = EnvironmentValues()
@@ -393,7 +390,6 @@ public struct FlowLink<Label>: View where Label: View {
     }
 
     private func trigger() {
-        buttonPressed = true
         // check for sibling elements and return early if we already have a presented element at this depth
         guard !hasSiblingElement else { return }
         Task {
@@ -438,11 +434,12 @@ public struct FlowLink<Label>: View where Label: View {
                     .hidden()
             } else {
                 if configuration.animateFromAnchor && overrideAnchor == nil {
+                    // The link returns once the destination has zoomed all the way back
+                    // into it, and not before. Tying that to the dismissal's own animation,
+                    // rather than to state held by this link, keeps it true for a link that
+                    // was recreated while its destination was presented.
                     button
-                        .opacity(isShowing ? 1.0 : 0.0)
-                    /// (Workaround) Override an animation with an animation that does nothing
-                    /// Leaving a flowlayer too early can cause an un-wanted animation
-                        .ignoreAnimation()
+                        .transition(.visibleOnceSettled)
                 } else if configuration.animateFromAnchor {
                     button
                         .transition(.opacityPercent)
@@ -471,9 +468,6 @@ public struct FlowLink<Label>: View where Label: View {
             ScrollRevealView(controller: scrollReveal)
                 .allowsHitTesting(false)
         )
-        .onChange(of: path?.wrappedValue.count) { _ in
-            handleFlowLinkOpacity()
-        }
         .anchorPreference(key: PathContextKey.self, value: .bounds, transform: { anchor in
             return PathContext(
                 anchor: configuration.animateFromAnchor ? anchor : nil,
@@ -520,42 +514,11 @@ public struct FlowLink<Label>: View where Label: View {
         linkContexts?.update(context, for: key, owner: id, reveal: scrollReveal.reveal)
     }
 
-    private func handleFlowLinkOpacity() {
-        if isShowing == true, buttonPressed {
-            isShowing = false
-            buttonPressed = false
-        } else if isShowing == false {
-            DispatchQueue.main.asyncAfter(deadline: .now() + flowDuration) { withAnimation(nil) {
-                isShowing = true
-            }}
-        }
-    }
-
     private func initSnapshots() {
         guard snapshots.isEmpty || configuration.retakeSnapshots else { return }
         let lightImage = createSnapshot(colorScheme: .light)
         let darkImage = createSnapshot(colorScheme: .dark)
         self.snapshots[.light] = lightImage
         self.snapshots[.dark] = darkImage
-    }
-}
-
-private struct IgnoreAnimationModifier: ViewModifier {
-    @State var shouldDisplay = true
-    let transition: AnyTransition
-    func body(content: Content) -> some View {
-        render(content)
-            .animation(nil, value: shouldDisplay)
-            .transition(transition)
-    }
-    @ViewBuilder
-    private func render(_ content: Content) -> some View {
-        content
-    }
-}
-
-private extension View {
-    func ignoreAnimation(transition: AnyTransition = .identity) -> some View {
-        modifier(IgnoreAnimationModifier(transition: transition))
     }
 }

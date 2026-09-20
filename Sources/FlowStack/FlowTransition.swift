@@ -62,6 +62,33 @@ extension AnyTransition {
         }
     }
 
+    /// Keeps a view hidden for as long as it is transitioning in, and hides it the
+    /// moment it starts transitioning out.
+    struct VisibleOnceSettledModifier: Animatable, ViewModifier {
+        var percent: Double
+
+        /// Springs overshoot their target and ring around it, so a threshold of exactly 1
+        /// would flicker. The view is indistinguishable from settled just short of it.
+        static let threshold: Double = 0.97
+
+        var animatableData: Double {
+            get { percent }
+            set { percent = newValue }
+        }
+
+        func body(content: Content) -> some View {
+            content
+                .opacity(percent >= Self.threshold ? 1 : 0)
+        }
+    }
+
+    static var visibleOnceSettled: AnyTransition {
+        AnyTransition.modifier(
+            active: VisibleOnceSettledModifier(percent: 0),
+            identity: VisibleOnceSettledModifier(percent: 1)
+        )
+    }
+
     static var opacityPercent: AnyTransition {
         AnyTransition.modifier(
             active: OpacityPercentModifier(percent: 0),
