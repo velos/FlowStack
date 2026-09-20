@@ -237,3 +237,121 @@ final class FlowPresentationStyleTests: XCTestCase {
         XCTAssertEqual(PathContext().presentationStyle, .automatic)
     }
 }
+
+final class ScrollRevealTests: XCTestCase {
+
+    private let margin = ScrollRevealController.margin
+
+    /// A 400x800 scroll view under a 100pt navigation bar, showing 3000pt of content.
+    private func offset(revealing frame: CGRect, scrolledTo y: CGFloat, contentHeight: CGFloat = 3000) -> CGPoint {
+        ScrollRevealController.contentOffset(
+            revealing: frame,
+            in: CGRect(x: 0, y: y, width: 400, height: 800),
+            insets: UIEdgeInsets(top: 100, left: 0, bottom: 34, right: 0),
+            contentSize: CGSize(width: 400, height: contentHeight)
+        )
+    }
+
+    func testFullyVisibleFrameLeavesOffsetUnchanged() {
+        let frame = CGRect(x: 16, y: 1300, width: 368, height: 300)
+        XCTAssertEqual(offset(revealing: frame, scrolledTo: 1000), CGPoint(x: 0, y: 1000))
+    }
+
+    func testFrameUnderTheNavigationBarIsBroughtOutFromUnderIt() {
+        // Visible content starts at 1000 + 100; this frame starts above that.
+        let frame = CGRect(x: 16, y: 1050, width: 368, height: 300)
+        let result = offset(revealing: frame, scrolledTo: 1000)
+        XCTAssertEqual(result.y, 1050 - 100 - margin)
+    }
+
+    func testFrameBelowTheVisibleAreaIsAlignedToItsBottom() {
+        let frame = CGRect(x: 16, y: 1700, width: 368, height: 300)
+        let result = offset(revealing: frame, scrolledTo: 1000)
+        // Visible content ends at offset + 800 - 34 - margin.
+        XCTAssertEqual(result.y + 800 - 34 - margin, frame.maxY)
+    }
+
+    func testFrameTallerThanTheVisibleAreaIsAlignedToItsTop() {
+        let frame = CGRect(x: 16, y: 1200, width: 368, height: 900)
+        let result = offset(revealing: frame, scrolledTo: 1000)
+        XCTAssertEqual(result.y, 1200 - 100 - margin)
+    }
+
+    func testOffsetIsClampedToTheStartOfTheContent() {
+        // The first item can't be given a margin without scrolling past the top.
+        let frame = CGRect(x: 16, y: 0, width: 368, height: 300)
+        let result = offset(revealing: frame, scrolledTo: 40)
+        XCTAssertEqual(result.y, -100)
+    }
+
+    func testOffsetIsClampedToTheEndOfTheContent() {
+        let frame = CGRect(x: 16, y: 2700, width: 368, height: 300)
+        let result = offset(revealing: frame, scrolledTo: 2000)
+        XCTAssertEqual(result.y, 3000 - 800 + 34)
+    }
+
+    func testContentThatDoesNotScrollIsLeftAlone() {
+        let frame = CGRect(x: 16, y: -50, width: 368, height: 300)
+        let result = offset(revealing: frame, scrolledTo: -100, contentHeight: 400)
+        XCTAssertEqual(result, CGPoint(x: 0, y: -100))
+    }
+}
+
+final class FlowLinkContextStoreTests: XCTestCase {
+
+    private func key(_ value: String, level: Int? = 0) -> FlowLinkContextStore.Key {
+        .init(value: AnyHashable(value), level: level)
+    }
+
+    func testContextIsResolvedByValueAndLevel() {
+        let store = FlowLinkContextStore()
+        store.update(PathContext(cornerRadius: 7), for: key("a"), owner: UUID(), reveal: {})
+
+        XCTAssertEqual(store.context(for: AnyHashable("a"), atLevel: 0)?.cornerRadius, 7)
+        XCTAssertNil(store.context(for: AnyHashable("a"), atLevel: 1))
+        XCTAssertNil(store.context(for: AnyHashable("b"), atLevel: 0))
+    }
+
+    func testLinkWithoutALevelMatchesAnyLevel() {
+        let store = FlowLinkContextStore()
+        store.update(PathContext(cornerRadius: 7), for: key("a", level: nil), owner: UUID(), reveal: {})
+
+        XCTAssertEqual(store.context(for: AnyHashable("a"), atLevel: 3)?.cornerRadius, 7)
+    }
+
+    func testRemovingIsIgnoredOnceAnotherLinkHasTakenOver() {
+        // When a layout swaps containers, the replacement link registers before
+        // the link it replaces disappears.
+        let store = FlowLinkContextStore()
+        let old = UUID(), replacement = UUID()
+        store.update(PathContext(cornerRadius: 1), for: key("a"), owner: old, reveal: {})
+        store.update(PathContext(cornerRadius: 2), for: key("a"), owner: replacement, reveal: {})
+
+        store.remove(key("a"), owner: old)
+        XCTAssertEqual(store.context(for: AnyHashable("a"), atLevel: 0)?.cornerRadius, 2)
+
+        store.remove(key("a"), owner: replacement)
+        XCTAssertNil(store.context(for: AnyHashable("a"), atLevel: 0))
+    }
+
+    func testDismissingAnElementRevealsItsLink() {
+        let store = FlowLinkContextStore()
+        var revealed: [String] = []
+        store.update(PathContext(), for: key("a"), owner: UUID(), reveal: { revealed.append("a") })
+        store.update(PathContext(), for: key("b", level: 1), owner: UUID(), reveal: { revealed.append("b") })
+
+        var path = FlowPath()
+        path.append("a")
+        path.append("b")
+        store.pathDidChange(to: path.elements)
+        XCTAssertEqual(revealed, [], "Presenting must never move a link")
+
+        path.removeLast()
+        store.pathDidChange(to: path.elements)
+        XCTAssertEqual(revealed, ["b"])
+
+        path.removeAll()
+        store.pathDidChange(to: path.elements)
+        XCTAssertEqual(revealed, ["b", "a"])
+    }
+}

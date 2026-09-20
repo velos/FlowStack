@@ -230,6 +230,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     @StateObject private var destinationLookup: DestinationLookup = .init()
     @StateObject var accessibilityManager: AccessibilityManager = .init()
+    @State private var linkContexts = FlowLinkContextStore()
 
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
@@ -320,7 +321,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                     destination.content(element.value)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .id(element.hashValue)
-                        .transition(.flowTransition(with: element.context ?? .init()))
+                        .transition(.flowTransition(with: element.context, value: AnyHashable(element.value), level: element.index))
                         .modifier(AccessibilityModifier(element: element.index))
                 }
             }
@@ -331,6 +332,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 .environment(\.flowDepth, -1)
         }
         .environment(\.flowPath, pathToUse)
+        .environment(\.flowLinkContexts, linkContexts)
         .environment(\.flowAnimationDuration, customSmoothAnimation.duration)
         .environment(\.flowTransaction, transaction)
         .environmentObject(destinationLookup)
@@ -341,6 +343,12 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         // which bypasses FlowDismissAction's decrement.
         .onChange(of: pathToUse.wrappedValue.count) { newCount in
             accessibilityManager.setIndex(newCount - 1)
+        }
+        .onAppear {
+            linkContexts.pathDidChange(to: pathToUse.wrappedValue.elements)
+        }
+        .onChange(of: pathToUse.wrappedValue.elements) { elements in
+            linkContexts.pathDidChange(to: elements)
         }
     }
 }

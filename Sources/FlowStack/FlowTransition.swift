@@ -40,10 +40,10 @@ struct FlowDismissActionKey: EnvironmentKey {
 
 extension AnyTransition {
 
-    static func flowTransition(with context: PathContext) -> AnyTransition {
+    static func flowTransition(with context: PathContext?, value: AnyHashable, level: Int) -> AnyTransition {
         AnyTransition.modifier(
-            active: FlowPresentModifier(percent: 0, context: context),
-            identity: FlowPresentModifier(percent: 1, context: context)
+            active: FlowPresentModifier(percent: 0, context: context, value: value, level: level),
+            identity: FlowPresentModifier(percent: 1, context: context, value: value, level: level)
         )
     }
 
@@ -71,7 +71,25 @@ extension AnyTransition {
 
     struct FlowPresentModifier: Animatable, ViewModifier {
         var percent: CGFloat
-        var context: PathContext
+        /// The context captured when the flow link was activated, or `nil` for a
+        /// destination that was appended to the flow path directly.
+        var context: PathContext?
+        var value: AnyHashable
+        var level: Int
+
+        @Environment(\.flowLinkContexts) private var linkContexts
+
+        /// The transition is captured when the destination is inserted, so `context`
+        /// describes where the link was then. Resolving against the link's latest report
+        /// each time the view renders lets a dismissal find the link where it is now. A
+        /// destination appended directly adopts the context of a matching link, if any.
+        private var resolvedContext: PathContext {
+            guard let live = linkContexts?.context(for: value, atLevel: level) else { return context ?? .init() }
+            guard var resolved = context else { return live }
+            resolved.anchor = live.anchor
+            resolved.overrideAnchor = live.overrideAnchor
+            return resolved
+        }
 
         @State var panOffset: CGPoint = .zero
         @State private var isDisabled: Bool = false
@@ -89,12 +107,12 @@ extension AnyTransition {
         @Environment(\.horizontalSizeClass) var horizontalSizeClass
 
         private var activeSnapshot: UIImage? {
-            context.snapshotDict[colorScheme] ?? context.snapshot
+            resolvedContext.snapshotDict[colorScheme] ?? resolvedContext.snapshot
         }
 
         private func isPresentedFullscreen(availableSize: CGSize) -> Bool {
             let cardFits = horizontalSizeClass == .regular && availableSize.width - 2 * Constants.minVerticalPadding >= Constants.maxWidth
-            return context.presentationStyle.isFullScreen(cardFits: cardFits, idiom: UIDevice.current.userInterfaceIdiom)
+            return resolvedContext.presentationStyle.isFullScreen(cardFits: cardFits, idiom: UIDevice.current.userInterfaceIdiom)
         }
 
         /// The corner radii of the fully presented view, which the transition
@@ -133,10 +151,10 @@ extension AnyTransition {
                 return .zero
             }
 
-            return presentedCornerRadii(with: proxy).interpolated(from: context.cornerRadius, percent: percent)
+            return presentedCornerRadii(with: proxy).interpolated(from: resolvedContext.cornerRadius, percent: percent)
         }
 
-        var cornerStyle: RoundedCornerStyle { percent > 0.5 ? .continuous : context.cornerStyle }
+        var cornerStyle: RoundedCornerStyle { percent > 0.5 ? .continuous : resolvedContext.cornerStyle }
 
         var animatableData: CGFloat {
             get { percent }
@@ -186,16 +204,22 @@ extension AnyTransition {
 
         func body(content: Content) -> some View {
             GeometryReader { proxy in
-                let zoomRect = zoomRect(with: proxy, anchor: context.overrideAnchor ?? context.anchor, percent: percent, pullOffset: panOffset)
-                let scaleRatio = context.shouldScaleHorizontally ? zoomRect.size.width / proxy.size.width : 1.0
+                let zoomRect = zoomRect(with: proxy, anchor: resolvedContext.overrideAnchor ?? resolvedContext.anchor, percent: percent, pullOffset: panOffset)
+                let scaleRatio = resolvedContext.shouldScaleHorizontally ? zoomRect.size.width / proxy.size.width : 1.0
 
                 content
-                    .onInteractiveDismissGesture(threshold: 80, isEnabled: !isDisabled, isDismissing: isDismissing, swipeUpToDismiss: context.swipeUpToDismiss, onDismiss: {
+                    .onInteractiveDismissGesture(threshold: 80, isEnabled: !isDisabled, isDismissing: isDismissing, swipeUpToDismiss: resolvedContext.swipeUpToDismiss, onDismiss: {
                         guard !isDisabled else { return }
                         defer { isDismissing = true }
                         dismiss()
                     }, onPan: { offset in
                         guard !isDisabled else { return }
+                        if snapCornerRadiusZero {
+                            // The pull is just starting, so the destination still covers
+                            // its link. Waiting for the release would move the link in
+                            // plain sight behind the shrunken destination.
+                            linkContexts?.revealLink(for: value, atLevel: level)
+                        }
                         self.snapCornerRadiusZero = false
                         self.panOffset = offset
                     }, onEnded: { isDismissing in
@@ -216,18 +240,18 @@ extension AnyTransition {
                         }
                     }
                     .clipShape(UnevenCornerShape(radii: cornerRadii(with: proxy).map { $0 / scaleRatio }, style: cornerStyle))
-                    .shadow(color: context.shadowColor ?? .clear, radius: context.shadowRadius, x: context.shadowOffset.x, y: context.shadowOffset.y)
+                    .shadow(color: resolvedContext.shadowColor ?? .clear, radius: resolvedContext.shadowRadius, x: resolvedContext.shadowOffset.x, y: resolvedContext.shadowOffset.y)
                     .frame(
-                        width: context.shouldScaleHorizontally ? proxy.size.width : zoomRect.size.width,
+                        width: resolvedContext.shouldScaleHorizontally ? proxy.size.width : zoomRect.size.width,
                         height: zoomRect.size.height / scaleRatio
                     )
                     .scaleEffect(x: scaleRatio, y: scaleRatio, anchor: .center)
-                    .transformEffect(.init(translationX: context.anchor == nil ? (1 - percent) * proxy.size.width : 0, y: 0))
+                    .transformEffect(.init(translationX: resolvedContext.anchor == nil ? (1 - percent) * proxy.size.width : 0, y: 0))
                     .position(
                         x: zoomRect.origin.x,
                         y: zoomRect.origin.y
                     )
-                    .opacity(context.anchor == nil ? percent : 1)
+                    .opacity(resolvedContext.anchor == nil ? percent : 1)
             }
             .ignoresSafeArea(.all, edges: .all)
         }

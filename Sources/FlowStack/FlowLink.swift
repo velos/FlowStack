@@ -278,6 +278,10 @@ public struct FlowLink<Label>: View where Label: View {
     @Environment(\.flowDepth) private var flowDepth
     @Environment(\.flowTransaction) private var transaction
     @Environment(\.flowAnimationDuration) private var flowDuration
+    @Environment(\.flowLinkContexts) private var linkContexts
+
+    @State private var id = UUID()
+    @State private var scrollReveal = ScrollRevealController()
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.self) private var fetchedEnvironment
@@ -427,8 +431,11 @@ public struct FlowLink<Label>: View where Label: View {
     public var body: some View {
         Group {
             if isContainedInPath && configuration.animateFromAnchor {
-                Color.clear
-                    .frame(width: size?.width, height: size?.height)
+                // Stands in for the link while its destination is presented. Laying
+                // out the real label keeps the link's frame correct if the layout
+                // changes in the meantime (rotation, a foldable opening, ...).
+                label()
+                    .hidden()
             } else {
                 if configuration.animateFromAnchor && overrideAnchor == nil {
                     button
@@ -460,6 +467,10 @@ public struct FlowLink<Label>: View where Label: View {
                     }
             }
         )
+        .background(
+            ScrollRevealView(controller: scrollReveal)
+                .allowsHitTesting(false)
+        )
         .onChange(of: path?.wrappedValue.count) { _ in
             handleFlowLinkOpacity()
         }
@@ -483,11 +494,30 @@ public struct FlowLink<Label>: View where Label: View {
         })
         .onPreferenceChange(PathContextKey.self) { value in
             context = value
+            reportContext(value)
         }
         .onPreferenceChange(AnimationAnchorKey.self) { anchor in
             overrideAnchor = anchor.first
             context?.overrideAnchor = overrideAnchor
+            reportContext(context)
         }
+        .onDisappear {
+            if let key = contextStoreKey {
+                linkContexts?.remove(key, owner: id)
+            }
+        }
+    }
+
+    private var contextStoreKey: FlowLinkContextStore.Key? {
+        guard let value = value else { return nil }
+        return .init(value: AnyHashable(value), level: flowDepth == -1 ? nil : flowDepth)
+    }
+
+    /// Keeps the flow stack informed of where this link is, so a transition can
+    /// find it even if the layout has changed since the link was activated.
+    private func reportContext(_ context: PathContext?) {
+        guard configuration.animateFromAnchor, let context = context, let key = contextStoreKey else { return }
+        linkContexts?.update(context, for: key, owner: id, reveal: scrollReveal.reveal)
     }
 
     private func handleFlowLinkOpacity() {
