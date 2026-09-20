@@ -344,15 +344,41 @@ final class FlowLinkContextStoreTests: XCTestCase {
         path.append("a")
         path.append("b")
         store.pathDidChange(to: path.elements)
+        waitForNextRunLoopPass()
         XCTAssertEqual(revealed, [], "Presenting must never move a link")
 
         path.removeLast()
         store.pathDidChange(to: path.elements)
+        waitForNextRunLoopPass()
         XCTAssertEqual(revealed, ["b"])
 
         path.removeAll()
         store.pathDidChange(to: path.elements)
+        waitForNextRunLoopPass()
         XCTAssertEqual(revealed, ["b", "a"])
+    }
+
+    func testDismissalSeenInThePathIsHandledAfterTheViewUpdate() {
+        // The path changes during a view update, where a snapshot can't be taken.
+        let store = FlowLinkContextStore()
+        var events: [String] = []
+        store.update(PathContext(), for: key("a"), owner: UUID(), reveal: { events.append("reveal") }, prepareSnapshot: { events.append("snapshot") })
+
+        var path = FlowPath()
+        path.append("a")
+        store.pathDidChange(to: path.elements)
+        path.removeLast()
+        store.pathDidChange(to: path.elements)
+        XCTAssertEqual(events, [], "Nothing may happen until the view update is over")
+
+        waitForNextRunLoopPass()
+        XCTAssertEqual(events, ["reveal", "snapshot"])
+    }
+
+    private func waitForNextRunLoopPass() {
+        let passed = expectation(description: "next run loop pass")
+        DispatchQueue.main.async { passed.fulfill() }
+        wait(for: [passed], timeout: 1)
     }
 }
 
@@ -361,11 +387,18 @@ final class FlowLinkRevealTests: XCTestCase {
     func testRevealingAnExistingLinkCompletesImmediately() {
         let store = FlowLinkContextStore()
         var events: [String] = []
-        store.update(PathContext(), for: .init(value: AnyHashable("a"), level: 0), owner: UUID(), reveal: { events.append("reveal") })
+        store.update(
+            PathContext(),
+            for: .init(value: AnyHashable("a"), level: 0),
+            owner: UUID(),
+            reveal: { events.append("reveal") },
+            prepareSnapshot: { events.append("snapshot") }
+        )
 
         store.revealLink(for: AnyHashable("a"), atLevel: 0) { events.append("completion") }
 
-        XCTAssertEqual(events, ["reveal", "completion"])
+        // The snapshot is ready before the dismissal is allowed to begin.
+        XCTAssertEqual(events, ["reveal", "snapshot", "completion"])
     }
 
     func testRevealingWithNothingToScrollCompletesImmediately() {

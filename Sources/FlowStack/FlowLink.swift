@@ -463,6 +463,7 @@ public struct FlowLink<Label>: View where Label: View {
             }
         )
         .onChange(of: size) { _ in refreshSnapshotsIfPresented() }
+        .onChange(of: colorScheme) { _ in refreshSnapshotsIfPresented() }
         .onChange(of: isContainedInPath) { _ in refreshSnapshotsIfPresented() }
         .background(
             ScrollRevealView(controller: scrollReveal)
@@ -511,7 +512,7 @@ public struct FlowLink<Label>: View where Label: View {
     /// find it even if the layout has changed since the link was activated.
     private func reportContext(_ context: PathContext?) {
         guard configuration.animateFromAnchor, let context = context, let key = contextStoreKey else { return }
-        linkContexts?.update(context, for: key, owner: id, reveal: scrollReveal.reveal)
+        linkContexts?.update(context, for: key, owner: id, reveal: scrollReveal.reveal, prepareSnapshot: prepareSnapshotForDismissal)
     }
 
     private func updateGeometry(with proxy: GeometryProxy) {
@@ -520,7 +521,23 @@ public struct FlowLink<Label>: View where Label: View {
     }
 
     private var hasCurrentSnapshots: Bool {
-        !snapshots.isEmpty && snapshotSize == size
+        snapshots[colorScheme] != nil && snapshotSize == size
+    }
+
+    /// Makes sure there is a snapshot for a dismissal to end on, just before it begins.
+    ///
+    /// Snapshots are normally retaken while the destination covers the link, which keeps the
+    /// work away from the dismissal. That can't happen for a link that was only created in
+    /// order to be dismissed into, so this is the safety net. It takes the one snapshot the
+    /// dismissal will use rather than both, as it holds up the dismissal while it does.
+    private func prepareSnapshotForDismissal() {
+        guard configuration.animateFromAnchor, configuration.transitionFromSnapshot, size != nil, !hasCurrentSnapshots else { return }
+
+        if snapshotSize != size {
+            snapshots = [:]
+        }
+        snapshots[colorScheme] = createSnapshot(colorScheme: colorScheme)
+        snapshotSize = size
     }
 
     /// Retakes the snapshots of a link whose destination is presented, if they no longer show

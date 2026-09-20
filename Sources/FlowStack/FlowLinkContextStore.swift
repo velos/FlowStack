@@ -23,6 +23,7 @@ final class FlowLinkContextStore {
         let owner: UUID
         var context: PathContext
         var reveal: () -> Void
+        var prepareSnapshot: () -> Void
     }
 
     private var entries: [Key: Entry] = [:]
@@ -41,15 +42,25 @@ final class FlowLinkContextStore {
     /// The elements presented when the flow path last changed, for spotting dismissals.
     private var presentedElements: [FlowElement] = []
 
-    /// - Parameter reveal: Scrolls the link fully into view, without animation.
-    func update(_ context: PathContext, for key: Key, owner: UUID, reveal: @escaping () -> Void) {
-        entries[key] = Entry(owner: owner, context: context, reveal: reveal)
+    /// - Parameters:
+    ///   - reveal: Scrolls the link fully into view, without animation.
+    ///   - prepareSnapshot: Takes a snapshot of the link if it doesn't have a current one.
+    ///     This lays out a view, so it must not be called during a view update.
+    func update(_ context: PathContext, for key: Key, owner: UUID, reveal: @escaping () -> Void, prepareSnapshot: @escaping () -> Void = {}) {
+        entries[key] = Entry(owner: owner, context: context, reveal: reveal, prepareSnapshot: prepareSnapshot)
 
         // This link was scrolled into existence so that a dismissal could return to it.
         let pendingKey = pendingReveals.keys.first { $0.value == key.value && (key.level == nil || $0.level == key.level) }
         if let pendingKey = pendingKey, let completion = pendingReveals.removeValue(forKey: pendingKey) {
             reveal()
-            completion()
+
+            // A link that has only just been created has no snapshot for the dismissal to
+            // end on. It reports in during a view update, and doesn't know its size until
+            // that update is over, so its snapshot waits for the next pass of the run loop.
+            DispatchQueue.main.async {
+                prepareSnapshot()
+                completion()
+            }
         }
     }
 
@@ -82,6 +93,7 @@ final class FlowLinkContextStore {
     func revealLink(for value: AnyHashable, atLevel level: Int, completion: (() -> Void)? = nil) {
         if let entry = entry(for: value, atLevel: level) {
             entry.reveal()
+            entry.prepareSnapshot()
             completion?()
             return
         }
@@ -133,8 +145,12 @@ final class FlowLinkContextStore {
         let dismissed = presentedElements.filter { !elements.contains($0) }
         presentedElements = elements
 
-        for element in dismissed {
-            revealLink(for: AnyHashable(element.value), atLevel: element.index)
+        // This runs during a view update, which is no place to take a snapshot, and the
+        // dismissal is already under way, so there is nothing to hold up by deferring it.
+        DispatchQueue.main.async { [weak self] in
+            for element in dismissed {
+                self?.revealLink(for: AnyHashable(element.value), atLevel: element.index)
+            }
         }
     }
 
