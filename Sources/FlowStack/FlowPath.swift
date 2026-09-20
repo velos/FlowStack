@@ -107,18 +107,10 @@ public struct FlowPath: Equatable, Hashable {
         self.append(newElement, context: nil)
     }
 
-    /// Adds a method to tell flow path to use the correct snapshot for the currently set colorScheme
-    /// - Parameters:
-    ///    - colorScheme: The new color scheme to be used for snapshots
-    public mutating func updateSnapshots(from colorScheme: ColorScheme) {
-        for i in elements.indices {
-            guard var context = elements[i].context else { continue }
-            if let newSnapshot = context.snapshotDict[colorScheme] {
-                context.snapshot = newSnapshot
-                elements[i].context?.snapshot = context.snapshot
-            }
-        }
-    }
+    /// Does nothing. Flow links keep a snapshot for each color scheme, and the right one is
+    /// chosen as a transition renders, so there is nothing to update when the scheme changes.
+    @available(*, deprecated, message: "This no longer does anything and can be removed. The snapshot for the current color scheme is chosen automatically.")
+    public mutating func updateSnapshots(from colorScheme: ColorScheme) { }
 }
 
 struct FlowPathKey: EnvironmentKey {

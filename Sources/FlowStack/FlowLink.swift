@@ -451,9 +451,6 @@ public struct FlowLink<Label>: View where Label: View {
                 }
             }
         }
-        .onChange(of: colorScheme) { newScheme in
-            path?.wrappedValue.updateSnapshots(from: newScheme)
-        }
         .background(
             GeometryReader { proxy in
                 Color.clear
