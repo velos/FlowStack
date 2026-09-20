@@ -277,7 +277,9 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         if element == pathToUse.wrappedValue.elements.last, element.context?.shouldShowScrim == true {
             Rectangle()
                 .foregroundColor(Color.black.opacity(0.7))
-                .transition(.opacity)
+                // Fading in, the scrim keeps touches from the flow stack beneath it. Fading
+                // out, it would only be in the way of a flow stack that looks ready to use.
+                .transition(.asymmetric(insertion: .opacity, removal: .opacity.combined(with: .untouchable)))
                 .ignoresSafeArea()
                 .zIndex(accessibilityManager.calcScrim())
                 .id(element.hashValue)

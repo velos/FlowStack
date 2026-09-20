@@ -89,6 +89,23 @@ extension AnyTransition {
         )
     }
 
+    /// Stops a view from taking touches while it is being removed. A view stays in the
+    /// hierarchy until its removal has finished animating, in the way of whatever is beneath.
+    struct HitTestingModifier: ViewModifier {
+        var isEnabled: Bool
+
+        func body(content: Content) -> some View {
+            content.allowsHitTesting(isEnabled)
+        }
+    }
+
+    static var untouchable: AnyTransition {
+        AnyTransition.modifier(
+            active: HitTestingModifier(isEnabled: false),
+            identity: HitTestingModifier(isEnabled: true)
+        )
+    }
+
     static var opacityPercent: AnyTransition {
         AnyTransition.modifier(
             active: OpacityPercentModifier(percent: 0),
@@ -105,6 +122,18 @@ extension AnyTransition {
         var level: Int
 
         @Environment(\.flowLinkContexts) private var linkContexts
+        @Environment(\.flowPath) private var flowPath
+
+        /// Whether the destination is still in the flow path, as opposed to on its way out.
+        ///
+        /// A destination being dismissed stays in the view hierarchy until its transition has
+        /// finished, which for a spring means until it has fully settled, well after it looks
+        /// done. All that time it would take touches meant for the flow stack beneath it, and
+        /// not only where it appears to be: a destination hosted in UIKit is hit-tested by its
+        /// container, which still fills the flow stack after the destination has shrunk.
+        private var isPresented: Bool {
+            flowPath?.wrappedValue.contains(value, atLevel: level) ?? true
+        }
 
         /// The transition is captured when the destination is inserted, so `context`
         /// describes where the link was then. Resolving against the link's latest report
@@ -288,6 +317,7 @@ extension AnyTransition {
                     .opacity(resolvedContext.anchor == nil ? percent : 1)
             }
             .ignoresSafeArea(.all, edges: .all)
+            .allowsHitTesting(isPresented)
         }
     }
 }
