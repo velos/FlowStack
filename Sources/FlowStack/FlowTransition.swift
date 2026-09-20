@@ -115,6 +115,13 @@ extension AnyTransition {
             guard var resolved = context else { return live }
             resolved.anchor = live.anchor
             resolved.overrideAnchor = live.overrideAnchor
+
+            // A link retakes its snapshots when its layout changes, so its own are the ones
+            // that show it as it is now. It has none if it doesn't transition from a snapshot.
+            if !live.snapshotDict.isEmpty {
+                resolved.snapshotDict = live.snapshotDict
+                resolved.snapshot = live.snapshot
+            }
             return resolved
         }
 

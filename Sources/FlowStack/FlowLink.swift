@@ -292,6 +292,9 @@ public struct FlowLink<Label>: View where Label: View {
     @State private var context: PathContext?
 
     @State private var snapshots: [ColorScheme: UIImage] = [:]
+    /// The size of the link when `snapshots` were taken. A snapshot taken at another size
+    /// shows the link as it was laid out then, stretched to fit how it is laid out now.
+    @State private var snapshotSize: CGSize?
     @State private var environment = EnvironmentValues()
 
     /// Creates a flow link that presents the view corresponding to a value.
@@ -454,16 +457,13 @@ public struct FlowLink<Label>: View where Label: View {
         .background(
             GeometryReader { proxy in
                 Color.clear
-                    .onAppear {
-                        if let anchor = context?.anchor {
-                            size = proxy[anchor].size
-                        }
-                        if let overrideAnchor = overrideAnchor {
-                            overrideFrame = proxy[overrideAnchor]
-                        }
-                    }
+                    .onAppear { updateGeometry(with: proxy) }
+                    .onChange(of: proxy.size) { _ in updateGeometry(with: proxy) }
+                    .onChange(of: overrideAnchor) { _ in updateGeometry(with: proxy) }
             }
         )
+        .onChange(of: size) { _ in refreshSnapshotsIfPresented() }
+        .onChange(of: isContainedInPath) { _ in refreshSnapshotsIfPresented() }
         .background(
             ScrollRevealView(controller: scrollReveal)
                 .allowsHitTesting(false)
@@ -514,11 +514,36 @@ public struct FlowLink<Label>: View where Label: View {
         linkContexts?.update(context, for: key, owner: id, reveal: scrollReveal.reveal)
     }
 
+    private func updateGeometry(with proxy: GeometryProxy) {
+        size = proxy.size
+        overrideFrame = overrideAnchor.map { proxy[$0] }
+    }
+
+    private var hasCurrentSnapshots: Bool {
+        !snapshots.isEmpty && snapshotSize == size
+    }
+
+    /// Retakes the snapshots of a link whose destination is presented, if they no longer show
+    /// the link as it is laid out. The dismissal ends on a snapshot of the link, so after a
+    /// layout change (a rotation, a foldable opening, ...) one taken when the link was
+    /// activated would show it at the wrong size, and then jump as the real link replaces it.
+    /// This also covers a link created while its destination is presented, which has none.
+    private func refreshSnapshotsIfPresented() {
+        guard configuration.animateFromAnchor, configuration.transitionFromSnapshot else { return }
+
+        // Deferred because taking a snapshot lays out a view, which can't happen mid-update.
+        DispatchQueue.main.async {
+            guard isContainedInPath, size != nil, !hasCurrentSnapshots else { return }
+            initSnapshots()
+        }
+    }
+
     private func initSnapshots() {
-        guard snapshots.isEmpty || configuration.retakeSnapshots else { return }
+        guard !hasCurrentSnapshots || configuration.retakeSnapshots else { return }
         let lightImage = createSnapshot(colorScheme: .light)
         let darkImage = createSnapshot(colorScheme: .dark)
         self.snapshots[.light] = lightImage
         self.snapshots[.dark] = darkImage
+        self.snapshotSize = size
     }
 }
