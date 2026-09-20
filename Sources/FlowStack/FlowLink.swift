@@ -72,7 +72,9 @@ struct GestureContainer: UIViewRepresentable {
     @Binding var isPressed: Bool
     var onTap: () -> Void
 
-    class Coordinator {
+    // An NSObject, as UIKit takes a control's targets to be. UIControl.allTargets traps on one
+    // that isn't, which inspection and accessibility tools can hit even though nothing here does.
+    class Coordinator: NSObject {
         var isPressed: Binding<Bool>
         var onTap: () -> Void
 
