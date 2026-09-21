@@ -5,7 +5,10 @@
 import SwiftUI
 
 /// Scrolls the scroll views containing a view so that the view is fully visible.
-final class ScrollRevealController {
+///
+/// An `ObservableObject` only so that a view can hold it in a `StateObject`, which creates it
+/// once. It publishes nothing.
+final class ScrollRevealController: ObservableObject {
 
     /// The breathing room kept between the revealed view and the edge of the visible area.
     static let margin: CGFloat = 12

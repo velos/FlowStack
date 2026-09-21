@@ -6,20 +6,6 @@
 
 import SwiftUI
 
-struct FlowLinkButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(x: configuration.isPressed ? 0.97 : 1, y: configuration.isPressed ? 0.97 : 1, anchor: .center)
-            .animation(.easeInOut, value: configuration.isPressed)
-    }
-}
-
-extension ButtonStyle where Self == FlowLinkButtonStyle {
-    static var flowLink: FlowLinkButtonStyle {
-        FlowLinkButtonStyle()
-    }
-}
-
 struct PathContextKey: PreferenceKey {
     static var defaultValue: PathContext?
 
@@ -281,8 +267,8 @@ public struct FlowLink<Label>: View where Label: View {
     @Environment(\.flowTransaction) private var transaction
     @Environment(\.flowLinkContexts) private var linkContexts
 
-    @State private var id = UUID()
-    @State private var scrollReveal = ScrollRevealController()
+    /// Also identifies this link to the store, which outlives any one instance of it.
+    @StateObject private var scrollReveal = ScrollRevealController()
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.self) private var fetchedEnvironment
@@ -297,7 +283,6 @@ public struct FlowLink<Label>: View where Label: View {
     /// What `snapshots` were taken with. A snapshot taken with anything else shows the link
     /// as it was then: at another size, say, stretched to fit how it is laid out now.
     @State private var snapshotInputsTaken: SnapshotInputs?
-    @State private var environment = EnvironmentValues()
 
     /// Creates a flow link that presents the view corresponding to a value.
     ///
@@ -340,7 +325,7 @@ public struct FlowLink<Label>: View where Label: View {
         guard let size = size else { return nil }
 
         let frame = CGRect(origin: .zero, size: size)
-        environment = fetchedEnvironment
+        var environment = fetchedEnvironment
         environment.colorScheme = colorScheme
 
         let controller = UIHostingController(
@@ -499,7 +484,7 @@ public struct FlowLink<Label>: View where Label: View {
         }
         .onDisappear {
             if let key = contextStoreKey {
-                linkContexts?.remove(key, owner: id)
+                linkContexts?.remove(key, owner: ObjectIdentifier(scrollReveal))
             }
         }
     }
@@ -513,7 +498,7 @@ public struct FlowLink<Label>: View where Label: View {
     /// find it even if the layout has changed since the link was activated.
     private func reportContext(_ context: PathContext?) {
         guard configuration.animateFromAnchor, let context = context, let key = contextStoreKey else { return }
-        linkContexts?.update(context, for: key, owner: id, reveal: scrollReveal.reveal, prepareSnapshot: prepareSnapshotForDismissal)
+        linkContexts?.update(context, for: key, owner: ObjectIdentifier(scrollReveal), reveal: scrollReveal.reveal, prepareSnapshot: prepareSnapshotForDismissal)
     }
 
     private func updateGeometry(with proxy: GeometryProxy) {

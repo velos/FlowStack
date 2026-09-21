@@ -11,7 +11,10 @@ import SwiftUI
 /// activated. Links keep this store current instead, which lets a transition
 /// resolve where its link is *now* — after a rotation, a foldable opening, or
 /// any other layout change that happens while the destination is presented.
-final class FlowLinkContextStore {
+///
+/// An `ObservableObject` only so that a view can hold it in a `StateObject`, which creates it
+/// once. It publishes nothing: a transition reads it as it renders.
+final class FlowLinkContextStore: ObservableObject {
 
     struct Key: Hashable {
         let value: AnyHashable
@@ -20,7 +23,7 @@ final class FlowLinkContextStore {
     }
 
     private struct Entry {
-        let owner: UUID
+        let owner: ObjectIdentifier
         var context: PathContext
         var reveal: () -> Void
         var prepareSnapshot: () -> Void
@@ -42,11 +45,14 @@ final class FlowLinkContextStore {
     /// The elements presented when the flow path last changed, for spotting dismissals.
     private var presentedElements: [FlowElement] = []
 
+    /// The dismissals that revealed their link before they began, and so needn't again.
+    private var revealedDismissals: Set<Key> = []
+
     /// - Parameters:
     ///   - reveal: Scrolls the link fully into view, without animation.
     ///   - prepareSnapshot: Takes a snapshot of the link if it doesn't have a current one.
     ///     This lays out a view, so it must not be called during a view update.
-    func update(_ context: PathContext, for key: Key, owner: UUID, reveal: @escaping () -> Void, prepareSnapshot: @escaping () -> Void = {}) {
+    func update(_ context: PathContext, for key: Key, owner: ObjectIdentifier, reveal: @escaping () -> Void, prepareSnapshot: @escaping () -> Void = {}) {
         entries[key] = Entry(owner: owner, context: context, reveal: reveal, prepareSnapshot: prepareSnapshot)
 
         // This link was scrolled into existence so that a dismissal could return to it.
@@ -70,7 +76,7 @@ final class FlowLinkContextStore {
 
     /// Removes the entry for `key`, unless another link has since taken it over. When a
     /// layout swaps containers, the replacement link registers before the old one disappears.
-    func remove(_ key: Key, owner: UUID) {
+    func remove(_ key: Key, owner: ObjectIdentifier) {
         guard entries[key]?.owner == owner else { return }
         entries[key] = nil
     }
@@ -91,6 +97,10 @@ final class FlowLinkContextStore {
     /// waits for it before dismissing finds the link already standing in, hidden, for its
     /// destination, rather than seeing it pop in partway through the dismissal.
     func revealLink(for value: AnyHashable, atLevel level: Int, completion: (() -> Void)? = nil) {
+        if completion != nil {
+            revealedDismissals.insert(Key(value: value, level: level))
+        }
+
         if let entry = entry(for: value, atLevel: level) {
             entry.reveal()
             entry.prepareSnapshot()
@@ -142,8 +152,15 @@ final class FlowLinkContextStore {
 
     /// Reveals the links of any elements that have left the flow path.
     func pathDidChange(to elements: [FlowElement]) {
-        let dismissed = presentedElements.filter { !elements.contains($0) }
+        // A dismissal started by FlowDismissAction has revealed its link already. One that
+        // wasn't, like an adopter removing from its own path, is first heard of here.
+        let dismissed = presentedElements.filter { element in
+            !elements.contains(element) && revealedDismissals.remove(Key(value: AnyHashable(element.value), level: element.index)) == nil
+        }
         presentedElements = elements
+
+        // A destination's scroll proxy is of no use once the destination is gone.
+        scrollProxies = scrollProxies.filter { $0.key <= elements.count }
 
         // This runs during a view update, which is no place to take a snapshot, and the
         // dismissal is already under way, so there is nothing to hold up by deferring it.

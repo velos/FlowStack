@@ -2,6 +2,17 @@ import SwiftUI
 import XCTest
 @testable import FlowStack
 
+/// Stands in for the object whose identity a flow link registers under.
+private final class OwnerToken {}
+private var ownerTokens: [OwnerToken] = []
+
+/// A distinct owner, kept alive so that its identity isn't reused.
+private func owner() -> ObjectIdentifier {
+    let token = OwnerToken()
+    ownerTokens.append(token)
+    return ObjectIdentifier(token)
+}
+
 final class FlowPathTests: XCTestCase {
 
     func testAppendUpdatesCountAndIsEmpty() {
@@ -305,7 +316,7 @@ final class FlowLinkContextStoreTests: XCTestCase {
 
     func testContextIsResolvedByValueAndLevel() {
         let store = FlowLinkContextStore()
-        store.update(PathContext(cornerRadius: 7), for: key("a"), owner: UUID(), reveal: {})
+        store.update(PathContext(cornerRadius: 7), for: key("a"), owner: owner(), reveal: {})
 
         XCTAssertEqual(store.context(for: AnyHashable("a"), atLevel: 0)?.cornerRadius, 7)
         XCTAssertNil(store.context(for: AnyHashable("a"), atLevel: 1))
@@ -314,7 +325,7 @@ final class FlowLinkContextStoreTests: XCTestCase {
 
     func testLinkWithoutALevelMatchesAnyLevel() {
         let store = FlowLinkContextStore()
-        store.update(PathContext(cornerRadius: 7), for: key("a", level: nil), owner: UUID(), reveal: {})
+        store.update(PathContext(cornerRadius: 7), for: key("a", level: nil), owner: owner(), reveal: {})
 
         XCTAssertEqual(store.context(for: AnyHashable("a"), atLevel: 3)?.cornerRadius, 7)
     }
@@ -323,7 +334,7 @@ final class FlowLinkContextStoreTests: XCTestCase {
         // When a layout swaps containers, the replacement link registers before
         // the link it replaces disappears.
         let store = FlowLinkContextStore()
-        let old = UUID(), replacement = UUID()
+        let old = owner(), replacement = owner()
         store.update(PathContext(cornerRadius: 1), for: key("a"), owner: old, reveal: {})
         store.update(PathContext(cornerRadius: 2), for: key("a"), owner: replacement, reveal: {})
 
@@ -337,8 +348,8 @@ final class FlowLinkContextStoreTests: XCTestCase {
     func testDismissingAnElementRevealsItsLink() {
         let store = FlowLinkContextStore()
         var revealed: [String] = []
-        store.update(PathContext(), for: key("a"), owner: UUID(), reveal: { revealed.append("a") })
-        store.update(PathContext(), for: key("b", level: 1), owner: UUID(), reveal: { revealed.append("b") })
+        store.update(PathContext(), for: key("a"), owner: owner(), reveal: { revealed.append("a") })
+        store.update(PathContext(), for: key("b", level: 1), owner: owner(), reveal: { revealed.append("b") })
 
         var path = FlowPath()
         path.append("a")
@@ -362,7 +373,7 @@ final class FlowLinkContextStoreTests: XCTestCase {
         // The path changes during a view update, where a snapshot can't be taken.
         let store = FlowLinkContextStore()
         var events: [String] = []
-        store.update(PathContext(), for: key("a"), owner: UUID(), reveal: { events.append("reveal") }, prepareSnapshot: { events.append("snapshot") })
+        store.update(PathContext(), for: key("a"), owner: owner(), reveal: { events.append("reveal") }, prepareSnapshot: { events.append("snapshot") })
 
         var path = FlowPath()
         path.append("a")
@@ -373,6 +384,31 @@ final class FlowLinkContextStoreTests: XCTestCase {
 
         waitForNextRunLoopPass()
         XCTAssertEqual(events, ["reveal", "snapshot"])
+    }
+
+    func testDismissalThatRevealedItsLinkDoesNotRevealItAgain() {
+        // FlowDismissAction reveals the link before it removes the element, so the path
+        // change that follows has nothing left to do.
+        let store = FlowLinkContextStore()
+        var reveals = 0
+        store.update(PathContext(), for: key("a"), owner: owner(), reveal: { reveals += 1 })
+
+        var path = FlowPath()
+        path.append("a")
+        store.pathDidChange(to: path.elements)
+
+        store.revealLink(for: AnyHashable("a"), atLevel: 0) { path.removeLast() }
+        store.pathDidChange(to: path.elements)
+        waitForNextRunLoopPass()
+        XCTAssertEqual(reveals, 1)
+
+        // Presented and dismissed again, this time by removing it from the path directly.
+        path.append("a")
+        store.pathDidChange(to: path.elements)
+        path.removeLast()
+        store.pathDidChange(to: path.elements)
+        waitForNextRunLoopPass()
+        XCTAssertEqual(reveals, 2)
     }
 
     private func waitForNextRunLoopPass() {
@@ -390,7 +426,7 @@ final class FlowLinkRevealTests: XCTestCase {
         store.update(
             PathContext(),
             for: .init(value: AnyHashable("a"), level: 0),
-            owner: UUID(),
+            owner: owner(),
             reveal: { events.append("reveal") },
             prepareSnapshot: { events.append("snapshot") }
         )

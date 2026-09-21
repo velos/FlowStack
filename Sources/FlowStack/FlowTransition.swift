@@ -154,9 +154,9 @@ extension AnyTransition {
             return resolved
         }
 
-        @State var panOffset: CGPoint = .zero
+        @State private var panOffset: CGPoint = .zero
         @State private var isDisabled: Bool = false
-        @State var isDismissing: Bool = false
+        @State private var isDismissing: Bool = false
         @State private var snapCornerRadiusZero: Bool = true
 
         @Environment(\.colorScheme) private var colorScheme
@@ -165,9 +165,9 @@ extension AnyTransition {
             max(0, 1 - percent / 0.2)
         }
 
-        @Environment(\.flowDismiss) var dismiss
-        @Environment(\.flowTransaction) var transaction
-        @Environment(\.horizontalSizeClass) var horizontalSizeClass
+        @Environment(\.flowDismiss) private var dismiss
+        @Environment(\.flowTransaction) private var transaction
+        @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
         private var activeSnapshot: UIImage? {
             resolvedContext.snapshotDict[colorScheme] ?? resolvedContext.snapshot
@@ -285,7 +285,7 @@ extension AnyTransition {
                         }
                         self.snapCornerRadiusZero = false
                         self.panOffset = offset
-                    }, onEnded: { isDismissing in
+                    }, onEnded: { _ in
                         // TODO: FS-34: Handle snap corner radius 0 on interactive dismiss cancel
                         withTransaction(transaction) {
                             panOffset = .zero

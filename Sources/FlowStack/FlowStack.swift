@@ -230,7 +230,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     @StateObject private var destinationLookup: DestinationLookup = .init()
     @StateObject var accessibilityManager: AccessibilityManager = .init()
-    @State private var linkContexts = FlowLinkContextStore()
+    @StateObject private var linkContexts = FlowLinkContextStore()
 
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
@@ -334,10 +334,10 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                         destination.content(element.value)
                             .onAppear { linkContexts.setScrollProxy(proxy, forLevel: element.index + 1) }
                     }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .id(element.hashValue)
-                        .transition(.flowTransition(with: element.context, value: AnyHashable(element.value), level: element.index))
-                        .modifier(AccessibilityModifier(element: element.index))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .id(element.hashValue)
+                    .transition(.flowTransition(with: element.context, value: AnyHashable(element.value), level: element.index))
+                    .modifier(AccessibilityModifier(element: element.index))
                 }
             }
         }
