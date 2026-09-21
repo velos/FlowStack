@@ -266,6 +266,7 @@ public struct FlowLink<Label>: View where Label: View {
     @Environment(\.flowDepth) private var flowDepth
     @Environment(\.flowTransaction) private var transaction
     @Environment(\.flowLinkContexts) private var linkContexts
+    @Environment(\.flowLinkID) private var explicitID
 
     /// Also identifies this link to the store, which outlives any one instance of it.
     @StateObject private var scrollReveal = ScrollRevealController()
@@ -308,13 +309,21 @@ public struct FlowLink<Label>: View where Label: View {
         self.activation = activation
     }
 
+    /// Tells this link apart from any others presenting the same value.
+    private var identity: FlowLinkIdentity {
+        explicitID.map { .explicit($0) } ?? .instance(ObjectIdentifier(scrollReveal))
+    }
+
+    /// Whether this link's destination is presented, and from this link rather than from
+    /// another that presents the same value.
     var isContainedInPath: Bool {
         guard let elements = path?.wrappedValue.elements, let value = value, elements.count > flowDepth else { return false }
 
         // treat -1 as special case to ignore the level on comparisons
         let depth = flowDepth == -1 ? nil : flowDepth
 
-        return path?.wrappedValue.contains(value, atLevel: depth) ?? false
+        guard let element = path?.wrappedValue.element(presenting: value, atLevel: depth) else { return false }
+        return element.source?.includes(identity) ?? true
     }
 
     var hasSiblingElement: Bool {
@@ -390,8 +399,10 @@ public struct FlowLink<Label>: View where Label: View {
             }
 
             if let value = value {
+                let passedOver = contextStoreKey.flatMap { linkContexts?.identities(presentingSameValueAs: $0, otherThan: identity) }
+                let source = FlowLinkSource(link: identity, passedOver: passedOver ?? [])
                 withTransaction(transaction) {
-                    path?.wrappedValue.append(value, context: context)
+                    path?.wrappedValue.append(value, context: context, source: source)
                 }
             }
         }
@@ -498,7 +509,7 @@ public struct FlowLink<Label>: View where Label: View {
     /// find it even if the layout has changed since the link was activated.
     private func reportContext(_ context: PathContext?) {
         guard configuration.animateFromAnchor, let context = context, let key = contextStoreKey else { return }
-        linkContexts?.update(context, for: key, owner: ObjectIdentifier(scrollReveal), reveal: scrollReveal.reveal, prepareSnapshot: prepareSnapshotForDismissal)
+        linkContexts?.update(context, for: key, identity: identity, owner: ObjectIdentifier(scrollReveal), reveal: scrollReveal.reveal, prepareSnapshot: prepareSnapshotForDismissal)
     }
 
     private func updateGeometry(with proxy: GeometryProxy) {

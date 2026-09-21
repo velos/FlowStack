@@ -104,6 +104,30 @@ A `ForEach` keyed some other way still works, but a link that isn't on screen ca
 
 Dismiss with **flowDismiss** where you can, rather than by removing from a `FlowPath` yourself. It brings the link into view *before* the dismissal begins, which removing from the path directly can only do after the fact.
 
+## Links that present the same value
+
+More than one flow link can present the same value at once: a product that appears in a row of featured products, say, and again in the list beneath it. A destination zooms out of the link that was activated and back into that same link, and only that link is hidden while the destination is presented. FlowStack works this out for itself.
+
+It needs help only once *every* link presenting the value has been recreated while the destination was presented, which is what a layout change does (a rotation, an iPhone Duo opening, ...), and what a lazy container does to links scrolled far out of view. Nothing then says which of the new links stands where the activated one did. Give the links different identifiers with **flowLinkID(_:)** and they are told apart however they are recreated:
+
+```swift
+FeaturedProducts(products)      // FlowLink(value: product) { ... }
+    .flowLinkID("featured")
+ProductList(products)           // FlowLink(value: product) { ... }
+```
+
+The identifier only has to differ between links that present the same value, so it can be given to a single link or, as here, to a whole section at once.
+
+To present a value from a particular link yourself, append it to the flow path with that link's identifier:
+
+```swift
+flowPath.append(product, linkID: "featured")
+```
+
+Without an identifier, a value appended to the flow path zooms out of the most recently created link that presents it, and every link that presents it is hidden in the meantime.
+
+One thing to watch for: FlowStack brings a link that a lazy container has let go back [by scrolling to its row's identifier](#returning-to-a-link). Two `ForEach`es over the same values in one scroll view give two rows the same identifier, and the scroll view may go to the wrong one. Identify the rows of one of them some other way, as the example app does for its featured products.
+
 ## Manage navigation state
 
 By default, a flow stack manages state for any view contained, added or removed from the stack. If you need direct access and control of the state, you can create a binding to a FlowPath and initialize a flow stack with the flow path binding.

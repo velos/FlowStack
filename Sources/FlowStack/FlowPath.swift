@@ -48,6 +48,9 @@ struct PathContext: Equatable, Hashable {
 struct FlowElement: Equatable, Hashable {
     var value: (any (Equatable & Hashable))
     var context: PathContext?
+    /// The flow link the value was presented from, where that is known. A value appended to
+    /// the flow path directly comes from whichever link presents it.
+    var source: FlowLinkSource?
     var index: Int
 
     static func == (lhs: FlowElement, rhs: FlowElement) -> Bool {
@@ -81,7 +84,11 @@ public struct FlowPath: Equatable, Hashable {
     }
 
     func contains<P>(_ element: P, atLevel level: Int?) -> Bool where P: Hashable {
-        return elements.contains { $0 == FlowElement(value: element, context: $0.context, index: level ?? $0.index) }
+        self.element(presenting: element, atLevel: level) != nil
+    }
+
+    func element<P>(presenting value: P, atLevel level: Int?) -> FlowElement? where P: Hashable {
+        elements.first { $0 == FlowElement(value: value, context: $0.context, index: level ?? $0.index) }
     }
 
     /// Removes the specified number of elements from the end of the flow path.
@@ -96,8 +103,8 @@ public struct FlowPath: Equatable, Hashable {
         elements.removeAll()
     }
 
-    mutating func append<P>(_ newElement: P, context: PathContext?) where P: Hashable {
-        self.elements.append(.init(value: newElement, context: context, index: elements.count))
+    mutating func append<P>(_ newElement: P, context: PathContext?, source: FlowLinkSource? = nil) where P: Hashable {
+        self.elements.append(.init(value: newElement, context: context, source: source, index: elements.count))
     }
 
     /// Adds a new element at the end of the flow path.
@@ -105,6 +112,17 @@ public struct FlowPath: Equatable, Hashable {
     ///   - newElement: The element to append to the flow path.
     public mutating func append<P>(_ newElement: P) where P: Hashable {
         self.append(newElement, context: nil)
+    }
+
+    /// Adds a new element at the end of the flow path, presented from a particular flow link.
+    ///
+    /// Use this when more than one flow link presents `newElement`, to choose which of them
+    /// the destination zooms out of and back into.
+    /// - Parameters:
+    ///   - newElement: The element to append to the flow path.
+    ///   - linkID: The identifier given to the flow link with `flowLinkID(_:)`.
+    public mutating func append<P, ID>(_ newElement: P, linkID: ID) where P: Hashable, ID: Hashable {
+        self.append(newElement, context: nil, source: FlowLinkSource(link: .explicit(AnyHashable(linkID))))
     }
 
     /// Does nothing. Flow links keep a snapshot for each color scheme, and the right one is

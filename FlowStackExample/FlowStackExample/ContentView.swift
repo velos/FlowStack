@@ -20,6 +20,8 @@ struct ContentView: View {
             // navigation bar would be drawn over presented destinations.
             NavigationContainer {
                 ScrollView {
+                    featured
+
                     Group {
                         if horizontalSizeClass == .compact {
                             LazyVStack(alignment: .center, spacing: 24, pinnedViews: [], content: {
@@ -89,6 +91,32 @@ struct ContentView: View {
         } label: {
             Label("Options", systemImage: "rectangle.on.rectangle.angled")
         }
+    }
+
+    /// Products that are also in the list below, so each is presented by two flow links at
+    /// once. A destination zooms out of whichever was tapped, and back into the same one.
+    private var featured: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Featured")
+                .font(.title2.bold())
+                .padding(.horizontal)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    // Identified differently to the rows of the list, which FlowStack scrolls
+                    // to by their products' identifiers when it needs one of them created.
+                    ForEach(Product.featuredProducts, id: \.imageUrl) { product in
+                        FlowLink(value: product, configuration: .init(cornerRadius: 16, presentationStyle: presentationStyle)) {
+                            FeaturedCard(product: product, cornerRadius: 16)
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Featured product \(product.name)")
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+        .padding(.bottom, 12)
     }
 
     var content: some View {

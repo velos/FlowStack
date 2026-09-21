@@ -43,6 +43,35 @@ struct ProductRow: View {
     }
 }
 
+/// A smaller card for a row of featured products.
+struct FeaturedCard: View {
+    var product: Product
+    var cornerRadius: CGFloat
+
+    var body: some View {
+        Color.clear
+            .frame(width: 168, height: 126)
+            .overlay {
+                CachedAsyncImage(url: product.imageUrl, urlCache: .imageCache) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                } placeholder: {
+                    Color(uiColor: .secondarySystemFill)
+                }
+                .allowsHitTesting(false)
+            }
+            .overlay(alignment: .bottomLeading) {
+                Text(product.name)
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .padding(10)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+}
+
 struct ProductRow_Previews: PreviewProvider {
     static var previews: some View {
         ScrollView {

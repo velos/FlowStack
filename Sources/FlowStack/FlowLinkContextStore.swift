@@ -23,19 +23,29 @@ final class FlowLinkContextStore: ObservableObject {
     }
 
     private struct Entry {
+        let identity: FlowLinkIdentity
         let owner: ObjectIdentifier
+        /// Counts up as links report in for the first time, so a later link has a higher one.
+        let sequence: Int
         var context: PathContext
         var reveal: () -> Void
         var prepareSnapshot: () -> Void
     }
 
-    private var entries: [Key: Entry] = [:]
+    /// More than one link can present the same value, each with its own identity.
+    private var entries: [Key: [Entry]] = [:]
+    private var nextSequence = 0
 
     /// Scrolls the scroll views at each depth of the flow stack, where 0 is the root.
     private var scrollProxies: [Int: ScrollViewProxy] = [:]
 
     /// What to do once a link that had to be scrolled into existence reports in.
-    private var pendingReveals: [Key: () -> Void] = [:]
+    private var pendingReveals: [Key: PendingReveal] = [:]
+
+    private struct PendingReveal {
+        var source: FlowLinkSource?
+        var completion: () -> Void
+    }
 
     /// How long to wait for a link to appear after scrolling to it. A lazy container creates
     /// the link within a frame or so; this only runs out when the row can't be found at all,
@@ -49,15 +59,38 @@ final class FlowLinkContextStore: ObservableObject {
     private var revealedDismissals: Set<Key> = []
 
     /// - Parameters:
+    ///   - identity: Tells the link apart from any others presenting the same value. An
+    ///     instance of the link, unless it was given an identifier.
+    ///   - owner: The instance of the link, which is the only one that can remove it again.
     ///   - reveal: Scrolls the link fully into view, without animation.
     ///   - prepareSnapshot: Takes a snapshot of the link if it doesn't have a current one.
     ///     This lays out a view, so it must not be called during a view update.
-    func update(_ context: PathContext, for key: Key, owner: ObjectIdentifier, reveal: @escaping () -> Void, prepareSnapshot: @escaping () -> Void = {}) {
-        entries[key] = Entry(owner: owner, context: context, reveal: reveal, prepareSnapshot: prepareSnapshot)
+    func update(_ context: PathContext, for key: Key, identity: FlowLinkIdentity? = nil, owner: ObjectIdentifier, reveal: @escaping () -> Void, prepareSnapshot: @escaping () -> Void = {}) {
+        let identity = identity ?? .instance(owner)
+
+        // A link with an identifier that has been recreated takes over from the one it was.
+        let existing = entries[key]?.firstIndex { $0.identity == identity }
+        let sequence: Int
+        if let previous = existing.flatMap({ entries[key]?[$0] }), previous.owner == owner {
+            sequence = previous.sequence
+        } else {
+            sequence = nextSequence
+            nextSequence += 1
+        }
+
+        let entry = Entry(identity: identity, owner: owner, sequence: sequence, context: context, reveal: reveal, prepareSnapshot: prepareSnapshot)
+        if let existing = existing {
+            entries[key]?[existing] = entry
+        } else {
+            entries[key, default: []].append(entry)
+        }
 
         // This link was scrolled into existence so that a dismissal could return to it.
-        let pendingKey = pendingReveals.keys.first { $0.value == key.value && (key.level == nil || $0.level == key.level) }
-        if let pendingKey = pendingKey, let completion = pendingReveals.removeValue(forKey: pendingKey) {
+        let pendingKey = pendingReveals.first { pending in
+            pending.key.value == key.value && (key.level == nil || pending.key.level == key.level) &&
+                pending.value.source?.includes(identity) ?? true
+        }?.key
+        if let pendingKey = pendingKey, let completion = pendingReveals.removeValue(forKey: pendingKey)?.completion {
             reveal()
 
             // A link that has only just been created has no snapshot for the dismissal to
@@ -77,12 +110,23 @@ final class FlowLinkContextStore: ObservableObject {
     /// Removes the entry for `key`, unless another link has since taken it over. When a
     /// layout swaps containers, the replacement link registers before the old one disappears.
     func remove(_ key: Key, owner: ObjectIdentifier) {
-        guard entries[key]?.owner == owner else { return }
-        entries[key] = nil
+        entries[key]?.removeAll { $0.owner == owner }
+        if entries[key]?.isEmpty == true {
+            entries[key] = nil
+        }
     }
 
-    func context(for value: AnyHashable, atLevel level: Int) -> PathContext? {
-        entry(for: value, atLevel: level)?.context
+    /// - Parameter source: The link the value was presented from, where that is known.
+    func context(for value: AnyHashable, atLevel level: Int, source: FlowLinkSource? = nil) -> PathContext? {
+        entry(for: value, atLevel: level, source: source)?.context
+    }
+
+    /// The links presenting the same value as the link with `key`, other than `identity`.
+    /// These are what a destination presented from that link did *not* come from.
+    func identities(presentingSameValueAs key: Key, otherThan identity: FlowLinkIdentity) -> Set<FlowLinkIdentity> {
+        // A link that isn't tied to a depth of the flow stack can stand in at any of them.
+        let rivals = entries.filter { $0.key.value == key.value && (key.level == nil || $0.key.level == nil || $0.key.level == key.level) }
+        return Set(rivals.values.joined().map(\.identity)).subtracting([identity])
     }
 
     /// Scrolls the link presenting `value` fully into view, so that a dismissal has
@@ -96,12 +140,12 @@ final class FlowLinkContextStore: ObservableObject {
     /// first, which creates it. `completion` runs once the link exists, so a caller that
     /// waits for it before dismissing finds the link already standing in, hidden, for its
     /// destination, rather than seeing it pop in partway through the dismissal.
-    func revealLink(for value: AnyHashable, atLevel level: Int, completion: (() -> Void)? = nil) {
+    func revealLink(for value: AnyHashable, atLevel level: Int, source: FlowLinkSource? = nil, completion: (() -> Void)? = nil) {
         if completion != nil {
             revealedDismissals.insert(Key(value: value, level: level))
         }
 
-        if let entry = entry(for: value, atLevel: level) {
+        if let entry = entry(for: value, atLevel: level, source: source) {
             entry.reveal()
             entry.prepareSnapshot()
             completion?()
@@ -114,7 +158,7 @@ final class FlowLinkContextStore: ObservableObject {
         }
 
         let key = Key(value: value, level: level)
-        pendingReveals[key] = completion ?? {}
+        pendingReveals[key] = PendingReveal(source: source, completion: completion ?? {})
 
         var transaction = Transaction()
         transaction.disablesAnimations = true
@@ -124,7 +168,7 @@ final class FlowLinkContextStore: ObservableObject {
 
         // The value may not be how its row is identified, in which case no link appears.
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.revealTimeout) { [weak self] in
-            self?.pendingReveals.removeValue(forKey: key)?()
+            self?.pendingReveals.removeValue(forKey: key)?.completion()
         }
     }
 
@@ -166,13 +210,30 @@ final class FlowLinkContextStore: ObservableObject {
         // dismissal is already under way, so there is nothing to hold up by deferring it.
         DispatchQueue.main.async { [weak self] in
             for element in dismissed {
-                self?.revealLink(for: AnyHashable(element.value), atLevel: element.index)
+                self?.revealLink(for: AnyHashable(element.value), atLevel: element.index, source: element.source)
             }
         }
     }
 
-    private func entry(for value: AnyHashable, atLevel level: Int) -> Entry? {
-        entries[Key(value: value, level: level)] ?? entries[Key(value: value, level: nil)]
+    /// The link a destination presenting `value` returns to.
+    ///
+    /// That is the link it was presented from, for as long as that link lasts. After that it
+    /// is the latest link that could be the same one recreated. A destination that wasn't
+    /// presented from a link at all returns to the latest link that presents its value.
+    private func entry(for value: AnyHashable, atLevel level: Int, source: FlowLinkSource?) -> Entry? {
+        for key in [Key(value: value, level: level), Key(value: value, level: nil)] {
+            guard let candidates = entries[key], !candidates.isEmpty else { continue }
+            guard let source = source else {
+                return candidates.max { $0.sequence < $1.sequence }
+            }
+
+            let entry = candidates.first { $0.identity == source.link } ??
+                candidates.filter { source.includes($0.identity) }.max { $0.sequence < $1.sequence }
+            if let entry = entry {
+                return entry
+            }
+        }
+        return nil
     }
 }
 

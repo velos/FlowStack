@@ -300,7 +300,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
                 // The link comes into view first, so that it is already standing in for
                 // the destination when the destination starts zooming back into it.
-                linkContexts.revealLink(for: AnyHashable(element.value), atLevel: element.index) {
+                linkContexts.revealLink(for: AnyHashable(element.value), atLevel: element.index, source: element.source) {
                     guard pathToUse.wrappedValue.elements.last == element else { return }
                     withTransaction(transaction) {
                         accessibilityManager.decrementIndex()
@@ -336,7 +336,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .id(element.hashValue)
-                    .transition(.flowTransition(with: element.context, value: AnyHashable(element.value), level: element.index))
+                    .transition(.flowTransition(with: element.context, source: element.source, value: AnyHashable(element.value), level: element.index))
                     .modifier(AccessibilityModifier(element: element.index))
                 }
             }

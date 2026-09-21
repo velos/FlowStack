@@ -547,3 +547,134 @@ final class SafeAreaCompensationTests: XCTestCase {
         XCTAssertFalse(portrait.insetBy(dx: 0, dy: 0.5).isApproximatelyEqual(to: portrait))
     }
 }
+
+final class FlowLinkIdentityTests: XCTestCase {
+
+    private func key(_ value: String, level: Int? = 0) -> FlowLinkContextStore.Key {
+        .init(value: AnyHashable(value), level: level)
+    }
+
+    private let a = AnyHashable("a")
+
+    // MARK: Which link a destination came from
+
+    func testDestinationComesFromTheLinkThatPresentedIt() {
+        let tapped = FlowLinkIdentity.instance(owner()), twin = FlowLinkIdentity.instance(owner())
+        let source = FlowLinkSource(link: tapped, passedOver: [twin])
+
+        XCTAssertTrue(source.includes(tapped))
+        XCTAssertFalse(source.includes(twin))
+    }
+
+    func testLinkCreatedSinceIsTakenForTheOneThatWasRecreated() {
+        // A change of layout replaces the link that was activated with another instance.
+        let source = FlowLinkSource(link: .instance(owner()), passedOver: [.instance(owner())])
+        XCTAssertTrue(source.includes(.instance(owner())))
+    }
+
+    func testExplicitIdentitiesOnlyEverMatchThemselves() {
+        let source = FlowLinkSource(link: .explicit("featured"))
+
+        XCTAssertTrue(source.includes(.explicit("featured")))
+        XCTAssertFalse(source.includes(.explicit("list")))
+        XCTAssertFalse(source.includes(.instance(owner())))
+        // Nor is a link with an identifier ever taken for a recreated link without one.
+        XCTAssertFalse(FlowLinkSource(link: .instance(owner())).includes(.explicit("featured")))
+    }
+
+    func testAppendingWithALinkIDRecordsTheLink() {
+        var path = FlowPath()
+        path.append("a", linkID: "featured")
+        path.append("b")
+
+        XCTAssertEqual(path.elements[0].source, FlowLinkSource(link: .explicit("featured")))
+        XCTAssertNil(path.elements[1].source)
+    }
+
+    // MARK: Links presenting the same value
+
+    func testEachLinkPresentingAValueKeepsItsOwnContext() {
+        let store = FlowLinkContextStore()
+        let featured = owner(), listed = owner()
+        store.update(PathContext(cornerRadius: 1), for: key("a"), owner: featured, reveal: {})
+        store.update(PathContext(cornerRadius: 2), for: key("a"), owner: listed, reveal: {})
+
+        let fromFeatured = FlowLinkSource(link: .instance(featured), passedOver: [.instance(listed)])
+        let fromListed = FlowLinkSource(link: .instance(listed), passedOver: [.instance(featured)])
+        XCTAssertEqual(store.context(for: a, atLevel: 0, source: fromFeatured)?.cornerRadius, 1)
+        XCTAssertEqual(store.context(for: a, atLevel: 0, source: fromListed)?.cornerRadius, 2)
+
+        // The link reporting again, as it does when it scrolls, changes nothing.
+        store.update(PathContext(cornerRadius: 1), for: key("a"), owner: featured, reveal: {})
+        XCTAssertEqual(store.context(for: a, atLevel: 0, source: fromListed)?.cornerRadius, 2)
+    }
+
+    func testLinkKnowsWhichOthersPresentItsValue() {
+        let store = FlowLinkContextStore()
+        let featured = owner(), listed = owner(), overlaid = owner(), deeper = owner(), unrelated = owner()
+        store.update(PathContext(), for: key("a"), owner: featured, reveal: {})
+        store.update(PathContext(), for: key("a"), owner: listed, reveal: {})
+        store.update(PathContext(), for: key("a", level: nil), owner: overlaid, reveal: {})
+        store.update(PathContext(), for: key("a", level: 1), owner: deeper, reveal: {})
+        store.update(PathContext(), for: key("b"), owner: unrelated, reveal: {})
+
+        let others = store.identities(presentingSameValueAs: key("a"), otherThan: .instance(featured))
+        XCTAssertEqual(others, [.instance(listed), .instance(overlaid)])
+    }
+
+    func testDestinationReturnsToTheRecreatedLinkRatherThanTheOneItPassedOver() {
+        let store = FlowLinkContextStore()
+        let featured = owner(), listed = owner(), recreated = owner()
+        store.update(PathContext(cornerRadius: 1), for: key("a"), owner: featured, reveal: {})
+        store.update(PathContext(cornerRadius: 2), for: key("a"), owner: listed, reveal: {})
+        let source = FlowLinkSource(link: .instance(featured), passedOver: [.instance(listed)])
+
+        // The replacement registers before the link it replaces disappears, and the
+        // destination stays with the link it came from for as long as that lasts.
+        store.update(PathContext(cornerRadius: 3), for: key("a"), owner: recreated, reveal: {})
+        XCTAssertEqual(store.context(for: a, atLevel: 0, source: source)?.cornerRadius, 1)
+
+        store.remove(key("a"), owner: featured)
+        XCTAssertEqual(store.context(for: a, atLevel: 0, source: source)?.cornerRadius, 3)
+
+        // With only the link it passed over left, it has nowhere to return to.
+        store.remove(key("a"), owner: recreated)
+        XCTAssertNil(store.context(for: a, atLevel: 0, source: source))
+    }
+
+    func testLinkWithAnIdentifierIsFoundAgainHoweverItIsRecreated() {
+        let store = FlowLinkContextStore()
+        let featured = owner(), listed = owner()
+        store.update(PathContext(cornerRadius: 1), for: key("a"), identity: .explicit("featured"), owner: featured, reveal: {})
+        store.update(PathContext(cornerRadius: 2), for: key("a"), identity: .explicit("list"), owner: listed, reveal: {})
+        let source = FlowLinkSource(link: .explicit("featured"))
+
+        // Both links are recreated, the listed one last.
+        let newFeatured = owner(), newListed = owner()
+        store.update(PathContext(cornerRadius: 3), for: key("a"), identity: .explicit("featured"), owner: newFeatured, reveal: {})
+        store.update(PathContext(cornerRadius: 4), for: key("a"), identity: .explicit("list"), owner: newListed, reveal: {})
+        store.remove(key("a"), owner: featured)
+        store.remove(key("a"), owner: listed)
+
+        XCTAssertEqual(store.context(for: a, atLevel: 0, source: source)?.cornerRadius, 3)
+    }
+
+    func testValueAppendedDirectlyReturnsToTheLatestLinkPresentingIt() {
+        let store = FlowLinkContextStore()
+        store.update(PathContext(cornerRadius: 1), for: key("a"), owner: owner(), reveal: {})
+        store.update(PathContext(cornerRadius: 2), for: key("a"), owner: owner(), reveal: {})
+
+        XCTAssertEqual(store.context(for: a, atLevel: 0)?.cornerRadius, 2)
+    }
+
+    func testRevealScrollsTheLinkTheDestinationCameFrom() {
+        let store = FlowLinkContextStore()
+        let featured = owner(), listed = owner()
+        var revealed: [String] = []
+        store.update(PathContext(), for: key("a"), owner: featured, reveal: { revealed.append("featured") })
+        store.update(PathContext(), for: key("a"), owner: listed, reveal: { revealed.append("listed") })
+
+        store.revealLink(for: a, atLevel: 0, source: FlowLinkSource(link: .instance(featured), passedOver: [.instance(listed)]))
+        XCTAssertEqual(revealed, ["featured"])
+    }
+}

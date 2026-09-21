@@ -40,10 +40,10 @@ struct FlowDismissActionKey: EnvironmentKey {
 
 extension AnyTransition {
 
-    static func flowTransition(with context: PathContext?, value: AnyHashable, level: Int) -> AnyTransition {
+    static func flowTransition(with context: PathContext?, source: FlowLinkSource?, value: AnyHashable, level: Int) -> AnyTransition {
         AnyTransition.modifier(
-            active: FlowPresentModifier(percent: 0, context: context, value: value, level: level),
-            identity: FlowPresentModifier(percent: 1, context: context, value: value, level: level)
+            active: FlowPresentModifier(percent: 0, context: context, source: source, value: value, level: level),
+            identity: FlowPresentModifier(percent: 1, context: context, source: source, value: value, level: level)
         )
     }
 
@@ -118,6 +118,8 @@ extension AnyTransition {
         /// The context captured when the flow link was activated, or `nil` for a
         /// destination that was appended to the flow path directly.
         var context: PathContext?
+        /// The flow link the destination was presented from, where that is known.
+        var source: FlowLinkSource?
         var value: AnyHashable
         var level: Int
 
@@ -140,7 +142,7 @@ extension AnyTransition {
         /// each time the view renders lets a dismissal find the link where it is now. A
         /// destination appended directly adopts the context of a matching link, if any.
         private var resolvedContext: PathContext {
-            guard let live = linkContexts?.context(for: value, atLevel: level) else { return context ?? .init() }
+            guard let live = linkContexts?.context(for: value, atLevel: level, source: source) else { return context ?? .init() }
             guard var resolved = context else { return live }
             resolved.anchor = live.anchor
             resolved.overrideAnchor = live.overrideAnchor
@@ -281,7 +283,7 @@ extension AnyTransition {
                             // The pull is just starting, so the destination still covers
                             // its link. Waiting for the release would move the link in
                             // plain sight behind the shrunken destination.
-                            linkContexts?.revealLink(for: value, atLevel: level)
+                            linkContexts?.revealLink(for: value, atLevel: level, source: source)
                         }
                         self.snapCornerRadiusZero = false
                         self.panOffset = offset
