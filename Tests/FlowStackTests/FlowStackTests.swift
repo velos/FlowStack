@@ -480,3 +480,62 @@ final class SnapshotInputsTests: XCTestCase {
         XCTAssertNotEqual(inputs(), inputs(value: AnyHashable("b")))
     }
 }
+
+final class SafeAreaCompensationTests: XCTestCase {
+
+    private typealias Controller = InteractiveDismissViewController<EmptyView>
+
+    private let portrait = CGRect(x: 0, y: 0, width: 393, height: 852)
+    private let portraitInsets = UIEdgeInsets(top: 59, left: 0, bottom: 34, right: 0)
+
+    private let landscape = CGRect(x: 0, y: 0, width: 852, height: 393)
+    private let landscapeInsets = UIEdgeInsets(top: 0, left: 59, bottom: 21, right: 59)
+
+    private func compensation(_ frame: CGRect, restingAt resting: CGRect? = nil, in window: CGRect, insets: UIEdgeInsets) -> UIEdgeInsets {
+        Controller.safeAreaCompensation(frame: frame, restingFrame: resting ?? window, windowBounds: window, windowInsets: insets)
+    }
+
+    func testViewAtRestNeedsNoCompensation() {
+        XCTAssertEqual(compensation(portrait, in: portrait, insets: portraitInsets), .zero)
+    }
+
+    func testPullingDownMakesUpTheTopInsetItLoses() {
+        let pulled = portrait.offsetBy(dx: 0, dy: 40)
+        XCTAssertEqual(compensation(pulled, in: portrait, insets: portraitInsets).top, 40)
+    }
+
+    func testNoMoreIsMadeUpThanTheInsetThereWas() {
+        let pulled = portrait.offsetBy(dx: 0, dy: 200)
+        XCTAssertEqual(compensation(pulled, in: portrait, insets: portraitInsets).top, 59)
+    }
+
+    func testOverhangingAnEdgeGainsNothing() {
+        // Pulled down, the view hangs off the bottom of the screen.
+        let pulled = portrait.offsetBy(dx: 0, dy: 40)
+        XCTAssertEqual(compensation(pulled, in: portrait, insets: portraitInsets).bottom, 0)
+    }
+
+    func testEdgeSwipeInLandscapeMakesUpTheLeadingInset() {
+        // The island can be on either side; an edge swipe drags the view away from the left.
+        let swiped = landscape.offsetBy(dx: 30, dy: 0)
+        let result = compensation(swiped, in: landscape, insets: landscapeInsets)
+        XCTAssertEqual(result.left, 30)
+        XCTAssertEqual(result.right, 0)
+    }
+
+    func testEveryEdgeIsMadeUpForAViewThatShrinksInPlace() {
+        let shrunk = landscape.insetBy(dx: 20, dy: 10)
+        let result = compensation(shrunk, in: landscape, insets: landscapeInsets)
+        XCTAssertEqual(result, UIEdgeInsets(top: 0, left: 20, bottom: 10, right: 20))
+    }
+
+    func testViewThatRestsAwayFromTheEdgesDoesNotJumpWhenAPullBegins() {
+        // A card on iPad rests clear of every inset, so it has none to lose.
+        let window = CGRect(x: 0, y: 0, width: 1024, height: 1366)
+        let insets = UIEdgeInsets(top: 24, left: 0, bottom: 20, right: 0)
+        let card = window.insetBy(dx: 159, dy: 184)
+
+        XCTAssertEqual(compensation(card, restingAt: card, in: window, insets: insets), .zero)
+        XCTAssertEqual(compensation(card.offsetBy(dx: 0, dy: 50), restingAt: card, in: window, insets: insets), .zero)
+    }
+}

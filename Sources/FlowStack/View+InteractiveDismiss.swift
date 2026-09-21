@@ -85,18 +85,75 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
         fatalError("init(coder:) has not been implemented")
     }
 
+    /// Where the view was in its window when the pull began.
+    private var restingFrame: CGRect?
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        frameObservation = view.observe(\.frame) { [weak self] theView, _ in
-            guard let self = self else { return }
-            self.additionalSafeAreaInsets = UIEdgeInsets(
-                top: coordinator.isUpdating ? theView.overlappingTopInset : 0,
-                left: 0,
-                bottom: 0,
-                right: 0
-            )
+        coordinator.onUpdatingChanged = { [weak self] in
+            self?.updateSafeAreaCompensation()
         }
+
+        frameObservation = view.observe(\.frame) { [weak self] _, _ in
+            self?.updateSafeAreaCompensation()
+        }
+    }
+
+    override func viewSafeAreaInsetsDidChange() {
+        super.viewSafeAreaInsetsDidChange()
+        updateSafeAreaCompensation()
+    }
+
+    /// Keeps the content's safe area as it was at rest while a pull moves the view.
+    ///
+    /// A view loses safe area inset on an edge as it moves in from that edge of the screen, so
+    /// its content would reflow as it is pulled around. That is any edge with an inset: the
+    /// top in portrait, and either side in landscape, where an edge swipe drags the view
+    /// clean away from the inset it started against.
+    private func updateSafeAreaCompensation() {
+        guard coordinator.isUpdating, let window = view.window else {
+            restingFrame = nil
+            if additionalSafeAreaInsets != .zero {
+                additionalSafeAreaInsets = .zero
+            }
+            return
+        }
+
+        let frame = view.convert(view.bounds, to: window)
+        let restingFrame = self.restingFrame ?? frame
+        self.restingFrame = restingFrame
+
+        let compensation = Self.safeAreaCompensation(
+            frame: frame,
+            restingFrame: restingFrame,
+            windowBounds: window.bounds,
+            windowInsets: window.safeAreaInsets
+        )
+        if !compensation.isApproximatelyEqual(to: additionalSafeAreaInsets) {
+            additionalSafeAreaInsets = compensation
+        }
+    }
+
+    /// The safe area inset a view has lost on each edge since it was at rest.
+    ///
+    /// On each edge a view has the window's inset less however far it sits in from that edge,
+    /// and never less than none. A view that overhangs an edge gains nothing for it.
+    static func safeAreaCompensation(frame: CGRect, restingFrame: CGRect, windowBounds: CGRect, windowInsets: UIEdgeInsets) -> UIEdgeInsets {
+        func lost(_ distanceFromEdge: CGFloat, of inset: CGFloat) -> CGFloat {
+            min(max(0, distanceFromEdge), inset)
+        }
+
+        func compensation(_ distance: (CGRect) -> CGFloat, of inset: CGFloat) -> CGFloat {
+            lost(distance(frame), of: inset) - lost(distance(restingFrame), of: inset)
+        }
+
+        return UIEdgeInsets(
+            top: compensation({ $0.minY - windowBounds.minY }, of: windowInsets.top),
+            left: compensation({ $0.minX - windowBounds.minX }, of: windowInsets.left),
+            bottom: compensation({ windowBounds.maxY - $0.maxY }, of: windowInsets.bottom),
+            right: compensation({ windowBounds.maxX - $0.maxX }, of: windowInsets.right)
+        )
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -167,8 +224,16 @@ class InteractiveDismissCoordinator: NSObject, UIGestureRecognizerDelegate {
     private var panGestureRecognizer: UIPanGestureRecognizer!
     private var edgeGestureRecognizer: UIScreenEdgePanGestureRecognizer!
 
-    /// Bool that tracks active dragging to be used to track tool bar position for overlappingTopInset
-    var isUpdating: Bool = false
+    /// Whether a pull is under way, or has ended in a dismissal that is still animating.
+    var isUpdating: Bool = false {
+        didSet {
+            if isUpdating != oldValue {
+                onUpdatingChanged?()
+            }
+        }
+    }
+
+    var onUpdatingChanged: (() -> Void)?
 
     private var isPastThreshold: Bool = false
     private var impactGenerator: UIImpactFeedbackGenerator
@@ -320,5 +385,15 @@ class InteractiveDismissCoordinator: NSObject, UIGestureRecognizerDelegate {
 extension View {
     func onInteractiveDismissGesture(threshold: Double = 50, isEnabled: Bool = true, isDismissing: Bool = false, swipeUpToDismiss: Bool, onDismiss: @escaping () -> Void, onPan: @escaping (CGPoint) -> Void = { _ in }, onEnded: @escaping (Bool) -> Void = { _ in }) -> some View {
         InteractiveDismissContainer(threshold: threshold, onPan: onPan, isEnabled: isEnabled, isDismissing: isDismissing, swipeUpToDismiss: swipeUpToDismiss, onDismiss: onDismiss, onEnded: onEnded, content: self)
+    }
+}
+
+extension UIEdgeInsets {
+    /// Whether the insets differ by less than could be seen. Setting a view controller's
+    /// additional safe area insets changes its safe area, which is one of the things that
+    /// prompts them to be worked out, so this is what lets that settle.
+    func isApproximatelyEqual(to other: UIEdgeInsets, tolerance: CGFloat = 0.1) -> Bool {
+        abs(top - other.top) < tolerance && abs(left - other.left) < tolerance &&
+        abs(bottom - other.bottom) < tolerance && abs(right - other.right) < tolerance
     }
 }
