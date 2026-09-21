@@ -14,19 +14,32 @@ struct ProductDetails: View {
     @State var opacity: CGFloat = 0
     var product: Product
 
+    /// Whether the close button is a toolbar item, which takes a navigation stack to host it,
+    /// or is placed by hand over the image.
+    var usesNavigationStack = true
+
+    /// Whether to show the safe area the content is laid out for, to watch it during a pull.
+    var showsSafeArea = false
+
     var body: some View {
-        NavigationContainer {
-            content
-                // The system positions toolbar items clear of system UI wherever it
-                // is, e.g. beside iPhone Duo's camera and status items, which sit in
-                // the trailing corner rather than along the top edge.
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        closeButton
-                            .opacity(opacity)
-                    }
+        Group {
+            if usesNavigationStack {
+                NavigationContainer {
+                    content
+                        // The system positions toolbar items clear of system UI wherever it
+                        // is, e.g. beside iPhone Duo's camera and status items, which sit in
+                        // the trailing corner rather than along the top edge.
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                toolbarCloseButton
+                                    .opacity(opacity)
+                            }
+                        }
+                        .hiddenNavigationBarBackground()
                 }
-                .hiddenNavigationBarBackground()
+            } else {
+                content
+            }
         }
         .withFlowAnimation {
             opacity = 0.78
@@ -35,25 +48,30 @@ struct ProductDetails: View {
         }
     }
 
+    /// The system draws a button with the close role itself, but only in a toolbar.
     @ViewBuilder
-    private var closeButton: some View {
+    private var toolbarCloseButton: some View {
         if #available(iOS 26.0, *) {
             Button(role: .close) {
                 flowDismiss()
             }
         } else {
-            Button(action: { flowDismiss() }, label: {
-                Image(systemName: "xmark")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Color(uiColor: .darkGray))
-                    .padding(8)
-                    .background {
-                        Circle()
-                            .foregroundStyle(Color(uiColor: .white))
-                    }
-            })
-            .accessibilityLabel("Close")
+            roundCloseButton
         }
+    }
+
+    private var roundCloseButton: some View {
+        Button(action: { flowDismiss() }, label: {
+            Image(systemName: "xmark")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(Color(uiColor: .darkGray))
+                .padding(8)
+                .background {
+                    Circle()
+                        .foregroundStyle(Color(uiColor: .white))
+                }
+        })
+        .accessibilityLabel("Close")
     }
 
     private var content: some View {
@@ -71,6 +89,16 @@ struct ProductDetails: View {
                                 .padding(.leading, proxy.safeAreaInsets.leading)
                                 .opacity(opacity)
                         })
+                        .overlay(alignment: .topTrailing) {
+                            if !usesNavigationStack {
+                                // Placed by hand, so it has to keep clear of system UI itself,
+                                // on whichever edges that is.
+                                roundCloseButton
+                                    .padding(.top, proxy.safeAreaInsets.top + 12)
+                                    .padding(.trailing, proxy.safeAreaInsets.trailing + 12)
+                                    .opacity(opacity)
+                            }
+                        }
                         .accessibilitySortPriority(100)
                         .clipped()
                     VStack(alignment: .leading, spacing: 40) {
@@ -104,6 +132,12 @@ struct ProductDetails: View {
                 .accessibilityAction(.escape) { flowDismiss() }
             }
             .ignoresSafeArea()
+            .overlay(alignment: .bottom) {
+                if showsSafeArea {
+                    SafeAreaReadout(insets: proxy.safeAreaInsets, size: proxy.size)
+                        .padding(.bottom, 12)
+                }
+            }
         }
     }
 
@@ -148,6 +182,51 @@ private extension View {
         } else {
             self
         }
+    }
+}
+
+/// Shows the safe area a view is laid out for, and turns red while it differs from what it
+/// was at rest. A destination's content should keep the same safe area while it is pulled
+/// around; when it doesn't, the content reflows under the finger.
+private struct SafeAreaReadout: View {
+    let insets: EdgeInsets
+    let size: CGSize
+
+    /// The insets once they first held still, after the destination had finished presenting.
+    @State private var restingInsets: EdgeInsets?
+
+    private var hasChanged: Bool {
+        guard let resting = restingInsets else { return false }
+        return abs(resting.top - insets.top) > 0.5 || abs(resting.leading - insets.leading) > 0.5 ||
+            abs(resting.bottom - insets.bottom) > 0.5 || abs(resting.trailing - insets.trailing) > 0.5
+    }
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text("safe area  \(Self.describe(insets))")
+            if hasChanged, let resting = restingInsets {
+                Text("at rest  \(Self.describe(resting))")
+            }
+            Text("content  \(size.width, specifier: "%.0f") × \(size.height, specifier: "%.0f")")
+        }
+        .font(.caption.monospacedDigit().weight(.semibold))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(hasChanged ? Color.red : Color.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .allowsHitTesting(false)
+        .task(id: insets) {
+            // Only the first time: holding a pull still mustn't pass for being at rest.
+            guard restingInsets == nil else { return }
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            if !Task.isCancelled, restingInsets == nil {
+                restingInsets = insets
+            }
+        }
+    }
+
+    private static func describe(_ insets: EdgeInsets) -> String {
+        String(format: "T %.0f  L %.0f  B %.0f  R %.0f", insets.top, insets.leading, insets.bottom, insets.trailing)
     }
 }
 

@@ -12,6 +12,7 @@ struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let cornerRadius: CGFloat = 24
     @State private var presentationStyle: FlowPresentationStyle = .automatic
+    @StateObject private var detailOptions = DetailOptions()
 
     var body: some View {
         FlowStack {
@@ -39,7 +40,11 @@ struct ContentView: View {
                 }
             }
             .flowDestination(for: Product.self) { product in
-                ProductDetails(product: product)
+                ProductDetails(
+                    product: product,
+                    usesNavigationStack: detailOptions.usesNavigationStack,
+                    showsSafeArea: detailOptions.showsSafeArea
+                )
                     .accessibilityElement(children: .contain)
                     .accessibilityRespondsToUserInteraction(true)
                     .accessibilityLabel("ProductDetails from flowDestination in contentView")
@@ -62,8 +67,27 @@ struct ContentView: View {
                     .tag(style)
                 }
             }
+
+            Section("Detail") {
+                Toggle(isOn: $detailOptions.usesNavigationStack) {
+                    Label {
+                        Text("Navigation Stack")
+                        Text("Hosts the close button in a toolbar")
+                    } icon: {
+                        Image(systemName: "menubar.rectangle")
+                    }
+                }
+                Toggle(isOn: $detailOptions.showsSafeArea) {
+                    Label {
+                        Text("Show Safe Area")
+                        Text("Turns red if it changes during a pull")
+                    } icon: {
+                        Image(systemName: "ruler")
+                    }
+                }
+            }
         } label: {
-            Label("Presentation Style", systemImage: "rectangle.on.rectangle.angled")
+            Label("Options", systemImage: "rectangle.on.rectangle.angled")
         }
     }
 
@@ -79,6 +103,13 @@ struct ContentView: View {
             .accessibilityLabel("Product \(product.name)")
         }
     }
+}
+
+/// How the detail view is put together. A flow destination is registered once, so its closure
+/// reads these through a reference rather than capturing values that would go stale.
+private final class DetailOptions: ObservableObject {
+    @Published var usesNavigationStack = true
+    @Published var showsSafeArea = false
 }
 
 private extension FlowPresentationStyle {
