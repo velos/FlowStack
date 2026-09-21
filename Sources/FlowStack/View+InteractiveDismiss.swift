@@ -137,7 +137,7 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
     }
 }
 
-class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecognizerDelegate {
+class InteractiveDismissCoordinator: NSObject, UIGestureRecognizerDelegate {
     var threshold: Double
 
     var onPan: (CGPoint) -> Void
@@ -164,13 +164,11 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
     var onDismiss: () -> Void
     var onEnded: (Bool) -> Void
 
-    @SwiftUI.Environment(\.flowDismiss) var flowDismiss
-
     private var panGestureRecognizer: UIPanGestureRecognizer!
     private var edgeGestureRecognizer: UIScreenEdgePanGestureRecognizer!
 
     /// Bool that tracks active dragging to be used to track tool bar position for overlappingTopInset
-    @Published var isUpdating: Bool = false
+    var isUpdating: Bool = false
 
     private var isPastThreshold: Bool = false
     private var impactGenerator: UIImpactFeedbackGenerator
@@ -220,7 +218,7 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
     private func edgeGestureUpdated(recognizer: UIScreenEdgePanGestureRecognizer) {
         guard let view = recognizer.view else { return }
         let offset = recognizer.translation(in: view)
-        update(offset: offset, isEdge: true, hasEnded: recognizer.state == .ended)
+        update(offset: offset, isEdge: true, state: recognizer.state)
     }
 
     @objc
@@ -228,12 +226,12 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
         guard let view = recognizer.view else { return }
         let offset = recognizer.translation(in: view)
 
-        update(offset: offset, isEdge: false, hasEnded: recognizer.state == .ended)
+        update(offset: offset, isEdge: false, state: recognizer.state)
     }
 
-    private func update(offset: CGPoint, isEdge: Bool, hasEnded: Bool) {
+    private func update(offset: CGPoint, isEdge: Bool, state: UIGestureRecognizer.State) {
         guard isEnabled else {
-            if hasEnded {
+            if state == .ended || state == .cancelled || state == .failed {
                 isUpdating = false
                 onEnded(false)
             }
@@ -243,17 +241,23 @@ class InteractiveDismissCoordinator: NSObject, ObservableObject, UIGestureRecogn
         isUpdating = true
         onPan(offset)
 
-        let shouldDismiss = offset.y > threshold || (offset.x > threshold && isEdge) || (-offset.y > threshold * 2 && swipeUpToDismiss)
-        if shouldDismiss != isPastThreshold && shouldDismiss, isEnabled {
+        let isPastThreshold = offset.y > threshold || (offset.x > threshold && isEdge) || (-offset.y > threshold * 2 && swipeUpToDismiss)
+        if isPastThreshold != self.isPastThreshold && isPastThreshold, isEnabled {
             impactGenerator.impactOccurred()
         }
 
-        isPastThreshold = shouldDismiss
+        self.isPastThreshold = isPastThreshold
+
+        // The system can take a gesture away, for an incoming call, say. That has to end the
+        // pull as well, or the view is left wherever it had been pulled to. It shouldn't
+        // dismiss, though, since it wasn't the person's doing.
+        let hasEnded = state == .ended || state == .cancelled || state == .failed
+        let shouldDismiss = isPastThreshold && state == .ended
 
         if hasEnded {
             if shouldDismiss {
                 onDismiss()
-                isPastThreshold = false
+                self.isPastThreshold = false
             } else {
                 isUpdating = false
             }
