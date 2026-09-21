@@ -538,4 +538,12 @@ final class SafeAreaCompensationTests: XCTestCase {
         XCTAssertEqual(compensation(card, restingAt: card, in: window, insets: insets), .zero)
         XCTAssertEqual(compensation(card.offsetBy(dx: 0, dy: 50), restingAt: card, in: window, insets: insets), .zero)
     }
+
+    func testViewCountsAsBackAtRestOnceItIsTooCloseToTell() {
+        // A view that was let go springs back, and gets there by ever smaller amounts.
+        XCTAssertTrue(portrait.offsetBy(dx: 0, dy: 0.05).isApproximatelyEqual(to: portrait))
+        XCTAssertTrue(portrait.insetBy(dx: 0.02, dy: 0.02).isApproximatelyEqual(to: portrait))
+        XCTAssertFalse(portrait.offsetBy(dx: 0, dy: 0.5).isApproximatelyEqual(to: portrait))
+        XCTAssertFalse(portrait.insetBy(dx: 0, dy: 0.5).isApproximatelyEqual(to: portrait))
+    }
 }

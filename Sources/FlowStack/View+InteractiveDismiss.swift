@@ -88,6 +88,9 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
     /// Where the view was in its window when the pull began.
     private var restingFrame: CGRect?
 
+    /// Gives up on a view that was let go but never got back to where it rested.
+    private var settleTimeout: DispatchWorkItem?
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -105,24 +108,47 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
         updateSafeAreaCompensation()
     }
 
-    /// Keeps the content's safe area as it was at rest while a pull moves the view.
+    /// Keeps the content's safe area as it was at rest while a pull has the view out of place.
     ///
     /// A view loses safe area inset on an edge as it moves in from that edge of the screen, so
     /// its content would reflow as it is pulled around. That is any edge with an inset: the
     /// top in portrait, and either side in landscape, where an edge swipe drags the view
     /// clean away from the inset it started against.
+    ///
+    /// A pull that is let go leaves the view out of place until it has sprung back, so that
+    /// is how long this lasts, rather than only for as long as the finger is down.
     private func updateSafeAreaCompensation() {
-        guard coordinator.isUpdating, let window = view.window else {
-            restingFrame = nil
-            if additionalSafeAreaInsets != .zero {
-                additionalSafeAreaInsets = .zero
-            }
+        guard let window = view.window else {
+            endSafeAreaCompensation()
             return
         }
 
         let frame = view.convert(view.bounds, to: window)
-        let restingFrame = self.restingFrame ?? frame
-        self.restingFrame = restingFrame
+
+        if coordinator.isUpdating {
+            settleTimeout?.cancel()
+            settleTimeout = nil
+            restingFrame = restingFrame ?? frame
+        }
+
+        guard let restingFrame = restingFrame else {
+            endSafeAreaCompensation()
+            return
+        }
+
+        if !coordinator.isUpdating {
+            if frame.isApproximatelyEqual(to: restingFrame) {
+                endSafeAreaCompensation()
+                return
+            }
+            if settleTimeout == nil {
+                // The layout can change underneath a view that is settling, by rotating,
+                // say, and then it never gets back to where it was.
+                let timeout = DispatchWorkItem { [weak self] in self?.endSafeAreaCompensation() }
+                settleTimeout = timeout
+                DispatchQueue.main.asyncAfter(deadline: .now() + Constants.settleTimeout, execute: timeout)
+            }
+        }
 
         let compensation = Self.safeAreaCompensation(
             frame: frame,
@@ -133,6 +159,107 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
         if !compensation.isApproximatelyEqual(to: additionalSafeAreaInsets) {
             additionalSafeAreaInsets = compensation
         }
+
+        holdNavigationBars()
+    }
+
+    private func endSafeAreaCompensation() {
+        settleTimeout?.cancel()
+        settleTimeout = nil
+        restingFrame = nil
+
+        if additionalSafeAreaInsets != .zero {
+            additionalSafeAreaInsets = .zero
+        }
+        releaseNavigationBars()
+    }
+
+    // MARK: Navigation bars
+
+    /// A navigation bar inside the content, and where it and its content sat at rest.
+    private struct HeldNavigationBar {
+        weak var navigationController: UINavigationController?
+        var barMinY: CGFloat
+        var contentTopInset: CGFloat
+        /// What has been added to the top view controller's safe area to hold its inset.
+        var addedInset: CGFloat = 0
+        var observation: NSKeyValueObservation?
+    }
+
+    private var heldNavigationBars: [HeldNavigationBar]?
+
+    /// Holds navigation bars in the content where they were at rest, along with the safe area.
+    ///
+    /// Before iOS 26, a navigation controller places its bar by how much of the status bar
+    /// its view sits under on screen. As a pull moves the view down out from under the status
+    /// bar, the bar slides up inside it and the content's top inset shrinks to match.
+    /// Holding this view's safe area doesn't prevent it, since the safe area isn't what
+    /// places the bar.
+    private func holdNavigationBars() {
+        if #available(iOS 26.0, *) { return }
+
+        if heldNavigationBars == nil {
+            heldNavigationBars = navigationControllers(in: self).compactMap { navigationController in
+                let bar = navigationController.navigationBar
+                guard !navigationController.isNavigationBarHidden, bar.transform.isIdentity,
+                      let content = navigationController.topViewController else { return nil }
+
+                var held = HeldNavigationBar(
+                    navigationController: navigationController,
+                    barMinY: bar.frame.minY,
+                    contentTopInset: content.view.safeAreaInsets.top
+                )
+                held.observation = bar.layer.observe(\.position) { [weak self] _, _ in
+                    self?.holdNavigationBars()
+                }
+                return held
+            }
+        }
+
+        for index in (heldNavigationBars ?? []).indices {
+            guard let held = heldNavigationBars?[index], let navigationController = held.navigationController else { continue }
+
+            // Moved by a transform, which the navigation controller's own layout leaves be.
+            let bar = navigationController.navigationBar
+            let offset = held.barMinY - (bar.center.y - bar.bounds.height / 2)
+            if abs(bar.transform.ty - offset) > Constants.tolerance {
+                bar.transform = CGAffineTransform(translationX: 0, y: offset)
+            }
+
+            guard let content = navigationController.topViewController else { continue }
+            let added = held.addedInset + held.contentTopInset - content.view.safeAreaInsets.top
+            if abs(added - held.addedInset) > Constants.tolerance {
+                heldNavigationBars?[index].addedInset = added
+                content.additionalSafeAreaInsets.top += added - held.addedInset
+            }
+        }
+    }
+
+    private func releaseNavigationBars() {
+        for held in heldNavigationBars ?? [] {
+            held.observation?.invalidate()
+            guard let navigationController = held.navigationController else { continue }
+
+            navigationController.navigationBar.transform = .identity
+            if held.addedInset != 0, let content = navigationController.topViewController {
+                content.additionalSafeAreaInsets.top -= held.addedInset
+            }
+        }
+        heldNavigationBars = nil
+    }
+
+    private func navigationControllers(in viewController: UIViewController) -> [UINavigationController] {
+        viewController.children.flatMap { child -> [UINavigationController] in
+            if let navigationController = child as? UINavigationController {
+                return [navigationController]
+            }
+            return navigationControllers(in: child)
+        }
+    }
+
+    private enum Constants {
+        static var tolerance: CGFloat { 0.1 }
+        static var settleTimeout: TimeInterval { 1 }
     }
 
     /// The safe area inset a view has lost on each edge since it was at rest.
@@ -395,5 +522,13 @@ extension UIEdgeInsets {
     func isApproximatelyEqual(to other: UIEdgeInsets, tolerance: CGFloat = 0.1) -> Bool {
         abs(top - other.top) < tolerance && abs(left - other.left) < tolerance &&
         abs(bottom - other.bottom) < tolerance && abs(right - other.right) < tolerance
+    }
+}
+
+extension CGRect {
+    /// Whether the rectangles differ by less than could be seen.
+    func isApproximatelyEqual(to other: CGRect, tolerance: CGFloat = 0.1) -> Bool {
+        abs(minX - other.minX) < tolerance && abs(minY - other.minY) < tolerance &&
+        abs(width - other.width) < tolerance && abs(height - other.height) < tolerance
     }
 }
