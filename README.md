@@ -86,6 +86,24 @@ Button("Dismiss") {
 }
 ```
 
+## Returning to a link
+
+A dismissal zooms back into the flow link wherever it is *now*, not where it was when it was activated. If the layout changed while the destination was presented, because the device rotated or an iPhone Duo was opened or folded, the destination returns to the link's new position and size.
+
+As a destination is dismissed, its link is also scrolled fully into view, without animation, so there is always somewhere visible to return to. That includes bringing it out from under a navigation bar. It never happens while a destination is being presented.
+
+After a layout change a link can end up far outside the visible area, where a lazy container like `LazyVStack` hasn't created it. FlowStack scrolls to the link's row by identity to bring it into existence, and takes the row's identifier to be the `id` of an `Identifiable` value, or else the value itself:
+
+```swift
+ForEach(parks) { park in                 // rows identified by park.id ...
+    FlowLink(value: park) { ... }        // ... which FlowStack derives from the link's value
+}
+```
+
+A `ForEach` keyed some other way still works, but a link that isn't on screen can't be scrolled to, and the dismissal zooms to where the link used to be.
+
+Dismiss with **flowDismiss** where you can, rather than by removing from a `FlowPath` yourself. It brings the link into view *before* the dismissal begins, which removing from the path directly can only do after the fact.
+
 ## Manage navigation state
 
 By default, a flow stack manages state for any view contained, added or removed from the stack. If you need direct access and control of the state, you can create a binding to a FlowPath and initialize a flow stack with the flow path binding.
