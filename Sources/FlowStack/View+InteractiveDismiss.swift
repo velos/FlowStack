@@ -160,7 +160,7 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
             additionalSafeAreaInsets = compensation
         }
 
-        holdNavigationBars()
+        holdNavigationStacks()
     }
 
     private func endSafeAreaCompensation() {
@@ -171,81 +171,84 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
         if additionalSafeAreaInsets != .zero {
             additionalSafeAreaInsets = .zero
         }
-        releaseNavigationBars()
+        releaseNavigationStacks()
     }
 
-    // MARK: Navigation bars
+    // MARK: Navigation stacks
 
-    /// A navigation bar inside the content, and where it and its content sat at rest.
-    private struct HeldNavigationBar {
+    /// A navigation stack inside the content, and where its bar and content sat at rest.
+    private struct HeldNavigationStack {
         weak var navigationController: UINavigationController?
-        var barMinY: CGFloat
-        var contentTopInset: CGFloat
-        /// What has been added to the top view controller's safe area to hold its inset.
-        var addedInset: CGFloat = 0
-        var observation: NSKeyValueObservation?
+        /// Where the bar sat, on systems that move it during a pull.
+        var barMinY: CGFloat?
+        var contentInsets: UIEdgeInsets
+        /// What has been added to the top view controller's safe area to hold its insets.
+        var addedInsets: UIEdgeInsets = .zero
+        var observations: [NSKeyValueObservation] = []
     }
 
-    private var heldNavigationBars: [HeldNavigationBar]?
+    private var heldNavigationStacks: [HeldNavigationStack]?
 
-    /// Holds navigation bars in the content where they were at rest, along with the safe area.
+    /// Holds the content of any navigation stack inside this view laid out as it was at rest.
     ///
-    /// Before iOS 26, a navigation controller places its bar by how much of the status bar
-    /// its view sits under on screen. As a pull moves the view down out from under the status
-    /// bar, the bar slides up inside it and the content's top inset shrinks to match.
-    /// Holding this view's safe area doesn't prevent it, since the safe area isn't what
-    /// places the bar.
-    private func holdNavigationBars() {
-        if #available(iOS 26.0, *) { return }
-
-        if heldNavigationBars == nil {
-            heldNavigationBars = navigationControllers(in: self).compactMap { navigationController in
+    /// A navigation controller works its content's safe area out for itself, from where the
+    /// content sits on screen, so holding this view's safe area doesn't reach it. Its content
+    /// gains inset on an edge as the content overhangs that edge of the screen, which an edge
+    /// swipe does to the trailing edge, where iPhone Duo's camera and status items are. And
+    /// before iOS 26 the bar is placed by how far the content sits under the status bar: as
+    /// a pull moves the view down, the bar slides up inside it and the top inset shrinks.
+    private func holdNavigationStacks() {
+        if heldNavigationStacks == nil {
+            heldNavigationStacks = navigationControllers(in: self).compactMap { navigationController in
                 let bar = navigationController.navigationBar
-                guard !navigationController.isNavigationBarHidden, bar.transform.isIdentity,
-                      let content = navigationController.topViewController else { return nil }
+                guard bar.transform.isIdentity, let content = navigationController.topViewController else { return nil }
 
-                var held = HeldNavigationBar(
-                    navigationController: navigationController,
-                    barMinY: bar.frame.minY,
-                    contentTopInset: content.view.safeAreaInsets.top
-                )
-                held.observation = bar.layer.observe(\.position) { [weak self] _, _ in
-                    self?.holdNavigationBars()
+                var held = HeldNavigationStack(navigationController: navigationController, contentInsets: content.view.safeAreaInsets)
+                if #unavailable(iOS 26.0), !navigationController.isNavigationBarHidden {
+                    held.barMinY = bar.frame.minY
                 }
+                held.observations.append(bar.layer.observe(\.position) { [weak self] _, _ in
+                    self?.holdNavigationStacks()
+                })
+                held.observations.append(content.view.observe(\.safeAreaInsets) { [weak self] _, _ in
+                    self?.holdNavigationStacks()
+                })
                 return held
             }
         }
 
-        for index in (heldNavigationBars ?? []).indices {
-            guard let held = heldNavigationBars?[index], let navigationController = held.navigationController else { continue }
+        for index in (heldNavigationStacks ?? []).indices {
+            guard let held = heldNavigationStacks?[index], let navigationController = held.navigationController else { continue }
 
             // Moved by a transform, which the navigation controller's own layout leaves be.
             let bar = navigationController.navigationBar
-            let offset = held.barMinY - (bar.center.y - bar.bounds.height / 2)
-            if abs(bar.transform.ty - offset) > Constants.tolerance {
-                bar.transform = CGAffineTransform(translationX: 0, y: offset)
+            if let barMinY = held.barMinY {
+                let offset = barMinY - (bar.center.y - bar.bounds.height / 2)
+                if abs(bar.transform.ty - offset) > Constants.tolerance {
+                    bar.transform = CGAffineTransform(translationX: 0, y: offset)
+                }
             }
 
             guard let content = navigationController.topViewController else { continue }
-            let added = held.addedInset + held.contentTopInset - content.view.safeAreaInsets.top
-            if abs(added - held.addedInset) > Constants.tolerance {
-                heldNavigationBars?[index].addedInset = added
-                content.additionalSafeAreaInsets.top += added - held.addedInset
+            let added = held.addedInsets + held.contentInsets - content.view.safeAreaInsets
+            if !added.isApproximatelyEqual(to: held.addedInsets, tolerance: Constants.tolerance) {
+                heldNavigationStacks?[index].addedInsets = added
+                content.additionalSafeAreaInsets = content.additionalSafeAreaInsets + added - held.addedInsets
             }
         }
     }
 
-    private func releaseNavigationBars() {
-        for held in heldNavigationBars ?? [] {
-            held.observation?.invalidate()
+    private func releaseNavigationStacks() {
+        for held in heldNavigationStacks ?? [] {
+            held.observations.forEach { $0.invalidate() }
             guard let navigationController = held.navigationController else { continue }
 
             navigationController.navigationBar.transform = .identity
-            if held.addedInset != 0, let content = navigationController.topViewController {
-                content.additionalSafeAreaInsets.top -= held.addedInset
+            if held.addedInsets != .zero, let content = navigationController.topViewController {
+                content.additionalSafeAreaInsets = content.additionalSafeAreaInsets - held.addedInsets
             }
         }
-        heldNavigationBars = nil
+        heldNavigationStacks = nil
     }
 
     private func navigationControllers(in viewController: UIViewController) -> [UINavigationController] {
@@ -516,6 +519,14 @@ extension View {
 }
 
 extension UIEdgeInsets {
+    static func + (lhs: UIEdgeInsets, rhs: UIEdgeInsets) -> UIEdgeInsets {
+        UIEdgeInsets(top: lhs.top + rhs.top, left: lhs.left + rhs.left, bottom: lhs.bottom + rhs.bottom, right: lhs.right + rhs.right)
+    }
+
+    static func - (lhs: UIEdgeInsets, rhs: UIEdgeInsets) -> UIEdgeInsets {
+        UIEdgeInsets(top: lhs.top - rhs.top, left: lhs.left - rhs.left, bottom: lhs.bottom - rhs.bottom, right: lhs.right - rhs.right)
+    }
+
     /// Whether the insets differ by less than could be seen. Setting a view controller's
     /// additional safe area insets changes its safe area, which is one of the things that
     /// prompts them to be worked out, so this is what lets that settle.
