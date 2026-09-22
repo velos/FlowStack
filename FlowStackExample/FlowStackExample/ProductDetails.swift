@@ -234,9 +234,13 @@ private struct SafeAreaReadout: View {
 struct SearchRequest: Hashable {}
 
 /// A search over the products, presented from the button floating over the flow stack.
+///
+/// The field takes focus as the search appears, so the keyboard rises with it, and gives
+/// it up as the search is dismissed, so the keyboard goes with it.
 struct ProductSearch: View {
     @Environment(\.flowDismiss) var flowDismiss
     @State private var query = ""
+    @FocusState private var isSearching: Bool
 
     private var results: [Product] {
         let query = query.trimmingCharacters(in: .whitespaces)
@@ -253,7 +257,20 @@ struct ProductSearch: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .searchable(text: $query, prompt: "Products")
+            .safeAreaInset(edge: .bottom) {
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("Products", text: $query)
+                        .focused($isSearching)
+                        .submitLabel(.search)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(.thinMaterial, in: Capsule())
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+            }
             .navigationTitle("Search")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -265,6 +282,8 @@ struct ProductSearch: View {
                 }
             }
         }
+        .onAppear { isSearching = true }
+        .withFlowAnimation(onDismiss: { isSearching = false })
     }
 }
 

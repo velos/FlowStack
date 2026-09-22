@@ -12,10 +12,11 @@ struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let cornerRadius: CGFloat = 24
     @State private var presentationStyle: FlowPresentationStyle = .automatic
+    @State private var path = FlowPath()
     @StateObject private var detailOptions = DetailOptions()
 
     var body: some View {
-        FlowStack(overlayAlignment: .bottomTrailing) {
+        FlowStack(path: $path, overlayAlignment: .bottomTrailing) {
             // The navigation container goes inside the flow stack. Outside it, the
             // navigation bar would be drawn over presented destinations.
             NavigationContainer {
@@ -56,11 +57,20 @@ struct ContentView: View {
 
             }
         } overlay: {
-            // The overlay stays in front of whatever the flow stack presents. A flow link in
-            // it can present from anywhere in the stack, at any depth.
-            searchButton
-                .padding(20)
+            // The overlay stays in front of whatever the flow stack presents, so a flow link
+            // in it can present from anywhere in the stack. This one is only wanted over the
+            // root, and fades out while anything is presented.
+            if path.isEmpty {
+                searchButton
+                    .padding(20)
+                    .transition(.opacity)
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: path.isEmpty)
+        // The search brings up the keyboard. Kept out of the flow stack's safe area, it
+        // doesn't shrink the stack, and the zoom to and from the search button with it; the
+        // destination keeps clear of the keyboard by itself.
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .accessibilityElement(children: .contain) 
     }
 

@@ -232,6 +232,11 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
         /// Where the bar sat, on systems that move it during a pull.
         var barMinY: CGFloat?
         var contentInsets: UIEdgeInsets
+        /// The edges of the content's safe area that are held. The top always is, for the bar.
+        /// Another edge is only held while nothing but the navigation controller contributes
+        /// to it: an edge with a keyboard against it, say, is worked out from the keyboard's
+        /// overlap by UIKit, which takes anything added to it into account and never settles.
+        var heldEdges: UIRectEdge
         /// What has been added to the top view controller's safe area to hold its insets.
         var addedInsets: UIEdgeInsets = .zero
         var observations: [NSKeyValueObservation] = []
@@ -257,6 +262,8 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
     }
 
     private var heldNavigationStacks: [HeldNavigationStack]?
+    /// Setting a safe area reports it changed, synchronously, which mustn't hold again.
+    private var isHoldingNavigationStacks = false
 
     /// Holds the content of any navigation stack inside this view laid out as it was at rest.
     ///
@@ -267,12 +274,23 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
     /// before iOS 26 the bar is placed by how far the content sits under the status bar: as
     /// a pull moves the view down, the bar slides up inside it and the top inset shrinks.
     private func holdNavigationStacks() {
+        guard !isHoldingNavigationStacks else { return }
+        isHoldingNavigationStacks = true
+        defer { isHoldingNavigationStacks = false }
+
         if heldNavigationStacks == nil {
             heldNavigationStacks = navigationControllers(in: self).compactMap { navigationController in
                 let bar = navigationController.navigationBar
                 guard bar.transform.isIdentity, let content = navigationController.topViewController else { return nil }
 
-                var held = HeldNavigationStack(navigationController: navigationController, contentInsets: content.view.safeAreaInsets)
+                let contentInsets = content.view.safeAreaInsets
+                let ownInsets = navigationController.view.safeAreaInsets
+                var heldEdges: UIRectEdge = .top
+                if abs(contentInsets.left - ownInsets.left) < Constants.tolerance { heldEdges.insert(.left) }
+                if abs(contentInsets.right - ownInsets.right) < Constants.tolerance { heldEdges.insert(.right) }
+                if abs(contentInsets.bottom - ownInsets.bottom) < Constants.tolerance { heldEdges.insert(.bottom) }
+
+                var held = HeldNavigationStack(navigationController: navigationController, contentInsets: contentInsets, heldEdges: heldEdges)
                 if #unavailable(iOS 26.0), !navigationController.isNavigationBarHidden {
                     held.barMinY = bar.frame.minY
                 }
@@ -313,7 +331,10 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
             }
 
             guard let content = navigationController.topViewController else { continue }
-            let added = held.addedInsets + held.contentInsets - content.view.safeAreaInsets
+            var added = held.addedInsets + held.contentInsets - content.view.safeAreaInsets
+            if !held.heldEdges.contains(.left) { added.left = 0 }
+            if !held.heldEdges.contains(.right) { added.right = 0 }
+            if !held.heldEdges.contains(.bottom) { added.bottom = 0 }
             if !added.isApproximatelyEqual(to: held.addedInsets, tolerance: Constants.tolerance) {
                 heldNavigationStacks?[index].addedInsets = added
                 content.additionalSafeAreaInsets = content.additionalSafeAreaInsets + added - held.addedInsets

@@ -130,25 +130,41 @@ One thing to watch for: FlowStack brings a link that a lazy container has let go
 
 ## An overlay over the stack
 
-A flow stack can take an `overlay`, a view that stays in front of whatever the stack presents. A flow link in it presents from wherever the stack is, at any depth, and the destination zooms out of and back into the link as usual. That suits a floating button for something like search:
+A flow stack can take an `overlay`, a view that stays in front of whatever the stack presents. A flow link in it presents from wherever the stack is, at any depth, and the destination zooms out of and back into the link as usual. That suits a floating button for something like search, or a prompt:
 
 ```swift
-FlowStack(overlayAlignment: .bottomTrailing) {
+@State private var path = FlowPath()
+
+FlowStack(path: $path, overlayAlignment: .bottomTrailing) {
     ProductList()
         .flowDestination(for: SearchRequest.self) { _ in
             ProductSearch()
         }
 } overlay: {
-    FlowLink(value: SearchRequest(), configuration: .init(cornerRadius: 28)) {
-        Image(systemName: "magnifyingglass")
-            .frame(width: 56, height: 56)
-            .glassEffect(.regular.interactive(), in: .circle) // iOS 26 and later
+    if path.isEmpty {                       // only wanted over the root
+        FlowLink(value: SearchRequest(), configuration: .init(cornerRadius: 28)) {
+            Image(systemName: "magnifyingglass")
+                .frame(width: 56, height: 56)
+                .glassEffect(.regular.interactive(), in: .circle) // iOS 26 and later
+        }
+        .padding(20)
+        .transition(.opacity)
     }
-    .padding(20)
 }
+.animation(.easeInOut(duration: 0.2), value: path.isEmpty)
+.ignoresSafeArea(.keyboard, edges: .bottom)
 ```
 
-The link's label can be anything, including Liquid Glass on iOS 26 and later; the example app falls back to a material circle before that. The overlay is laid out within the stack's safe area, so it keeps clear of system UI on every device.
+The link's label can be anything, including Liquid Glass on iOS 26 and later; the example app falls back to a material circle before that. The overlay is laid out within the stack's safe area, so it keeps clear of system UI on every device. The link itself hides while its destination is presented; hiding the whole overlay on `path.isEmpty`, as here, keeps it from floating over other destinations too.
+
+A destination that brings up the keyboard, like a search, wants two more things. Keep the keyboard out of the flow stack's safe area with `.ignoresSafeArea(.keyboard)`, as above, so the stack and the zoom to and from the button aren't squashed by it; the destination keeps clear of the keyboard on its own. And give the field focus as the destination appears and take it back as it is dismissed, so the keyboard comes and goes with the zoom:
+
+```swift
+@FocusState private var isSearching: Bool
+...
+.onAppear { isSearching = true }
+.withFlowAnimation(onDismiss: { isSearching = false })
+```
 
 ## Manage navigation state
 
