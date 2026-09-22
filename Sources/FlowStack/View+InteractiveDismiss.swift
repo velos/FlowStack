@@ -185,6 +185,25 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
         /// What has been added to the top view controller's safe area to hold its insets.
         var addedInsets: UIEdgeInsets = .zero
         var observations: [NSKeyValueObservation] = []
+        var floatingItems: [HeldFloatingItem] = []
+    }
+
+    /// An item floating over a navigation stack's content, and where it sat at rest in this view.
+    ///
+    /// From iOS 26 a navigation stack can float its items in a pocket beside the screen's
+    /// system UI, as a folded iPhone Duo does beside its camera column. The pocket is placed
+    /// on screen, so as a pull moves the view the items slide about inside it, staying put on
+    /// screen until the view's edge stops them. The pocket's layout works from where its
+    /// container is on screen, so the container can't be moved back without the layout
+    /// following it around; the item itself can, since the layout only places it.
+    private struct HeldFloatingItem {
+        /// The view that is moved back: the item's control, with the compact views around it
+        /// that its layout places as one.
+        weak var item: UIView?
+        weak var control: UIView?
+        /// Where the control sat at rest, in this view.
+        var center: CGPoint
+        var observations: [NSKeyValueObservation] = []
     }
 
     private var heldNavigationStacks: [HeldNavigationStack]?
@@ -213,6 +232,7 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
                 held.observations.append(content.view.observe(\.safeAreaInsets) { [weak self] _, _ in
                     self?.holdNavigationStacks()
                 })
+                held.floatingItems = floatingItems(in: navigationController)
                 return held
             }
         }
@@ -226,6 +246,19 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
                 let offset = barMinY - (bar.center.y - bar.bounds.height / 2)
                 if abs(bar.transform.ty - offset) > Constants.tolerance {
                     bar.transform = CGAffineTransform(translationX: 0, y: offset)
+                }
+            }
+
+            for floating in held.floatingItems {
+                guard let item = floating.item, let control = floating.control, let superview = control.superview else { continue }
+                // Where the layout has put the control, in this view, were the item not moved back.
+                let placed = superview.convert(control.center, to: view)
+                let translation = CGPoint(
+                    x: floating.center.x - placed.x + item.transform.tx,
+                    y: floating.center.y - placed.y + item.transform.ty
+                )
+                if abs(translation.x - item.transform.tx) > Constants.tolerance || abs(translation.y - item.transform.ty) > Constants.tolerance {
+                    item.transform = CGAffineTransform(translationX: translation.x, y: translation.y)
                 }
             }
 
@@ -244,11 +277,50 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
             guard let navigationController = held.navigationController else { continue }
 
             navigationController.navigationBar.transform = .identity
+            for floating in held.floatingItems {
+                floating.observations.forEach { $0.invalidate() }
+                floating.item?.transform = .identity
+            }
             if held.addedInsets != .zero, let content = navigationController.topViewController {
                 content.additionalSafeAreaInsets = content.additionalSafeAreaInsets - held.addedInsets
             }
         }
         heldNavigationStacks = nil
+    }
+
+    /// The items floating over a navigation stack's content: each control in whatever the
+    /// navigation controller's view holds besides its bar and its content, taken with the
+    /// compact views around it that its layout places as one.
+    private func floatingItems(in navigationController: UINavigationController) -> [HeldFloatingItem] {
+        guard #available(iOS 26.0, *) else { return [] }
+        let content = navigationController.topViewController?.view
+
+        return navigationController.view.subviews.flatMap { container -> [HeldFloatingItem] in
+            guard container !== navigationController.navigationBar, content?.isDescendant(of: container) != true else { return [] }
+
+            return controls(in: container).compactMap { control in
+                var item: UIView = control
+                while let superview = item.superview, superview !== container,
+                      superview.bounds.width <= Constants.maxFloatingItemSize, superview.bounds.height <= Constants.maxFloatingItemSize {
+                    item = superview
+                }
+                guard item.transform.isIdentity, let superview = control.superview else { return nil }
+
+                var held = HeldFloatingItem(item: item, control: control, center: superview.convert(control.center, to: view))
+                var ancestor: UIView? = item
+                while let current = ancestor, current !== container {
+                    held.observations.append(current.layer.observe(\.position) { [weak self] _, _ in
+                        self?.holdNavigationStacks()
+                    })
+                    ancestor = current.superview
+                }
+                return held
+            }
+        }
+    }
+
+    private func controls(in view: UIView) -> [UIView] {
+        view.subviews.flatMap { $0 is UIControl ? [$0] : controls(in: $0) }
     }
 
     private func navigationControllers(in viewController: UIViewController) -> [UINavigationController] {
@@ -263,6 +335,8 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
     private enum Constants {
         static var tolerance: CGFloat { 0.1 }
         static var settleTimeout: TimeInterval { 1 }
+        /// Larger than any floating item; smaller than the views that lay them out.
+        static var maxFloatingItemSize: CGFloat { 120 }
     }
 
     /// The safe area inset a view has lost on each edge since it was at rest.
