@@ -124,6 +124,7 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
         }
 
         let frame = view.convert(view.bounds, to: window)
+        noteNavigationBarPlacement(frame: frame)
 
         if coordinator.isUpdating {
             settleTimeout?.cancel()
@@ -172,6 +173,55 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
             additionalSafeAreaInsets = .zero
         }
         releaseNavigationStacks()
+    }
+
+    // MARK: Navigation bar placement
+
+    /// Whether the view has overhung the top of the screen since its navigation bars were
+    /// last placed at rest.
+    private var overhungTop = false
+    private var barPlacementCheck: DispatchWorkItem?
+
+    /// Has a navigation stack inside the view place its bar again once the view has come to
+    /// rest after overhanging the top of the screen.
+    ///
+    /// Before iOS 26, a navigation controller places its bar by how far its view sits under the
+    /// status bar, but only works that out now and then: when the view first reaches the status
+    /// bar, and when it starts or stops overhanging the top of the screen. A presentation's
+    /// spring overshoots, so the view overhangs briefly on arriving, and when it settles back
+    /// the bar is placed from a stale measurement taken partway through the presentation, well
+    /// above where it belongs. Hiding and showing the bar, in one turn of the run loop so that
+    /// nothing is drawn without it, has it measured again.
+    private func noteNavigationBarPlacement(frame: CGRect) {
+        if #available(iOS 26.0, *) { return }
+
+        if frame.minY < -Constants.tolerance {
+            overhungTop = true
+        }
+        guard overhungTop, restingFrame == nil else { return }
+
+        barPlacementCheck?.cancel()
+        let check = DispatchWorkItem { [weak self] in self?.placeNavigationBarsAtRest() }
+        barPlacementCheck = check
+        DispatchQueue.main.asyncAfter(deadline: .now() + Constants.barPlacementDelay, execute: check)
+    }
+
+    private func placeNavigationBarsAtRest() {
+        barPlacementCheck = nil
+        guard overhungTop, restingFrame == nil, let window = view.window,
+              view.convert(view.bounds, to: window).minY >= -Constants.tolerance else { return }
+        overhungTop = false
+
+        for navigationController in navigationControllers(in: self) {
+            guard !navigationController.isNavigationBarHidden,
+                  !Self.containsFirstResponder(navigationController.view) else { continue }
+            navigationController.setNavigationBarHidden(true, animated: false)
+            navigationController.setNavigationBarHidden(false, animated: false)
+        }
+    }
+
+    private static func containsFirstResponder(_ view: UIView) -> Bool {
+        view.isFirstResponder || view.subviews.contains(where: containsFirstResponder)
     }
 
     // MARK: Navigation stacks
@@ -335,6 +385,8 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
     private enum Constants {
         static var tolerance: CGFloat { 0.1 }
         static var settleTimeout: TimeInterval { 1 }
+        /// Long enough for a settling view to have stopped moving, short enough not to be seen.
+        static var barPlacementDelay: TimeInterval { 0.05 }
         /// Larger than any floating item; smaller than the views that lay them out.
         static var maxFloatingItemSize: CGFloat { 120 }
     }

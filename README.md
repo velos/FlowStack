@@ -128,6 +128,28 @@ Without an identifier, a value appended to the flow path zooms out of the most r
 
 One thing to watch for: FlowStack brings a link that a lazy container has let go back [by scrolling to its row's identifier](#returning-to-a-link). Two `ForEach`es over the same values in one scroll view give two rows the same identifier, and the scroll view may go to the wrong one. Identify the rows of one of them some other way, as the example app does for its featured products.
 
+## An overlay over the stack
+
+A flow stack can take an `overlay`, a view that stays in front of whatever the stack presents. A flow link in it presents from wherever the stack is, at any depth, and the destination zooms out of and back into the link as usual. That suits a floating button for something like search:
+
+```swift
+FlowStack(overlayAlignment: .bottomTrailing) {
+    ProductList()
+        .flowDestination(for: SearchRequest.self) { _ in
+            ProductSearch()
+        }
+} overlay: {
+    FlowLink(value: SearchRequest(), configuration: .init(cornerRadius: 28)) {
+        Image(systemName: "magnifyingglass")
+            .frame(width: 56, height: 56)
+            .glassEffect(.regular.interactive(), in: .circle) // iOS 26 and later
+    }
+    .padding(20)
+}
+```
+
+The link's label can be anything, including Liquid Glass on iOS 26 and later; the example app falls back to a material circle before that. The overlay is laid out within the stack's safe area, so it keeps clear of system UI on every device.
+
 ## Manage navigation state
 
 By default, a flow stack manages state for any view contained, added or removed from the stack. If you need direct access and control of the state, you can create a binding to a FlowPath and initialize a flow stack with the flow path binding.

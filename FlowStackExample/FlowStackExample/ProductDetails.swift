@@ -230,6 +230,44 @@ private struct SafeAreaReadout: View {
     }
 }
 
+/// What the search button presents. There is nothing to it: the search is the destination.
+struct SearchRequest: Hashable {}
+
+/// A search over the products, presented from the button floating over the flow stack.
+struct ProductSearch: View {
+    @Environment(\.flowDismiss) var flowDismiss
+    @State private var query = ""
+
+    private var results: [Product] {
+        let query = query.trimmingCharacters(in: .whitespaces)
+        return query.isEmpty ? Product.allProducts : Product.allProducts.filter { $0.name.localizedCaseInsensitiveContains(query) }
+    }
+
+    var body: some View {
+        NavigationContainer {
+            List(results) { product in
+                VStack(alignment: .leading) {
+                    Text(product.name)
+                    Text(product.released)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .searchable(text: $query, prompt: "Products")
+            .navigationTitle("Search")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if #available(iOS 26.0, *) {
+                        Button(role: .close) { flowDismiss() }
+                    } else {
+                        Button("Done") { flowDismiss() }
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct ProductDetails_Previews: PreviewProvider {
     static var previews: some View {
         ProductDetails(product: .appleII)

@@ -15,7 +15,7 @@ struct ContentView: View {
     @StateObject private var detailOptions = DetailOptions()
 
     var body: some View {
-        FlowStack {
+        FlowStack(overlayAlignment: .bottomTrailing) {
             // The navigation container goes inside the flow stack. Outside it, the
             // navigation bar would be drawn over presented destinations.
             NavigationContainer {
@@ -41,6 +41,9 @@ struct ContentView: View {
                     }
                 }
             }
+            .flowDestination(for: SearchRequest.self) { _ in
+                ProductSearch()
+            }
             .flowDestination(for: Product.self) { product in
                 ProductDetails(
                     product: product,
@@ -52,8 +55,23 @@ struct ContentView: View {
                     .accessibilityLabel("ProductDetails from flowDestination in contentView")
 
             }
+        } overlay: {
+            // The overlay stays in front of whatever the flow stack presents. A flow link in
+            // it can present from anywhere in the stack, at any depth.
+            searchButton
+                .padding(20)
         }
         .accessibilityElement(children: .contain) 
+    }
+
+    private var searchButton: some View {
+        FlowLink(value: SearchRequest(), configuration: .init(cornerRadius: 28, presentationStyle: presentationStyle)) {
+            Image(systemName: "magnifyingglass")
+                .font(.title2.weight(.semibold))
+                .frame(width: 56, height: 56)
+                .glassCircle()
+        }
+        .accessibilityLabel("Search")
     }
 
     private var presentationStyleMenu: some View {
@@ -163,6 +181,22 @@ private extension FlowPresentationStyle {
         case .fullScreen: return "arrow.up.left.and.arrow.down.right"
         case .card: return "rectangle.center.inset.filled"
         }
+    }
+}
+
+private extension View {
+    /// A circle of glass on systems that have it, and of material before that.
+    @ViewBuilder
+    func glassCircle() -> some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            glassEffect(.regular.interactive(), in: .circle)
+        } else {
+            background(.regularMaterial, in: Circle())
+        }
+        #else
+        background(.regularMaterial, in: Circle())
+        #endif
     }
 }
 
