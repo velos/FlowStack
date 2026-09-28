@@ -213,7 +213,7 @@ extension AnyTransition {
                     )
                     .opacity(context.anchor == nil ? percent : 1)
             }
-            .ignoresSafeArea(.container, edges: .all)
+            .ignoresSafeArea(.all, edges: .all)
         }
     }
 }
