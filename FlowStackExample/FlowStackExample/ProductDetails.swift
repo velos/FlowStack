@@ -131,7 +131,9 @@ struct ProductDetails: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityAction(.escape) { flowDismiss() }
             }
-            .ignoresSafeArea()
+            // Only the container: ignoring the keyboard too would leave any text field in the
+            // details behind it.
+            .ignoresSafeArea(.container)
             .overlay(alignment: .bottom) {
                 if showsSafeArea {
                     SafeAreaReadout(insets: proxy.safeAreaInsets, size: proxy.size)

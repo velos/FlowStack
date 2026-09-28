@@ -157,7 +157,7 @@ FlowStack(path: $path, overlayAlignment: .bottomTrailing) {
 
 The link's label can be anything, including Liquid Glass on iOS 26 and later; the example app falls back to a material circle before that. The overlay is laid out within the stack's safe area, so it keeps clear of system UI on every device. The link itself hides while its destination is presented; hiding the whole overlay on `path.isEmpty`, as here, keeps it from floating over other destinations too.
 
-A destination that brings up the keyboard, like a search, wants two more things. Keep the keyboard out of the flow stack's safe area with `.ignoresSafeArea(.keyboard)`, as above, so the stack and the zoom to and from the button aren't squashed by it; the destination keeps clear of the keyboard on its own. And give the field focus as the destination appears and take it back as it is dismissed, so the keyboard comes and goes with the zoom:
+A destination that brings up the keyboard, like a search, wants two more things. FlowStack keeps the destination itself clear of the keyboard (see [Text fields and the keyboard](#text-fields-and-the-keyboard)), but the root view and the overlay are laid out around it like any other view. `.ignoresSafeArea(.keyboard)` on the flow stack, as above, stops them from moving behind the destination as the keyboard comes and goes. And give the field focus as the destination appears and take it back as it is dismissed, so the keyboard comes and goes with the zoom:
 
 ```swift
 @FocusState private var isSearching: Bool
@@ -221,6 +221,25 @@ FlowLink(value: video, configuration: .init(cornerRadius: cornerRadius, presenta
 | `.card` | A card whenever the flow stack is wide enough to fit one, on any device. |
 
 Destinations that extend under system UI should respect the safe area on *every* edge their content touches, not just the top: on iPhone Duo, the camera and status items sit in the trailing corner and are reported as a trailing inset. For controls like a close button, prefer a toolbar item inside a `NavigationStack` in the destination over positioning one by hand; the system places toolbar items clear of system UI on every device.
+
+## Text fields and the keyboard
+
+When the keyboard comes up in a destination that fills the flow stack, the destination stays full size behind the keyboard, as any full-screen view does, and its content keeps clear of the keyboard through its safe area. A destination presented as a card moves up out of the keyboard's way instead, like a form sheet.
+
+So a destination that extends under system UI, like a hero image running up under the status bar, should ignore only the safe area it means to. `.ignoresSafeArea()` ignores the keyboard too, and leaves a text field in the destination behind it:
+
+```swift
+ScrollView {
+    ParkHeader(park: park)
+    ParkDescription(park: park)
+}
+.safeAreaInset(edge: .bottom) {
+    TextField("Add a note", text: $note)
+}
+.ignoresSafeArea(.container, edges: .top) // not .ignoresSafeArea(), which puts the field behind the keyboard
+```
+
+A destination hosted in a `NavigationStack` keeps its content clear of the keyboard either way, since the navigation stack works out its content's safe area for itself.
 
 ## Animation anchors
 

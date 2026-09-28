@@ -268,58 +268,76 @@ extension AnyTransition {
         }
 
         func body(content: Content) -> some View {
-            GeometryReader { proxy in
-                let zoomRect = zoomRect(with: proxy, anchor: resolvedContext.overrideAnchor ?? resolvedContext.anchor, percent: percent, pullOffset: panOffset)
-                let scaleRatio = resolvedContext.shouldScaleHorizontally ? zoomRect.size.width / proxy.size.width : 1.0
-
-                content
-                    .onInteractiveDismissGesture(threshold: 80, isEnabled: !isDisabled, isDismissing: isDismissing, swipeUpToDismiss: resolvedContext.swipeUpToDismiss, onDismiss: {
-                        guard !isDisabled else { return }
-                        defer { isDismissing = true }
-                        dismiss()
-                    }, onPan: { offset in
-                        guard !isDisabled else { return }
-                        if snapCornerRadiusZero {
-                            // The pull is just starting, so the destination still covers
-                            // its link. Waiting for the release would move the link in
-                            // plain sight behind the shrunken destination.
-                            linkContexts?.revealLink(for: value, atLevel: level, source: source)
-                        }
-                        self.snapCornerRadiusZero = false
-                        self.panOffset = offset
-                    }, onEnded: { _ in
-                        // TODO: FS-34: Handle snap corner radius 0 on interactive dismiss cancel
-                        withTransaction(transaction) {
-                            panOffset = .zero
-                        }
-                    })
-                    .onPreferenceChange(InteractiveDismissDisabledKey.self) { isDisabled in
-                        self.isDisabled = isDisabled
-                    }
-                    .overlay(alignment: .top) {
-                        if let image = activeSnapshot, percent < 1 {
-                            Image(uiImage: image)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .opacity(snapshotPercent)
-                        }
-                    }
-                    .clipShape(UnevenCornerShape(radii: cornerRadii(with: proxy).map { $0 / scaleRatio }, style: cornerStyle))
-                    .shadow(color: resolvedContext.shadowColor ?? .clear, radius: resolvedContext.shadowRadius, x: resolvedContext.shadowOffset.x, y: resolvedContext.shadowOffset.y)
-                    .frame(
-                        width: resolvedContext.shouldScaleHorizontally ? proxy.size.width : zoomRect.size.width,
-                        height: zoomRect.size.height / scaleRatio
-                    )
-                    .scaleEffect(x: scaleRatio, y: scaleRatio, anchor: .center)
-                    .transformEffect(.init(translationX: resolvedContext.anchor == nil ? (1 - percent) * proxy.size.width : 0, y: 0))
-                    .position(
-                        x: zoomRect.origin.x,
-                        y: zoomRect.origin.y
-                    )
-                    .opacity(resolvedContext.anchor == nil ? percent : 1)
+            // The keyboard is only ignored by a destination that fills the flow stack. That one
+            // stays full size behind the keyboard, as any full-screen view does, and its content
+            // keeps clear of the keyboard by its own safe area; were it shrunk to end at the
+            // keyboard instead, whatever is behind it would show through the keyboard, which is
+            // translucent from iOS 26. A card is laid out above the keyboard, so that it moves
+            // up out of the keyboard's way like a form sheet. Whether it fills the flow stack
+            // depends only on the width, which the keyboard never changes, so it is measured
+            // here, outside the keyboard. Ignoring the keyboard alone would stop the destination
+            // short of the bottom edge by the home indicator's inset, which the keyboard covers,
+            // so a full-screen destination ignores that too.
+            GeometryReader { container in
+                GeometryReader { proxy in
+                    presentation(of: content, in: proxy)
+                }
+                .ignoresSafeArea(isPresentedFullscreen(availableSize: container.size) ? .all : [], edges: .all)
             }
-            .ignoresSafeArea(.all, edges: .all)
+            .ignoresSafeArea(.container, edges: .all)
             .allowsHitTesting(isPresented)
+        }
+
+        @ViewBuilder
+        private func presentation(of content: Content, in proxy: GeometryProxy) -> some View {
+            let zoomRect = zoomRect(with: proxy, anchor: resolvedContext.overrideAnchor ?? resolvedContext.anchor, percent: percent, pullOffset: panOffset)
+            let scaleRatio = resolvedContext.shouldScaleHorizontally ? zoomRect.size.width / proxy.size.width : 1.0
+
+            content
+                .onInteractiveDismissGesture(threshold: 80, isEnabled: !isDisabled, isDismissing: isDismissing, swipeUpToDismiss: resolvedContext.swipeUpToDismiss, onDismiss: {
+                    guard !isDisabled else { return }
+                    defer { isDismissing = true }
+                    dismiss()
+                }, onPan: { offset in
+                    guard !isDisabled else { return }
+                    if snapCornerRadiusZero {
+                        // The pull is just starting, so the destination still covers
+                        // its link. Waiting for the release would move the link in
+                        // plain sight behind the shrunken destination.
+                        linkContexts?.revealLink(for: value, atLevel: level, source: source)
+                    }
+                    self.snapCornerRadiusZero = false
+                    self.panOffset = offset
+                }, onEnded: { _ in
+                    // TODO: FS-34: Handle snap corner radius 0 on interactive dismiss cancel
+                    withTransaction(transaction) {
+                        panOffset = .zero
+                    }
+                })
+                .onPreferenceChange(InteractiveDismissDisabledKey.self) { isDisabled in
+                    self.isDisabled = isDisabled
+                }
+                .overlay(alignment: .top) {
+                    if let image = activeSnapshot, percent < 1 {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .opacity(snapshotPercent)
+                    }
+                }
+                .clipShape(UnevenCornerShape(radii: cornerRadii(with: proxy).map { $0 / scaleRatio }, style: cornerStyle))
+                .shadow(color: resolvedContext.shadowColor ?? .clear, radius: resolvedContext.shadowRadius, x: resolvedContext.shadowOffset.x, y: resolvedContext.shadowOffset.y)
+                .frame(
+                    width: resolvedContext.shouldScaleHorizontally ? proxy.size.width : zoomRect.size.width,
+                    height: zoomRect.size.height / scaleRatio
+                )
+                .scaleEffect(x: scaleRatio, y: scaleRatio, anchor: .center)
+                .transformEffect(.init(translationX: resolvedContext.anchor == nil ? (1 - percent) * proxy.size.width : 0, y: 0))
+                .position(
+                    x: zoomRect.origin.x,
+                    y: zoomRect.origin.y
+                )
+                .opacity(resolvedContext.anchor == nil ? percent : 1)
         }
     }
 }
