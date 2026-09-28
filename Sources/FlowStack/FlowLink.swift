@@ -103,7 +103,17 @@ struct GestureContainer: UIViewRepresentable {
         return button
     }
 
-    func updateUIView(_ uiView: UIViewType, context: Context) { }
+    func updateUIView(_ uiView: UIViewType, context: Context) {
+        // The coordinator is made once and reused for the life of the
+        // representable, so without this the button keeps calling the very
+        // first onTap it was given — and that closure captured the FlowLink
+        // as it was on its first render, including its `value` and its
+        // `label`. A link whose row is refreshed in place (a cached list
+        // replaced by a fetched one, a count that moves) then pushes the
+        // stale value and snapshots the stale label, no matter how many
+        // times SwiftUI re-renders it.
+        context.coordinator.onTap = onTap
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(isPressed: $isPressed, onTap: onTap)
