@@ -279,6 +279,18 @@ public struct FlowLink<Label>: View where Label: View {
     @State private var size: CGSize?
     @State private var overrideFrame: CGRect?
     @State private var context: PathContext?
+    @State private var registeredContext: ContextRegistration?
+
+    /// Registration can change without the label's geometry changing at all.
+    private struct ContextRegistration: Equatable {
+        let key: FlowLinkContextStore.Key
+        let identity: FlowLinkIdentity
+        let store: FlowLinkContextStore
+
+        static func == (lhs: Self, rhs: Self) -> Bool {
+            lhs.key == rhs.key && lhs.identity == rhs.identity && lhs.store === rhs.store
+        }
+    }
 
     @State private var snapshots: [ColorScheme: UIImage] = [:]
     /// What `snapshots` were taken with. A snapshot taken with anything else shows the link
@@ -462,6 +474,10 @@ public struct FlowLink<Label>: View where Label: View {
         .task(id: SnapshotRefreshTrigger(inputs: snapshotInputs, colorScheme: colorScheme, isPresented: isContainedInPath)) {
             refreshSnapshotsIfPresented()
         }
+        .task(id: contextRegistration) {
+            guard !Task.isCancelled else { return }
+            reportContext(context)
+        }
         .background(
             ScrollRevealView(controller: scrollReveal)
                 .allowsHitTesting(false)
@@ -494,9 +510,7 @@ public struct FlowLink<Label>: View where Label: View {
             reportContext(context)
         }
         .onDisappear {
-            if let key = contextStoreKey {
-                linkContexts?.remove(key, owner: ObjectIdentifier(scrollReveal))
-            }
+            unregisterContext()
         }
     }
 
@@ -505,11 +519,29 @@ public struct FlowLink<Label>: View where Label: View {
         return .init(value: AnyHashable(value), level: flowDepth == -1 ? nil : flowDepth)
     }
 
+    private var contextRegistration: ContextRegistration? {
+        guard configuration.animateFromAnchor, let key = contextStoreKey, let store = linkContexts else { return nil }
+        return ContextRegistration(key: key, identity: identity, store: store)
+    }
+
     /// Keeps the flow stack informed of where this link is, so a transition can
     /// find it even if the layout has changed since the link was activated.
     private func reportContext(_ context: PathContext?) {
-        guard configuration.animateFromAnchor, let context = context, let key = contextStoreKey else { return }
-        linkContexts?.update(context, for: key, identity: identity, owner: ObjectIdentifier(scrollReveal), reveal: scrollReveal.reveal, prepareSnapshot: prepareSnapshotForDismissal)
+        let registration = contextRegistration
+        if registeredContext != registration {
+            unregisterContext()
+        }
+        guard let registration = registration, let context = context else { return }
+        if registeredContext != registration {
+            registeredContext = registration
+        }
+        registration.store.update(context, for: registration.key, identity: registration.identity, owner: ObjectIdentifier(scrollReveal), reveal: scrollReveal.reveal, prepareSnapshot: prepareSnapshotForDismissal)
+    }
+
+    private func unregisterContext() {
+        guard let registration = registeredContext else { return }
+        registration.store.remove(registration.key, owner: ObjectIdentifier(scrollReveal))
+        registeredContext = nil
     }
 
     private func updateGeometry(with proxy: GeometryProxy) {
