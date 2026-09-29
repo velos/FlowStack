@@ -64,6 +64,7 @@ struct InteractiveDismissContainer<T: View>: UIViewControllerRepresentable {
         context.coordinator.onDismiss = onDismiss
         context.coordinator.onEnded = onEnded
         context.coordinator.isDismissing = isDismissing
+        uiViewController.rootView = content
     }
 
     func makeCoordinator() -> InteractiveDismissCoordinator {
