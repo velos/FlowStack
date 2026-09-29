@@ -480,9 +480,13 @@ class InteractiveDismissCoordinator: NSObject, UIGestureRecognizerDelegate {
             guard oldValue != isEnabled else { return }
             panGestureRecognizer?.isEnabled = isEnabled
             edgeGestureRecognizer?.isEnabled = isEnabled
-            guard !isEnabled else { return }
+
+            // The content can disable dismissal after a pull has already begun.
+            // Return it to rest now, without waiting for the finger to lift.
+            guard !isEnabled, isUpdating, !isDismissing else { return }
             isUpdating = false
             isPastThreshold = false
+            scrollView?.isScrollEnabled = true
             onEnded(false)
         }
     }
@@ -572,14 +576,7 @@ class InteractiveDismissCoordinator: NSObject, UIGestureRecognizerDelegate {
     }
 
     private func update(offset: CGPoint, isEdge: Bool, state: UIGestureRecognizer.State) {
-        guard isEnabled else {
-            if state == .ended || state == .cancelled || state == .failed {
-                isUpdating = false
-                onEnded(false)
-            }
-            return
-        }
-
+        guard isEnabled, !isDismissing else { return }
         isUpdating = true
         onPan(offset)
 
@@ -610,7 +607,7 @@ class InteractiveDismissCoordinator: NSObject, UIGestureRecognizerDelegate {
     }
 
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        guard isEnabled else { return false }
+        guard isEnabled, !isDismissing else { return false }
         guard let scrollView = scrollView else { return true }
         scrollView.isScrollEnabled = true
         guard gestureRecognizer == panGestureRecognizer else { return true }
@@ -625,7 +622,7 @@ class InteractiveDismissCoordinator: NSObject, UIGestureRecognizerDelegate {
     }
 
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-        guard isEnabled else { return true }
+        guard isEnabled, !isDismissing else { return false }
         guard gestureRecognizer == panGestureRecognizer || gestureRecognizer == edgeGestureRecognizer, let scrollView = scrollView else {
             return true
         }
