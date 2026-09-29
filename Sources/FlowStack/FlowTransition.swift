@@ -310,8 +310,12 @@ extension AnyTransition {
                     self.panOffset = offset
                 }, onEnded: { _ in
                     // TODO: FS-34: Handle snap corner radius 0 on interactive dismiss cancel
-                    withTransaction(transaction) {
-                        panOffset = .zero
+                    // Disabling an active pull ends it from updateUIViewController.
+                    // Wait until that view update is over before changing SwiftUI state.
+                    DispatchQueue.main.async {
+                        withTransaction(transaction) {
+                            panOffset = .zero
+                        }
                     }
                 })
                 .onPreferenceChange(InteractiveDismissDisabledKey.self) { isDisabled in

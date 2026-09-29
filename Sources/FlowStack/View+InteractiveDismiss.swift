@@ -58,12 +58,12 @@ struct InteractiveDismissContainer<T: View>: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: InteractiveDismissViewController<T>, context: Context) {
         context.coordinator.threshold = threshold
-        context.coordinator.isEnabled = isEnabled
         context.coordinator.swipeUpToDismiss = swipeUpToDismiss
         context.coordinator.onPan = onPan
         context.coordinator.onDismiss = onDismiss
         context.coordinator.onEnded = onEnded
         context.coordinator.isDismissing = isDismissing
+        context.coordinator.isEnabled = isEnabled
         uiViewController.rootView = content
     }
 
