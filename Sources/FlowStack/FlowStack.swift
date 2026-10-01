@@ -119,16 +119,16 @@ public extension View {
     /// if it needs to present more than one kind of data.
     ///
     /// Do not put a navigation destination modifier inside a "lazy" container,
-    /// like ``List`` or ``LazyVStack``. These containers create child views
+    /// like `List` or `LazyVStack`. These containers create child views
     /// only when needed to render on screen. Add the flow destination
     /// modifier outside these containers so that the flow stack can
     /// always see the destination.
     ///
     /// - Parameters:
-    ///   - data: The type of data that this destination matches.
+    ///   - type: The type of data that this destination matches.
     ///   - destination: A view builder that defines a view to display
     ///     when the stack's flow navigation state contains a value of
-    ///     type `data`. The closure takes one argument, which is the value
+    ///     that type. The closure takes one argument, which is the value
     ///     of the data to present.
     func flowDestination<D, C>(for type: D.Type, @ViewBuilder destination: @escaping (D) -> C) -> some View where D: Hashable, C: View {
         let destination = AnyDestination(dataType: type, content: { param in
