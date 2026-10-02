@@ -169,8 +169,8 @@ extension AnyTransition {
 
                 content
                     .onInteractiveDismissGesture(threshold: 80, isEnabled: !isDisabled, isDismissing: isDismissing, swipeUpToDismiss: context.swipeUpToDismiss, onDismiss: {
-                        defer { isDismissing = true }
                         guard !isDisabled else { return }
+                        defer { isDismissing = true }
                         dismiss()
                     }, onPan: { offset in
                         defer { self.isEnded = false }
