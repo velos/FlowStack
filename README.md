@@ -7,7 +7,7 @@
 ![iOS 15.0+](https://img.shields.io/badge/iOS-15.0+-blue.svg)
 ![Swift 5.9+](https://img.shields.io/badge/Swift-5.9+-orange.svg)
 
-<img width="263" alt="image" src="https://temp.tejen.net/23flowstack/demo.gif">
+https://github.com/user-attachments/assets/c975bac5-abe7-4283-9d3c-83203cbd37dd
 
 ## Installation
 
