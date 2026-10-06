@@ -301,31 +301,20 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     private var flowDismissAction: FlowDismissAction {
         FlowDismissAction(
             onDismiss: {
-                guard let element = pathToUse.wrappedValue.elements.last else { return }
-
-                if let dismissAction = dismissAction {
-                    Task { @MainActor in
-                        await dismissAction()
-                        dismiss(element)
+                Task {
+                    guard let element = pathToUse.wrappedValue.elements.last else { return }
+                    // The link comes into view first, so that it is already standing in for
+                    // the destination when the destination starts zooming back into it.
+                    await dismissAction?()
+                    linkContexts.revealLink(for: AnyHashable(element.value), atLevel: element.index, source: element.source) {
+                        guard pathToUse.wrappedValue.elements.last == element else { return }
+                        withTransaction(transaction) {
+                            accessibilityManager.decrementIndex()
+                            pathToUse.wrappedValue.removeLast()
+                        }
                     }
-                } else {
-                    dismiss(element)
                 }
             })
-    }
-
-    private func dismiss(_ element: FlowElement) {
-        // The action may have changed the path while it was suspended.
-        guard pathToUse.wrappedValue.elements.last == element else { return }
-
-        // Reveal after the action finishes, using the link's current layout.
-        linkContexts.revealLink(for: AnyHashable(element.value), atLevel: element.index, source: element.source) {
-            guard pathToUse.wrappedValue.elements.last == element else { return }
-            withTransaction(transaction) {
-                accessibilityManager.decrementIndex()
-                pathToUse.wrappedValue.removeLast()
-            }
-        }
     }
 
     private var transaction: Transaction {
