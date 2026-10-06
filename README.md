@@ -17,6 +17,8 @@ To integrate using Apple's Swift package manager, add the following as a depende
 .package(url: "https://github.com/velos/FlowStack.git", from: "0.1.0")
 ```
 
+The full API reference is in the [FlowStack documentation](https://velosmobile.com/FlowStack/documentation/flowstack/).
+
 ## Getting started
 
 **Setting up and working with FlowStack is *very* similar to Apple's own NavigationStack:**
@@ -48,7 +50,7 @@ NavigationStack {
    1. A **FlowLink.Configuration** to customize aspects of the transition. In the below example, a corner radius value is passed in to the configuration to match the corner radius of the ParkRow during transition.
    1. A view to serve as the content for the **FlowLink**. A common use case would be for this view to contain an image (or other elements) also present in the destination view.
   
-In this example, similar to the NavigationStack, when a user selects a given flow link, the park value associated with the link is handled by the corresponding flow destination modifier with matching data type which adds the associated destination view to the stack (in this case, ParkDetails) and presents it via a "zooming" transition animation. Views can be removed from the stack and dismissed programmatically (by calling the **FlowDismiss** action accessible via the Environment) or by the user dragging down to initiate an interactive dismiss gesture.
+In this example, similar to the NavigationStack, when a user selects a given flow link, the park value associated with the link is handled by the corresponding flow destination modifier with matching data type which adds the associated destination view to the stack (in this case, ParkDetails) and presents it via a "zooming" transition animation. Views can be removed from the stack and dismissed programmatically (by calling the **flowDismiss** action from the environment) or by the user dragging down to initiate an interactive dismiss gesture.
 
 ```swift
 FlowStack {
@@ -84,6 +86,14 @@ By default, any view presented in the flow stack allows the user to drag to inte
 Button("Dismiss") {
     flowDismiss()
 }
+```
+
+To keep the user from dragging a view away, while they have unsaved changes for example, add **flowInteractiveDismissDisabled(_:)** to it. Calling **flowDismiss** still dismisses it.
+
+```swift
+// Destination View
+EditorView(draft: $draft)
+    .flowInteractiveDismissDisabled(draft.hasChanges)
 ```
 
 ## Returning to a link
@@ -191,7 +201,7 @@ FlowStack(path: $flowPath) {
 }
 ```
 
-As views are added and removed from the stack, the flow path is updated accordingly. This allows for observation of the flow path if needed as well as the ability to programmatically add and remove items and their associated views from the stack. For example, programmatically presenting a new park detail can be done by simply appending a new park to the flow path.
+As views are added and removed from the stack, the flow path is updated accordingly. This allows for observation of the flow path if needed as well as the ability to programmatically add and remove items and their associated views from the stack. For example, programmatically presenting a product's details can be done by simply appending the product to the flow path.
 
 ```swift
 func present(product: Product) {
@@ -200,6 +210,38 @@ func present(product: Product) {
 ```
 
 Views can also be removed programmatically: `flowPath.removeLast()` dismisses the top view, and `flowPath.removeAll()` pops all presented views to return to the root.
+
+## Configure a flow link
+
+A **FlowLink.Configuration** tunes how a link's destination is presented and dismissed. Every option has a default, so pass only the ones you need:
+
+```swift
+FlowLink(value: park, configuration: .init(cornerRadius: 24, shadowRadius: 8, shadowColor: .black.opacity(0.2))) {
+    ParkRow(park: park)
+}
+```
+
+| Option | Default | Effect |
+|---|---|---|
+| `cornerRadius`, `cornerStyle` | `0`, `.circular` | The corners of the destination as it zooms. Match the link's own corners. |
+| `shadowRadius`, `shadowColor`, `shadowOffset` | none | The shadow of the destination as it zooms. Match the link's own shadow. |
+| `zoomStyle` | `.scaleHorizontally` | `.scaleHorizontally` scales the destination's contents with its frame, so text keeps its line breaks. `.resize` resizes the frame and lays the contents out again at each step. |
+| `transitionFromSnapshot` | `true` | Starts the zoom on a snapshot of the link that fades into the destination, and ends the dismissal on one, so the transition begins and ends looking just like the link. |
+| `retakeSnapshots` | `false` | Retakes the snapshot every time the link is activated. FlowStack already retakes it when the link's size, value, color scheme or text settings change; use this for a label whose content changes in other ways. |
+| `animateFromAnchor` | `true` | Zooms out of the link and back into it. When `false`, the destination slides in from the side instead and the link stays where it is. |
+| `swipeUpToDismiss` | `false` | Lets the user dismiss the destination by dragging up as well as down. |
+| `showsScrim` | `true` | Dims the flow stack behind the destination. Tapping the scrim dismisses the destination. |
+| `presentationStyle` | `.automatic` | Whether the destination fills the flow stack or is presented as a card. See [Presentation style](#presentation-style). |
+
+The duration and bounce of the transitions are set for the whole stack, with **CustomSmoothAnimation**: `FlowStack(customSmoothAnimation: .init(duration: 0.3, bounce: 0.1)) { ... }`.
+
+A flow link lays a button over its label, which shrinks the label slightly while it is pressed. The button also keeps controls inside the label from being tapped, so if the label has controls of its own, activate the link with a tap gesture instead, which they take precedence over:
+
+```swift
+FlowLink(value: park, activation: .tapGesture) {
+    ParkRow(park: park, onFavorite: { favorite(park) })
+}
+```
 
 ## Presentation style
 

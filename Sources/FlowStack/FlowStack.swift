@@ -414,6 +414,7 @@ struct FlowPathAnimationKey: EnvironmentKey {
 }
 
 public extension EnvironmentValues {
+    /// The duration, in seconds, of the enclosing flow stack's transitions.
     var flowAnimationDuration: Double {
         get { self[FlowPathAnimationKey.self] }
         set { self[FlowPathAnimationKey.self] = newValue }
@@ -436,12 +437,22 @@ struct FlowStack_Previews: PreviewProvider {
     }
 }
 
-/// Object for passable parameters for smooth Animation
-/// Had to be an animation type with a duration value so that it's trackable for flowStack
+/// The timing of a flow stack's transitions, which are smooth spring animations.
+///
+/// Pass one to a ``FlowStack`` initializer to change the timing of all of the stack's
+/// transitions:
+///
+///     FlowStack(customSmoothAnimation: .init(duration: 0.3, bounce: 0.1)) {
+///         ...
+///     }
 public struct CustomSmoothAnimation {
     var duration: Double
     var bounce: Double
 
+    /// Creates the timing for a flow stack's transitions.
+    /// - Parameters:
+    ///   - duration: The perceived duration of a transition, in seconds.
+    ///   - bounce: How much bounce to add to the end of a transition, from 0 for none.
     public init(duration: Double = 0.24, bounce: Double = 0.2) {
         self.duration = duration
         self.bounce = bounce

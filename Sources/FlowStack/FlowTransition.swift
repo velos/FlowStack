@@ -19,15 +19,28 @@ struct OpacityTransitionKey: EnvironmentKey {
 }
 
 /// An action that dismisses the current presented view.
+///
+/// Read it from the environment with ``SwiftUICore/EnvironmentValues/flowDismiss`` and call it as a function:
+///
+///     @Environment(\.flowDismiss) private var flowDismiss
+///
+///     Button("Done") {
+///         flowDismiss()
+///     }
 public struct FlowDismissAction {
     var onDismiss: () -> Void = { }
 
+    /// Dismisses the current presented view.
     public func callAsFunction() {
         onDismiss()
     }
 }
 
 public extension EnvironmentValues {
+    /// An action that dismisses the current presented view.
+    ///
+    /// Dismissing with this, rather than by removing from the ``FlowPath`` yourself, scrolls
+    /// the link that presented the view into sight before the view zooms back into it.
     var flowDismiss: FlowDismissAction {
         get { return self[FlowDismissActionKey.self] }
         set { self[FlowDismissActionKey.self] = newValue }

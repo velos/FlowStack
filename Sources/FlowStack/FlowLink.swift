@@ -209,14 +209,14 @@ public struct FlowLink<Label>: View where Label: View {
         /// - Parameters:
         ///   - animateFromAnchor: Whether the destination view should transition visually from the bounds of the associated flow link contents or flow link animation anchor.
         ///   - transitionFromSnapshot: Whether a snapshot image of the flow link contents should be used during a transition.
-        ///   - retakeSnapshots: Whether a snapshot image is retaken everytime a user taps a FlowLink
+        ///   - retakeSnapshots: Whether the snapshot is retaken every time the link is activated. The snapshot is already retaken when the link's size, value, color scheme or text settings change; use this for a label whose content changes in other ways.
         ///   - cornerRadius: The corner radius applied to the transitioning destination view. This value should typically match the corner radius of the flow link contents or flow link animation anchor for visual consistency.
         ///   - cornerStyle: The corner style applied to the transitioning destination view. This value should typically match the corner style of the flow link contents or flow link animation anchor for visual consistency.
         ///   - shadowRadius: The shadow radius applied to the transitioning destination view. This value should typically match the shadow radius of the flow link contents or flow link animation anchor for visual consistency.
         ///   - shadowColor: The shadow color applied to the transitioning destination view. This value should typically match the shadow color of the flow link contents or flow link animation anchor for visual consistency.
         ///   - shadowOffset: The shadow offset applied to the transitioning destination view. This value should typically match the shadow offset of the flow link contents or flow link animation anchor for visual consistency.
-        ///   - zoomStyle: The zoom style applied to the transitioning destination view
-        ///   - swipeUpToDismiss: Whether the destination view should allow swipe up to dismiss
+        ///   - zoomStyle: The zoom style applied to the transitioning destination view.
+        ///   - swipeUpToDismiss: Whether the destination view can be dismissed by dragging it up, as well as down.
         ///   - showsScrim: Whether a dimming scrim is shown behind the presented destination view. Tapping the scrim dismisses the view.
         ///   - presentationStyle: Whether the destination view fills the flow stack or is presented as a card when the flow stack is wide enough to fit one.
         public init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, retakeSnapshots: Bool = false, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally, swipeUpToDismiss: Bool = false, showsScrim: Bool = true, presentationStyle: FlowPresentationStyle = .automatic) {
@@ -253,7 +253,17 @@ public struct FlowLink<Label>: View where Label: View {
         let presentationStyle: FlowPresentationStyle
     }
 
-    public enum Activation { case overlayButton, tapGesture }
+    /// How a flow link is activated.
+    public enum Activation {
+
+        /// A button laid over the link's label, which shrinks the label slightly while it is
+        /// pressed. The button keeps controls inside the label from being tapped.
+        case overlayButton
+
+        /// A tap gesture on the link's label. Controls inside the label take precedence
+        /// over it, so use this for a label with controls of its own.
+        case tapGesture
+    }
 
     private var activation: Activation = .overlayButton
 

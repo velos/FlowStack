@@ -30,8 +30,12 @@ struct InteractiveDismissDisabledKey: PreferenceKey {
 
 public extension View {
 
-    /// A modifier that allows for disabling or enabling interactive dismiss functionality for the view.
-    /// - Parameter isDisabled: A `bool` that that determines if interactive dismiss functionality should be disabled for the view.
+    /// Keeps a presented view from being dismissed by dragging it away.
+    ///
+    /// The view can still be dismissed with ``SwiftUICore/EnvironmentValues/flowDismiss``, or by
+    /// removing it from the ``FlowPath``.
+    ///
+    /// - Parameter isDisabled: Whether dragging the view away is disabled.
     func flowInteractiveDismissDisabled(_ isDisabled: Bool = true) -> some View {
         preference(key: InteractiveDismissDisabledKey.self, value: isDisabled)
     }

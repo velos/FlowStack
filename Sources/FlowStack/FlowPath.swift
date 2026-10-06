@@ -69,6 +69,7 @@ public struct FlowPath: Equatable, Hashable {
 
     var elements: [FlowElement]
 
+    /// Creates a new, empty flow path.
     public init() {
         elements = []
     }
@@ -136,6 +137,10 @@ struct FlowPathKey: EnvironmentKey {
 }
 
 public extension EnvironmentValues {
+    /// A binding to the path of the enclosing flow stack.
+    ///
+    /// Inside a flow stack, this is the stack's ``FlowPath``, whether the stack manages it
+    /// or it was passed in. Outside one, it's a constant, empty path.
     var flowPath: Binding<FlowPath>? {
         get { self[FlowPathKey.self] }
         set { self[FlowPathKey.self] = newValue }
