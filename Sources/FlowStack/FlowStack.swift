@@ -227,6 +227,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     private var overlay: () -> Overlay
 
     private var usesInternalPath: Bool = false
+    private var dismissAction: (() async -> Void)?
 
     @StateObject private var destinationLookup: DestinationLookup = .init()
     @StateObject var accessibilityManager: AccessibilityManager = .init()
@@ -236,13 +237,15 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     /// - Parameters:
     ///   - overlayAlignment: The alignment applied to the overlay.
     ///   - customSmoothAnimation: The animation to use during flow transitions.
+    ///   - dismissAction: An optional asynchronous action to finish before dismissing a destination.
     ///   - root: The view to display when the stack is empty.
     ///   - overlay: The view to overlay on the FlowStack. This view is always visible in front of any view presented by the flow stack.
-    public init(overlayAlignment: Alignment = .center, customSmoothAnimation: CustomSmoothAnimation? = nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
+    public init(overlayAlignment: Alignment = .center, customSmoothAnimation: CustomSmoothAnimation? = nil, dismissAction: (() async -> Void)? = nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
         self.overlayAlignment = overlayAlignment
         self.customSmoothAnimation = customSmoothAnimation ?? CustomSmoothAnimation.default
+        self.dismissAction = dismissAction
 
         self.usesInternalPath = true
         self._path = Binding(get: { FlowPath() }, set: { _ in })
@@ -253,14 +256,16 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     ///   - path: A Binding to the flow path for this stack.
     ///   - overlayAlignment: The alignment applied to the overlay.
     ///   - customSmoothAnimation: The animation to use during flow transitions.
+    ///   - dismissAction: An optional asynchronous action to finish before dismissing a destination.
     ///   - root: The view to display when the stack is empty.
     ///   - overlay: The view to overlay on the FlowStack. This view is always visible in front of any view presented by the flow stack.
-    public init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, customSmoothAnimation: CustomSmoothAnimation? = nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
+    public init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, customSmoothAnimation: CustomSmoothAnimation? = nil, dismissAction: (() async -> Void)? = nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
         self.overlayAlignment = overlayAlignment
         self._path = path
         self.customSmoothAnimation = customSmoothAnimation ?? CustomSmoothAnimation.default
+        self.dismissAction = dismissAction
     }
 
     private func destination(for instance: any (Hashable & Equatable)) -> AnyDestination? {
@@ -298,16 +303,29 @@ public struct FlowStack<Root: View, Overlay: View>: View {
             onDismiss: {
                 guard let element = pathToUse.wrappedValue.elements.last else { return }
 
-                // The link comes into view first, so that it is already standing in for
-                // the destination when the destination starts zooming back into it.
-                linkContexts.revealLink(for: AnyHashable(element.value), atLevel: element.index, source: element.source) {
-                    guard pathToUse.wrappedValue.elements.last == element else { return }
-                    withTransaction(transaction) {
-                        accessibilityManager.decrementIndex()
-                        pathToUse.wrappedValue.removeLast()
+                if let dismissAction = dismissAction {
+                    Task { @MainActor in
+                        await dismissAction()
+                        dismiss(element)
                     }
+                } else {
+                    dismiss(element)
                 }
             })
+    }
+
+    private func dismiss(_ element: FlowElement) {
+        // The action may have changed the path while it was suspended.
+        guard pathToUse.wrappedValue.elements.last == element else { return }
+
+        // Reveal after the action finishes, using the link's current layout.
+        linkContexts.revealLink(for: AnyHashable(element.value), atLevel: element.index, source: element.source) {
+            guard pathToUse.wrappedValue.elements.last == element else { return }
+            withTransaction(transaction) {
+                accessibilityManager.decrementIndex()
+                pathToUse.wrappedValue.removeLast()
+            }
+        }
     }
 
     private var transaction: Transaction {
@@ -373,8 +391,9 @@ public extension FlowStack where Overlay == EmptyView {
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
     ///   - customSmoothAnimation: The animation to use during flow transitions.
+    ///   - dismissAction: An optional asynchronous action to finish before dismissing a destination.
     ///   - root: The view to display when the stack is empty.
-    init(customSmoothAnimation: CustomSmoothAnimation? = nil, @ViewBuilder root: @escaping () -> Root) {
+    init(customSmoothAnimation: CustomSmoothAnimation? = nil, dismissAction: (() async -> Void)? = nil, @ViewBuilder root: @escaping () -> Root) {
         self.root = root
         self.overlay = { EmptyView() }
         self.overlayAlignment = .center
@@ -382,19 +401,22 @@ public extension FlowStack where Overlay == EmptyView {
         self.usesInternalPath = true
         self._path = Binding(get: { FlowPath() }, set: { _ in })
         self.customSmoothAnimation = customSmoothAnimation ?? CustomSmoothAnimation.default
+        self.dismissAction = dismissAction
     }
 
     /// Creates a flow stack with heterogeneous navigation state that you can control.
     /// - Parameters:
     ///   - path: A Binding to the flow path for this stack.
     ///   - customSmoothAnimation: The animation to use during flow transitions.
+    ///   - dismissAction: An optional asynchronous action to finish before dismissing a destination.
     ///   - root: The view to display when the stack is empty.
-    init(path: Binding<FlowPath>, customSmoothAnimation: CustomSmoothAnimation? = nil, @ViewBuilder root: @escaping () -> Root) {
+    init(path: Binding<FlowPath>, customSmoothAnimation: CustomSmoothAnimation? = nil, dismissAction: (() async -> Void)? = nil, @ViewBuilder root: @escaping () -> Root) {
         self.root = root
         self.overlay = { EmptyView() }
         self.overlayAlignment = .center
         self._path = path
         self.customSmoothAnimation = customSmoothAnimation ?? CustomSmoothAnimation.default
+        self.dismissAction = dismissAction
     }
 }
 
