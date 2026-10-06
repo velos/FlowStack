@@ -438,7 +438,12 @@ public struct FlowLink<Label>: View where Label: View {
     }
 
     public var body: some View {
-        Group {
+        // A ZStack rather than a Group, which would apply the modifiers below to each of its
+        // children instead of to the whole. The link and its stand-in would each get a view to
+        // reveal the link from, and the link could be left holding the one that goes away
+        // with the link as its stand-in replaces it, with nothing to reveal it from as the
+        // destination is dismissed.
+        ZStack {
             if isContainedInPath && configuration.animateFromAnchor {
                 // Stands in for the link while its destination is presented. Laying
                 // out the real label keeps the link's frame correct if the layout

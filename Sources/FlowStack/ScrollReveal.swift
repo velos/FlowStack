@@ -93,15 +93,19 @@ final class ScrollRevealController: ObservableObject {
 struct ScrollRevealView: UIViewRepresentable {
     let controller: ScrollRevealController
 
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView()
+    func makeUIView(context: Context) -> ScrollRevealAnchorView {
+        let view = ScrollRevealAnchorView()
         view.isUserInteractionEnabled = false
         view.backgroundColor = .clear
         controller.view = view
         return view
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {
+    func updateUIView(_ uiView: ScrollRevealAnchorView, context: Context) {
         controller.view = uiView
     }
 }
+
+/// The view a `ScrollRevealView` puts in the UIKit hierarchy, a type of its own so that it
+/// can be picked out of one.
+final class ScrollRevealAnchorView: UIView {}
