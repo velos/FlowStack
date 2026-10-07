@@ -88,7 +88,7 @@ Button("Dismiss") {
 }
 ```
 
-To keep the user from dragging a view away, while they have unsaved changes for example, add **flowInteractiveDismissDisabled(_:)** to it. Calling **flowDismiss** still dismisses it.
+To keep the user from dragging a view away, while they have unsaved changes for example, add **flowInteractiveDismissDisabled(_:)** to it. That also keeps a view presented as a card from being dismissed by tapping outside it. Calling **flowDismiss** still dismisses it.
 
 ```swift
 // Destination View

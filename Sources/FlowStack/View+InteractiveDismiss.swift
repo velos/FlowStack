@@ -30,7 +30,8 @@ struct InteractiveDismissDisabledKey: PreferenceKey {
 
 public extension View {
 
-    /// Keeps a presented view from being dismissed by dragging it away.
+    /// Keeps a presented view from being dismissed by dragging it away, or, when it's
+    /// presented as a card, by tapping outside it.
     ///
     /// The view can still be dismissed with ``SwiftUICore/EnvironmentValues/flowDismiss``, or by
     /// removing it from the ``FlowPath``.

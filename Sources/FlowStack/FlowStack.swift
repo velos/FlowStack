@@ -232,6 +232,9 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     @StateObject var accessibilityManager: AccessibilityManager = .init()
     @StateObject private var linkContexts = FlowLinkContextStore()
 
+    /// The presented destinations that have disabled interactive dismissal.
+    @State private var dismissDisabled: Set<FlowElement> = []
+
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
     ///   - overlayAlignment: The alignment applied to the overlay.
@@ -284,6 +287,9 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 .zIndex(accessibilityManager.calcScrim())
                 .id(element.hashValue)
                 .onTapGesture {
+                    // Tapping outside a destination dismisses it as surely as pulling it away
+                    // does, so a destination that disables one disables both.
+                    guard !dismissDisabled.contains(element) else { return }
                     flowDismissAction()
                 }
         }
@@ -338,6 +344,15 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                     .id(element.hashValue)
                     .transition(.flowTransition(with: element.context, source: element.source, value: AnyHashable(element.value), level: element.index))
                     .modifier(AccessibilityModifier(element: element.index))
+                    .onPreferenceChange(InteractiveDismissDisabledKey.self) { isDisabled in
+                        // A destination being removed can still report, and would otherwise
+                        // be remembered for one that later presents the same value.
+                        if isDisabled, pathToUse.wrappedValue.elements.contains(element) {
+                            dismissDisabled.insert(element)
+                        } else {
+                            dismissDisabled.remove(element)
+                        }
+                    }
                 }
             }
         }
@@ -364,6 +379,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         }
         .onChange(of: pathToUse.wrappedValue.elements) { elements in
             linkContexts.pathDidChange(to: elements)
+            dismissDisabled.formIntersection(elements)
         }
     }
 }
