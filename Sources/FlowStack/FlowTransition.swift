@@ -19,15 +19,28 @@ struct OpacityTransitionKey: EnvironmentKey {
 }
 
 /// An action that dismisses the current presented view.
+///
+/// Read it from the environment with ``SwiftUICore/EnvironmentValues/flowDismiss`` and call it as a function:
+///
+///     @Environment(\.flowDismiss) private var flowDismiss
+///
+///     Button("Done") {
+///         flowDismiss()
+///     }
 public struct FlowDismissAction {
     var onDismiss: () -> Void = { }
 
+    /// Dismisses the current presented view.
     public func callAsFunction() {
         onDismiss()
     }
 }
 
 public extension EnvironmentValues {
+    /// An action that dismisses the current presented view.
+    ///
+    /// Dismissing with this, rather than by removing from the ``FlowPath`` yourself, scrolls
+    /// the link that presented the view into sight before the view zooms back into it.
     var flowDismiss: FlowDismissAction {
         get { return self[FlowDismissActionKey.self] }
         set { self[FlowDismissActionKey.self] = newValue }
@@ -40,10 +53,10 @@ struct FlowDismissActionKey: EnvironmentKey {
 
 extension AnyTransition {
 
-    static func flowTransition(with context: PathContext) -> AnyTransition {
+    static func flowTransition(with context: PathContext?, source: FlowLinkSource?, value: AnyHashable, level: Int) -> AnyTransition {
         AnyTransition.modifier(
-            active: FlowPresentModifier(percent: 0, context: context),
-            identity: FlowPresentModifier(percent: 1, context: context)
+            active: FlowPresentModifier(percent: 0, context: context, source: source, value: value, level: level),
+            identity: FlowPresentModifier(percent: 1, context: context, source: source, value: value, level: level)
         )
     }
 
@@ -62,6 +75,50 @@ extension AnyTransition {
         }
     }
 
+    /// Keeps a view hidden for as long as it is transitioning in, and hides it the
+    /// moment it starts transitioning out.
+    struct VisibleOnceSettledModifier: Animatable, ViewModifier {
+        var percent: Double
+
+        /// Springs overshoot their target and ring around it, so a threshold of exactly 1
+        /// would flicker. The view is indistinguishable from settled just short of it.
+        static let threshold: Double = 0.97
+
+        var animatableData: Double {
+            get { percent }
+            set { percent = newValue }
+        }
+
+        func body(content: Content) -> some View {
+            content
+                .opacity(percent >= Self.threshold ? 1 : 0)
+        }
+    }
+
+    static var visibleOnceSettled: AnyTransition {
+        AnyTransition.modifier(
+            active: VisibleOnceSettledModifier(percent: 0),
+            identity: VisibleOnceSettledModifier(percent: 1)
+        )
+    }
+
+    /// Stops a view from taking touches while it is being removed. A view stays in the
+    /// hierarchy until its removal has finished animating, in the way of whatever is beneath.
+    struct HitTestingModifier: ViewModifier {
+        var isEnabled: Bool
+
+        func body(content: Content) -> some View {
+            content.allowsHitTesting(isEnabled)
+        }
+    }
+
+    static var untouchable: AnyTransition {
+        AnyTransition.modifier(
+            active: HitTestingModifier(isEnabled: false),
+            identity: HitTestingModifier(isEnabled: true)
+        )
+    }
+
     static var opacityPercent: AnyTransition {
         AnyTransition.modifier(
             active: OpacityPercentModifier(percent: 0),
@@ -71,14 +128,51 @@ extension AnyTransition {
 
     struct FlowPresentModifier: Animatable, ViewModifier {
         var percent: CGFloat
-        var context: PathContext
+        /// The context captured when the flow link was activated, or `nil` for a
+        /// destination that was appended to the flow path directly.
+        var context: PathContext?
+        /// The flow link the destination was presented from, where that is known.
+        var source: FlowLinkSource?
+        var value: AnyHashable
+        var level: Int
 
-        @State var panOffset: CGPoint = .zero
-        @State var isEnded: Bool = false
+        @Environment(\.flowLinkContexts) private var linkContexts
+        @Environment(\.flowPath) private var flowPath
+
+        /// Whether the destination is still in the flow path, as opposed to on its way out.
+        ///
+        /// A destination being dismissed stays in the view hierarchy until its transition has
+        /// finished, which for a spring means until it has fully settled, well after it looks
+        /// done. All that time it would take touches meant for the flow stack beneath it, and
+        /// not only where it appears to be: a destination hosted in UIKit is hit-tested by its
+        /// container, which still fills the flow stack after the destination has shrunk.
+        private var isPresented: Bool {
+            flowPath?.wrappedValue.contains(value, atLevel: level) ?? true
+        }
+
+        /// The transition is captured when the destination is inserted, so `context`
+        /// describes where the link was then. Resolving against the link's latest report
+        /// each time the view renders lets a dismissal find the link where it is now. A
+        /// destination appended directly adopts the context of a matching link, if any.
+        private var resolvedContext: PathContext {
+            guard let live = linkContexts?.context(for: value, atLevel: level, source: source) else { return context ?? .init() }
+            guard var resolved = context else { return live }
+            resolved.anchor = live.anchor
+            resolved.overrideAnchor = live.overrideAnchor
+
+            // A link retakes its snapshots when its layout changes, so its own are the ones
+            // that show it as it is now. It has none if it doesn't transition from a snapshot.
+            if !live.snapshotDict.isEmpty {
+                resolved.snapshotDict = live.snapshotDict
+                resolved.snapshot = live.snapshot
+            }
+            return resolved
+        }
+
+        @State private var panOffset: CGPoint = .zero
         @State private var isDisabled: Bool = false
-        @State var isDismissing: Bool = false
+        @State private var isDismissing: Bool = false
         @State private var snapCornerRadiusZero: Bool = true
-        @State private var availableSize: CGSize = .zero
 
         @Environment(\.colorScheme) private var colorScheme
 
@@ -86,37 +180,59 @@ extension AnyTransition {
             max(0, 1 - percent / 0.2)
         }
 
-        @Environment(\.flowDismiss) var dismiss
-        @Environment(\.flowTransaction) var transaction
-        @Environment(\.horizontalSizeClass) var horizontalSizeClass
+        @Environment(\.flowDismiss) private var dismiss
+        @Environment(\.flowTransaction) private var transaction
+        @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
         private var activeSnapshot: UIImage? {
-            context.snapshotDict[colorScheme] ?? context.snapshot
+            resolvedContext.snapshotDict[colorScheme] ?? resolvedContext.snapshot
         }
 
-        var cornerRadius: CGFloat { context.cornerRadius + ((UIScreen.displayCornerRadius ?? 20) - context.cornerRadius) * percent }
-
-        var isPresentedFullscreen: Bool {
-            horizontalSizeClass == .compact || availableSize.width - 2 * Constants.minVerticalPadding < Constants.maxWidth
+        private func isPresentedFullscreen(availableSize: CGSize) -> Bool {
+            let cardFits = horizontalSizeClass == .regular && availableSize.width - 2 * Constants.minVerticalPadding >= Constants.maxWidth
+            return resolvedContext.presentationStyle.isFullScreen(cardFits: cardFits, idiom: UIDevice.current.userInterfaceIdiom)
         }
 
-        var conditionalCornerRadius: CGFloat {
-            if isPresentedFullscreen {
-                if percent >= 1 {
-                    if snapCornerRadiusZero {
-                        return 0
-                    } else {
-                        return cornerRadius
-                    }
-                } else {
-                    return cornerRadius
-                }
-            } else {
-                return cornerRadius
+        /// The corner radii of the fully presented view, which the transition
+        /// animates toward from the flow link's corner radius.
+        private func presentedCornerRadii(with proxy: GeometryProxy) -> CornerRadii {
+            // The display's corner radius only suits a view whose corners sit on
+            // the display's corners. Anything floating away from them gets a
+            // sheet-like radius instead, which on displays with very round
+            // corners is considerably smaller.
+            let floatingRadius = min(UIScreen.displayCornerRadius, Constants.maxFloatingCornerRadius)
+
+            guard isPresentedFullscreen(availableSize: proxy.size) else {
+                return CornerRadii(uniform: floatingRadius)
             }
+
+            #if compiler(>=6.4)
+            // Displays can have a different radius at each corner (e.g. the
+            // hinge side of a foldable), which a single value can't describe.
+            if #available(iOS 27.0, *), let radii = proxy.concentricCornerRadii {
+                // A corner resolves to zero when it isn't near a corner of the container.
+                return CornerRadii(
+                    topLeft: radii.topLeading,
+                    topRight: radii.topTrailing,
+                    bottomLeft: radii.bottomLeading,
+                    bottomRight: radii.bottomTrailing
+                ).map { $0 > 0 ? $0 : floatingRadius }
+            }
+            #endif
+
+            return CornerRadii(uniform: UIScreen.displayCornerRadius)
         }
 
-        var cornerStyle: RoundedCornerStyle { percent > 0.5 ? .continuous : context.cornerStyle }
+        private func cornerRadii(with proxy: GeometryProxy) -> CornerRadii {
+            // At rest a fullscreen view is clipped by the display itself.
+            if isPresentedFullscreen(availableSize: proxy.size), percent >= 1, snapCornerRadiusZero {
+                return .zero
+            }
+
+            return presentedCornerRadii(with: proxy).interpolated(from: resolvedContext.cornerRadius, percent: percent)
+        }
+
+        var cornerStyle: RoundedCornerStyle { percent > 0.5 ? .continuous : resolvedContext.cornerStyle }
 
         var animatableData: CGFloat {
             get { percent }
@@ -149,79 +265,96 @@ extension AnyTransition {
             static let maxWidth: CGFloat = 706
             static let maxHeight: CGFloat = 998
             static let minVerticalPadding: CGFloat = 44
+            /// Matches the corner radius of system sheets.
+            static let maxFloatingCornerRadius: CGFloat = 40
         }
 
         private func presentationSize(availableSize: CGSize) -> CGSize {
 
-            if horizontalSizeClass == .regular && availableSize.width - 2 * Constants.minVerticalPadding >= Constants.maxWidth {
+            if isPresentedFullscreen(availableSize: availableSize) {
+                return availableSize
+            } else {
                 let width = Constants.maxWidth
                 let height = min(Constants.maxHeight, availableSize.height - Constants.minVerticalPadding * 2)
                 return CGSize(width: width, height: height)
-            } else {
-                return availableSize
             }
         }
 
         func body(content: Content) -> some View {
-            GeometryReader { proxy in
-                let zoomRect = zoomRect(with: proxy, anchor: context.overrideAnchor ?? context.anchor, percent: percent, pullOffset: panOffset)
-                let scaleRatio = context.shouldScaleHorizontally ? zoomRect.size.width / proxy.size.width : 1.0
+            // The keyboard is only ignored by a destination that fills the flow stack. That one
+            // stays full size behind the keyboard, as any full-screen view does, and its content
+            // keeps clear of the keyboard by its own safe area; were it shrunk to end at the
+            // keyboard instead, whatever is behind it would show through the keyboard, which is
+            // translucent from iOS 26. A card is laid out above the keyboard, so that it moves
+            // up out of the keyboard's way like a form sheet. Whether it fills the flow stack
+            // depends only on the width, which the keyboard never changes, so it is measured
+            // here, outside the keyboard. Ignoring the keyboard alone would stop the destination
+            // short of the bottom edge by the home indicator's inset, which the keyboard covers,
+            // so a full-screen destination ignores that too.
+            GeometryReader { container in
+                GeometryReader { proxy in
+                    presentation(of: content, in: proxy)
+                }
+                .ignoresSafeArea(isPresentedFullscreen(availableSize: container.size) ? .all : [], edges: .all)
+            }
+            .ignoresSafeArea(.container, edges: .all)
+            .allowsHitTesting(isPresented)
+        }
 
-                content
-                    .onInteractiveDismissGesture(threshold: 80, isEnabled: !isDisabled, isDismissing: isDismissing, swipeUpToDismiss: context.swipeUpToDismiss, onDismiss: {
-                        guard !isDisabled else { return }
-                        defer { isDismissing = true }
-                        dismiss()
-                    }, onPan: { offset in
-                        defer { self.isEnded = false }
-                        guard !isDisabled else { return }
-                        self.snapCornerRadiusZero = false
-                        self.panOffset = offset
-                    }, onEnded: { isDismissing in
-                        // TODO: FS-34: Handle snap corner radius 0 on interactive dismiss cancel
+        @ViewBuilder
+        private func presentation(of content: Content, in proxy: GeometryProxy) -> some View {
+            let zoomRect = zoomRect(with: proxy, anchor: resolvedContext.overrideAnchor ?? resolvedContext.anchor, percent: percent, pullOffset: panOffset)
+            let scaleRatio = resolvedContext.shouldScaleHorizontally ? zoomRect.size.width / proxy.size.width : 1.0
+
+            content
+                .onInteractiveDismissGesture(threshold: 80, isEnabled: !isDisabled, isDismissing: isDismissing, swipeUpToDismiss: resolvedContext.swipeUpToDismiss, onDismiss: {
+                    guard !isDisabled else { return }
+                    dismiss()
+                    isDismissing = true
+                }, onPan: { offset in
+                    guard !isDisabled else { return }
+                    if snapCornerRadiusZero {
+                        // The pull is just starting, so the destination still covers
+                        // its link. Waiting for the release would move the link in
+                        // plain sight behind the shrunken destination.
+                        linkContexts?.revealLink(for: value, atLevel: level, source: source)
+                    }
+                    self.snapCornerRadiusZero = false
+                    self.panOffset = offset
+                }, onEnded: { _ in
+                    // TODO: FS-34: Handle snap corner radius 0 on interactive dismiss cancel
+                    // Disabling an active pull ends it from updateUIViewController.
+                    // Wait until that view update is over before changing SwiftUI state.
+                    DispatchQueue.main.async {
                         withTransaction(transaction) {
                             panOffset = .zero
-                            isEnded = true
-                        }
-                    })
-                    .onPreferenceChange(InteractiveDismissDisabledKey.self) { isDisabled in
-                        self.isDisabled = isDisabled
-                    }
-                    .preference(key: SizePreferenceKey.self, value: proxy.size)
-                    .onPreferenceChange(SizePreferenceKey.self, perform: { value in
-                        availableSize = value
-                    })
-                    .overlay(alignment: .top) {
-                        if let image = activeSnapshot, percent < 1 {
-                            Image(uiImage: image)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .opacity(snapshotPercent)
                         }
                     }
-                    .clipShape(RoundedRectangle(cornerRadius: conditionalCornerRadius / scaleRatio, style: cornerStyle))
-                    .shadow(color: context.shadowColor ?? .clear, radius: context.shadowRadius, x: context.shadowOffset.x, y: context.shadowOffset.y)
-                    .frame(
-                        width: context.shouldScaleHorizontally ? proxy.size.width : zoomRect.size.width,
-                        height: zoomRect.size.height / scaleRatio
-                    )
-                    .scaleEffect(x: scaleRatio, y: scaleRatio, anchor: .center)
-                    .transformEffect(.init(translationX: context.anchor == nil ? (1 - percent) * proxy.size.width : 0, y: 0))
-                    .position(
-                        x: zoomRect.origin.x,
-                        y: zoomRect.origin.y
-                    )
-                    .opacity(context.anchor == nil ? percent : 1)
-            }
-            .ignoresSafeArea(.all, edges: .all)
+                })
+                .onPreferenceChange(InteractiveDismissDisabledKey.self) { isDisabled in
+                    self.isDisabled = isDisabled
+                }
+                .overlay(alignment: .top) {
+                    if let image = activeSnapshot, percent < 1 {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .opacity(snapshotPercent)
+                    }
+                }
+                .clipShape(UnevenCornerShape(radii: cornerRadii(with: proxy).map { $0 / scaleRatio }, style: cornerStyle))
+                .shadow(color: resolvedContext.shadowColor ?? .clear, radius: resolvedContext.shadowRadius, x: resolvedContext.shadowOffset.x, y: resolvedContext.shadowOffset.y)
+                .frame(
+                    width: resolvedContext.shouldScaleHorizontally ? proxy.size.width : zoomRect.size.width,
+                    height: zoomRect.size.height / scaleRatio
+                )
+                .scaleEffect(x: scaleRatio, y: scaleRatio, anchor: .center)
+                .transformEffect(.init(translationX: resolvedContext.anchor == nil ? (1 - percent) * proxy.size.width : 0, y: 0))
+                .position(
+                    x: zoomRect.origin.x,
+                    y: zoomRect.origin.y
+                )
+                .opacity(resolvedContext.anchor == nil ? percent : 1)
         }
     }
-}
-
-struct SizePreferenceKey: PreferenceKey {
-    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
-        value = nextValue()
-    }
-
-    static var defaultValue: CGSize = .zero
 }

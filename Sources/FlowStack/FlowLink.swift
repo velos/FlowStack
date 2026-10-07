@@ -6,20 +6,6 @@
 
 import SwiftUI
 
-struct FlowLinkButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(x: configuration.isPressed ? 0.97 : 1, y: configuration.isPressed ? 0.97 : 1, anchor: .center)
-            .animation(.easeInOut, value: configuration.isPressed)
-    }
-}
-
-extension ButtonStyle where Self == FlowLinkButtonStyle {
-    static var flowLink: FlowLinkButtonStyle {
-        FlowLinkButtonStyle()
-    }
-}
-
 struct PathContextKey: PreferenceKey {
     static var defaultValue: PathContext?
 
@@ -72,26 +58,28 @@ struct GestureContainer: UIViewRepresentable {
     @Binding var isPressed: Bool
     var onTap: () -> Void
 
-    class Coordinator {
-        @Binding var isPressed: Bool
+    // An NSObject, as UIKit takes a control's targets to be. UIControl.allTargets traps on one
+    // that isn't, which inspection and accessibility tools can hit even though nothing here does.
+    class Coordinator: NSObject {
+        var isPressed: Binding<Bool>
         var onTap: () -> Void
 
         init(isPressed: Binding<Bool>, onTap: @escaping () -> Void) {
-            self._isPressed = isPressed
+            self.isPressed = isPressed
             self.onTap = onTap
         }
 
         @objc func onTouchUpInside() {
-            isPressed = false
+            isPressed.wrappedValue = false
             onTap()
         }
 
         @objc func onEnter() {
-            isPressed = true
+            isPressed.wrappedValue = true
         }
 
         @objc func onExit() {
-            isPressed = false
+            isPressed.wrappedValue = false
         }
     }
 
@@ -104,6 +92,7 @@ struct GestureContainer: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UIViewType, context: Context) {
+        context.coordinator.isPressed = $isPressed
         // The coordinator is made once and reused for the life of the
         // representable, so without this the button keeps calling the very
         // first onTap it was given — and that closure captured the FlowLink
@@ -220,15 +209,17 @@ public struct FlowLink<Label>: View where Label: View {
         /// - Parameters:
         ///   - animateFromAnchor: Whether the destination view should transition visually from the bounds of the associated flow link contents or flow link animation anchor.
         ///   - transitionFromSnapshot: Whether a snapshot image of the flow link contents should be used during a transition.
-        ///   - retakeSnapshots: Whether a snapshot image is retaken everytime a user taps a FlowLink
+        ///   - retakeSnapshots: Whether the snapshot is retaken every time the link is activated. The snapshot is already retaken when the link's size, value, color scheme or text settings change; use this for a label whose content changes in other ways.
         ///   - cornerRadius: The corner radius applied to the transitioning destination view. This value should typically match the corner radius of the flow link contents or flow link animation anchor for visual consistency.
         ///   - cornerStyle: The corner style applied to the transitioning destination view. This value should typically match the corner style of the flow link contents or flow link animation anchor for visual consistency.
         ///   - shadowRadius: The shadow radius applied to the transitioning destination view. This value should typically match the shadow radius of the flow link contents or flow link animation anchor for visual consistency.
         ///   - shadowColor: The shadow color applied to the transitioning destination view. This value should typically match the shadow color of the flow link contents or flow link animation anchor for visual consistency.
         ///   - shadowOffset: The shadow offset applied to the transitioning destination view. This value should typically match the shadow offset of the flow link contents or flow link animation anchor for visual consistency.
-        ///   - zoomStyle: The zoom style applied to the transitioning destination view
-        ///   - swipeUpToDismiss: Whether the destination view should allow swipe up to dismiss
-        public init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, retakeSnapshots: Bool = false, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally, swipeUpToDismiss: Bool = false) {
+        ///   - zoomStyle: The zoom style applied to the transitioning destination view.
+        ///   - swipeUpToDismiss: Whether the destination view can be dismissed by dragging it up, as well as down.
+        ///   - showsScrim: Whether a dimming scrim is shown behind the presented destination view. Tapping the scrim dismisses the view.
+        ///   - presentationStyle: Whether the destination view fills the flow stack or is presented as a card when the flow stack is wide enough to fit one.
+        public init(animateFromAnchor: Bool = true, transitionFromSnapshot: Bool = true, retakeSnapshots: Bool = false, cornerRadius: CGFloat = 0, cornerStyle: RoundedCornerStyle = .circular, shadowRadius: CGFloat = 0, shadowColor: Color? = nil, shadowOffset: CGPoint = .zero, zoomStyle: ZoomStyle = .scaleHorizontally, swipeUpToDismiss: Bool = false, showsScrim: Bool = true, presentationStyle: FlowPresentationStyle = .automatic) {
             self.animateFromAnchor = animateFromAnchor
             self.transitionFromSnapshot = transitionFromSnapshot
             self.retakeSnapshots = retakeSnapshots
@@ -239,6 +230,8 @@ public struct FlowLink<Label>: View where Label: View {
             self.shadowOffset = shadowOffset
             self.zoomStyle = zoomStyle
             self.swipeUpToDismiss = swipeUpToDismiss
+            self.showsScrim = showsScrim
+            self.presentationStyle = presentationStyle
         }
 
         let animateFromAnchor: Bool
@@ -252,13 +245,25 @@ public struct FlowLink<Label>: View where Label: View {
         let shadowColor: Color?
         let shadowOffset: CGPoint
 
-        let showsSkrim: Bool = true
+        let showsScrim: Bool
         let zoomStyle: ZoomStyle
 
         let swipeUpToDismiss: Bool
+
+        let presentationStyle: FlowPresentationStyle
     }
 
-    public enum Activation { case overlayButton, tapGesture }
+    /// How a flow link is activated.
+    public enum Activation {
+
+        /// A button laid over the link's label, which shrinks the label slightly while it is
+        /// pressed. The button keeps controls inside the label from being tapped.
+        case overlayButton
+
+        /// A tap gesture on the link's label. Controls inside the label take precedence
+        /// over it, so use this for a label with controls of its own.
+        case tapGesture
+    }
 
     private var activation: Activation = .overlayButton
 
@@ -270,7 +275,11 @@ public struct FlowLink<Label>: View where Label: View {
     @Environment(\.flowPath) private var path
     @Environment(\.flowDepth) private var flowDepth
     @Environment(\.flowTransaction) private var transaction
-    @Environment(\.flowAnimationDuration) private var flowDuration
+    @Environment(\.flowLinkContexts) private var linkContexts
+    @Environment(\.flowLinkID) private var explicitID
+
+    /// Also identifies this link to the store, which outlives any one instance of it.
+    @StateObject private var scrollReveal = ScrollRevealController()
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.self) private var fetchedEnvironment
@@ -280,12 +289,23 @@ public struct FlowLink<Label>: View where Label: View {
     @State private var size: CGSize?
     @State private var overrideFrame: CGRect?
     @State private var context: PathContext?
-    @State var isShowing: Bool = true
-    @State var buttonPressed: Bool = false
+    @State private var registeredContext: ContextRegistration?
 
-    @State var environmentList: [EnvironmentValues] = []
+    /// Registration can change without the label's geometry changing at all.
+    private struct ContextRegistration: Equatable {
+        let key: FlowLinkContextStore.Key
+        let identity: FlowLinkIdentity
+        let store: FlowLinkContextStore
+
+        static func == (lhs: Self, rhs: Self) -> Bool {
+            lhs.key == rhs.key && lhs.identity == rhs.identity && lhs.store === rhs.store
+        }
+    }
+
     @State private var snapshots: [ColorScheme: UIImage] = [:]
-    @State private var environment = EnvironmentValues()
+    /// What `snapshots` were taken with. A snapshot taken with anything else shows the link
+    /// as it was then: at another size, say, stretched to fit how it is laid out now.
+    @State private var snapshotInputsTaken: SnapshotInputs?
 
     /// Creates a flow link that presents the view corresponding to a value.
     ///
@@ -311,13 +331,21 @@ public struct FlowLink<Label>: View where Label: View {
         self.activation = activation
     }
 
+    /// Tells this link apart from any others presenting the same value.
+    private var identity: FlowLinkIdentity {
+        explicitID.map { .explicit($0) } ?? .instance(ObjectIdentifier(scrollReveal))
+    }
+
+    /// Whether this link's destination is presented, and from this link rather than from
+    /// another that presents the same value.
     var isContainedInPath: Bool {
         guard let elements = path?.wrappedValue.elements, let value = value, elements.count > flowDepth else { return false }
 
         // treat -1 as special case to ignore the level on comparisons
         let depth = flowDepth == -1 ? nil : flowDepth
 
-        return path?.wrappedValue.contains(value, atLevel: depth) ?? false
+        guard let element = path?.wrappedValue.element(presenting: value, atLevel: depth) else { return false }
+        return element.source?.includes(identity) ?? true
     }
 
     var hasSiblingElement: Bool {
@@ -328,7 +356,7 @@ public struct FlowLink<Label>: View where Label: View {
         guard let size = size else { return nil }
 
         let frame = CGRect(origin: .zero, size: size)
-        environment = fetchedEnvironment
+        var environment = fetchedEnvironment
         environment.colorScheme = colorScheme
 
         let controller = UIHostingController(
@@ -383,7 +411,6 @@ public struct FlowLink<Label>: View where Label: View {
     }
 
     private func trigger() {
-        buttonPressed = true
         // check for sibling elements and return early if we already have a presented element at this depth
         guard !hasSiblingElement else { return }
         Task {
@@ -394,8 +421,10 @@ public struct FlowLink<Label>: View where Label: View {
             }
 
             if let value = value {
+                let passedOver = contextStoreKey.flatMap { linkContexts?.identities(presentingSameValueAs: $0, otherThan: identity) }
+                let source = FlowLinkSource(link: identity, passedOver: passedOver ?? [])
                 withTransaction(transaction) {
-                    path?.wrappedValue.append(value, context: context)
+                    path?.wrappedValue.append(value, context: context, source: source)
                 }
             }
         }
@@ -419,17 +448,26 @@ public struct FlowLink<Label>: View where Label: View {
     }
 
     public var body: some View {
-        Group {
+        // A ZStack rather than a Group, which would apply the modifiers below to each of its
+        // children instead of to the whole. The link and its stand-in would each get a view to
+        // reveal the link from, and the link could be left holding the one that goes away
+        // with the link as its stand-in replaces it, with nothing to reveal it from as the
+        // destination is dismissed.
+        ZStack {
             if isContainedInPath && configuration.animateFromAnchor {
-                Color.clear
-                    .frame(width: size?.width, height: size?.height)
+                // Stands in for the link while its destination is presented. Laying
+                // out the real label keeps the link's frame correct if the layout
+                // changes in the meantime (rotation, a foldable opening, ...).
+                label()
+                    .hidden()
             } else {
                 if configuration.animateFromAnchor && overrideAnchor == nil {
+                    // The link returns once the destination has zoomed all the way back
+                    // into it, and not before. Tying that to the dismissal's own animation,
+                    // rather than to state held by this link, keeps it true for a link that
+                    // was recreated while its destination was presented.
                     button
-                        .opacity(isShowing ? 1.0 : 0.0)
-                    /// (Workaround) Override an animation with an animation that does nothing
-                    /// Leaving a flowlayer too early can cause an un-wanted animation
-                        .ignoreAnimation()
+                        .transition(.visibleOnceSettled)
                 } else if configuration.animateFromAnchor {
                     button
                         .transition(.opacityPercent)
@@ -438,25 +476,27 @@ public struct FlowLink<Label>: View where Label: View {
                 }
             }
         }
-        .onChange(of: colorScheme) { newScheme in
-            path?.wrappedValue.updateSnapshots(from: newScheme)
-        }
         .background(
             GeometryReader { proxy in
                 Color.clear
-                    .onAppear {
-                        if let anchor = context?.anchor {
-                            size = proxy[anchor].size
-                        }
-                        if let overrideAnchor = overrideAnchor {
-                            overrideFrame = proxy[overrideAnchor]
-                        }
-                    }
+                    .onAppear { updateGeometry(with: proxy) }
+                    .onChange(of: proxy.size) { _ in updateGeometry(with: proxy) }
+                    .onChange(of: overrideAnchor) { _ in updateGeometry(with: proxy) }
             }
         )
-        .onChange(of: path?.wrappedValue.count) { _ in
-            handleFlowLinkOpacity()
+        // Not onChange, whose closure belongs to the view as it was before the change. A
+        // snapshot taken from there is rendered with the environment that was just replaced.
+        .task(id: SnapshotRefreshTrigger(inputs: snapshotInputs, colorScheme: colorScheme, isPresented: isContainedInPath)) {
+            refreshSnapshotsIfPresented()
         }
+        .task(id: contextRegistration) {
+            guard !Task.isCancelled else { return }
+            reportContext(context)
+        }
+        .background(
+            ScrollRevealView(controller: scrollReveal)
+                .allowsHitTesting(false)
+        )
         .anchorPreference(key: PathContextKey.self, value: .bounds, transform: { anchor in
             return PathContext(
                 anchor: configuration.animateFromAnchor ? anchor : nil,
@@ -469,56 +509,138 @@ public struct FlowLink<Label>: View where Label: View {
                 shadowRadius: configuration.shadowRadius,
                 shadowColor: configuration.shadowColor,
                 shadowOffset: configuration.shadowOffset,
-                shouldShowSkrim: configuration.showsSkrim,
+                shouldShowScrim: configuration.showsScrim,
                 shouldScaleHorizontally: configuration.zoomStyle == .scaleHorizontally,
-                swipeUpToDismiss: configuration.swipeUpToDismiss
+                swipeUpToDismiss: configuration.swipeUpToDismiss,
+                presentationStyle: configuration.presentationStyle
             )
         })
         .onPreferenceChange(PathContextKey.self) { value in
             context = value
+            reportContext(value)
         }
         .onPreferenceChange(AnimationAnchorKey.self) { anchor in
             overrideAnchor = anchor.first
             context?.overrideAnchor = overrideAnchor
+            reportContext(context)
+        }
+        .onDisappear {
+            unregisterContext()
         }
     }
 
-    private func handleFlowLinkOpacity() {
-        if isShowing == true, buttonPressed {
-            isShowing = false
-            buttonPressed = false
-        } else if isShowing == false {
-            DispatchQueue.main.asyncAfter(deadline: .now() + flowDuration) { withAnimation(nil) {
-                isShowing = true
-            }}
+    private var contextStoreKey: FlowLinkContextStore.Key? {
+        guard let value = value else { return nil }
+        return .init(value: AnyHashable(value), level: flowDepth == -1 ? nil : flowDepth)
+    }
+
+    private var contextRegistration: ContextRegistration? {
+        guard configuration.animateFromAnchor, let key = contextStoreKey, let store = linkContexts else { return nil }
+        return ContextRegistration(key: key, identity: identity, store: store)
+    }
+
+    /// Keeps the flow stack informed of where this link is, so a transition can
+    /// find it even if the layout has changed since the link was activated.
+    private func reportContext(_ context: PathContext?) {
+        let registration = contextRegistration
+        if registeredContext != registration {
+            unregisterContext()
+        }
+        guard let registration = registration, let context = context else { return }
+        if registeredContext != registration {
+            registeredContext = registration
+        }
+        registration.store.update(context, for: registration.key, identity: registration.identity, owner: ObjectIdentifier(scrollReveal), reveal: scrollReveal.reveal, prepareSnapshot: prepareSnapshotForDismissal)
+    }
+
+    private func unregisterContext() {
+        guard let registration = registeredContext else { return }
+        registration.store.remove(registration.key, owner: ObjectIdentifier(scrollReveal))
+        registeredContext = nil
+    }
+
+    private func updateGeometry(with proxy: GeometryProxy) {
+        size = proxy.size
+        overrideFrame = overrideAnchor.map { proxy[$0] }
+    }
+
+    /// What a snapshot depends on, besides the color scheme, that the link can see change.
+    /// Several of these can restyle a link without resizing it: text set in a larger Dynamic
+    /// Type size can reflow inside the same frame, for one. What the link can't see is a
+    /// change to the data behind its label, which is what `retakeSnapshots` is for.
+    private var snapshotInputs: SnapshotInputs {
+        SnapshotInputs(
+            value: value.map { AnyHashable($0) },
+            size: size,
+            dynamicTypeSize: fetchedEnvironment.dynamicTypeSize,
+            legibilityWeight: fetchedEnvironment.legibilityWeight,
+            colorSchemeContrast: fetchedEnvironment.colorSchemeContrast,
+            layoutDirection: fetchedEnvironment.layoutDirection,
+            locale: fetchedEnvironment.locale,
+            displayScale: fetchedEnvironment.displayScale
+        )
+    }
+
+    private var hasCurrentSnapshots: Bool {
+        snapshots[colorScheme] != nil && snapshotInputsTaken == snapshotInputs
+    }
+
+    /// Makes sure there is a snapshot for a dismissal to end on, just before it begins.
+    ///
+    /// Snapshots are normally retaken while the destination covers the link, which keeps the
+    /// work away from the dismissal. That can't happen for a link that was only created in
+    /// order to be dismissed into, so this is the safety net. It takes the one snapshot the
+    /// dismissal will use rather than both, as it holds up the dismissal while it does.
+    private func prepareSnapshotForDismissal() {
+        guard configuration.animateFromAnchor, configuration.transitionFromSnapshot, size != nil, !hasCurrentSnapshots else { return }
+
+        if snapshotInputsTaken != snapshotInputs {
+            snapshots = [:]
+        }
+        snapshots[colorScheme] = createSnapshot(colorScheme: colorScheme)
+        snapshotInputsTaken = snapshotInputs
+    }
+
+    /// Retakes the snapshots of a link whose destination is presented, if they no longer show
+    /// the link as it is laid out. The dismissal ends on a snapshot of the link, so after a
+    /// layout change (a rotation, a foldable opening, ...) one taken when the link was
+    /// activated would show it at the wrong size, and then jump as the real link replaces it.
+    /// This also covers a link created while its destination is presented, which has none.
+    private func refreshSnapshotsIfPresented() {
+        guard configuration.animateFromAnchor, configuration.transitionFromSnapshot, isContainedInPath else { return }
+
+        // Deferred because taking a snapshot lays out a view, which can't happen mid-update.
+        DispatchQueue.main.async {
+            guard isContainedInPath, size != nil, !hasCurrentSnapshots else { return }
+            initSnapshots()
         }
     }
 
     private func initSnapshots() {
-        guard snapshots.isEmpty || configuration.retakeSnapshots else { return }
+        guard !hasCurrentSnapshots || configuration.retakeSnapshots else { return }
         let lightImage = createSnapshot(colorScheme: .light)
         let darkImage = createSnapshot(colorScheme: .dark)
         self.snapshots[.light] = lightImage
         self.snapshots[.dark] = darkImage
+        self.snapshotInputsTaken = snapshotInputs
     }
 }
 
-private struct IgnoreAnimationModifier: ViewModifier {
-    @State var shouldDisplay = true
-    let transition: AnyTransition
-    func body(content: Content) -> some View {
-        render(content)
-            .animation(nil, value: shouldDisplay)
-            .transition(transition)
-    }
-    @ViewBuilder
-    private func render(_ content: Content) -> some View {
-        content
-    }
+/// The inputs to a flow link's snapshot that the link can observe changing.
+struct SnapshotInputs: Equatable {
+    var value: AnyHashable?
+    var size: CGSize?
+    var dynamicTypeSize: DynamicTypeSize
+    var legibilityWeight: LegibilityWeight?
+    var colorSchemeContrast: ColorSchemeContrast
+    var layoutDirection: LayoutDirection
+    var locale: Locale
+    var displayScale: CGFloat
 }
 
-private extension View {
-    func ignoreAnimation(transition: AnyTransition = .identity) -> some View {
-        modifier(IgnoreAnimationModifier(transition: transition))
-    }
+/// Everything that can leave a presented flow link without a current snapshot.
+struct SnapshotRefreshTrigger: Equatable {
+    var inputs: SnapshotInputs
+    var colorScheme: ColorScheme
+    var isPresented: Bool
 }

@@ -1,0 +1,6 @@
+version: 1
+builder:
+  configs:
+    # FlowStack uses UIKit, so its documentation has to be built for iOS rather than the default, macOS.
+    - documentation_targets: [FlowStack]
+      platform: ios

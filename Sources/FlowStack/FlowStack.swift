@@ -5,7 +5,10 @@
 //
 
 import Combine
+import OSLog
 import SwiftUI
+
+let flowStackLogger = Logger(subsystem: "com.velosmobile.FlowStack", category: "FlowStack")
 
 struct AnyDestination: Equatable {
 
@@ -27,8 +30,8 @@ class DestinationLookup: ObservableObject {
 
 class AccessibilityManager: ObservableObject {
     @Published var zIndex: Double = 0.0
-    var skrimIndex: Double { zIndex - 0.1 }
-    var behindSkrim: Double { zIndex - 0.2 }
+    var scrimIndex: Double { zIndex - 0.1 }
+    var behindScrim: Double { zIndex - 0.2 }
 
     // Setup VoiceOver Observer
     @Published var isVoiceOverRunning: Bool = UIAccessibility.isVoiceOverRunning
@@ -43,9 +46,9 @@ class AccessibilityManager: ObservableObject {
 
     func decrementIndex() { self.zIndex -= 1.0 }
 
-    func calcSkrim() -> Double {
-        if isVoiceOverRunning { return skrimIndex }
-        return zIndex > 1.0 ? zIndex : skrimIndex
+    func calcScrim() -> Double {
+        if isVoiceOverRunning { return scrimIndex }
+        return zIndex > 1.0 ? zIndex : scrimIndex
     }
 }
 
@@ -73,9 +76,14 @@ struct FlowDestinationModifier<D: Hashable>: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .zIndex(accessibilityManager.isVoiceOverRunning ? accessibilityManager.zIndex : accessibilityManager.behindSkrim)
-            // swiftlint:disable:next force_unwrapping
-            .onAppear { destinationLookup.table.merge([_mangledTypeName(dataType)!: destination], uniquingKeysWith: { _, rhs in rhs }) }
+            .zIndex(accessibilityManager.isVoiceOverRunning ? accessibilityManager.zIndex : accessibilityManager.behindScrim)
+            .onAppear {
+                guard let typeName = _mangledTypeName(dataType) else {
+                    assertionFailure("FlowStack: Unable to resolve a mangled type name for \(dataType).")
+                    return
+                }
+                destinationLookup.table.merge([typeName: destination], uniquingKeysWith: { _, rhs in rhs })
+            }
     }
 }
 
@@ -111,21 +119,22 @@ public extension View {
     /// if it needs to present more than one kind of data.
     ///
     /// Do not put a navigation destination modifier inside a "lazy" container,
-    /// like ``List`` or ``LazyVStack``. These containers create child views
+    /// like `List` or `LazyVStack`. These containers create child views
     /// only when needed to render on screen. Add the flow destination
     /// modifier outside these containers so that the flow stack can
     /// always see the destination.
     ///
     /// - Parameters:
-    ///   - data: The type of data that this destination matches.
+    ///   - type: The type of data that this destination matches.
     ///   - destination: A view builder that defines a view to display
     ///     when the stack's flow navigation state contains a value of
-    ///     type `data`. The closure takes one argument, which is the value
+    ///     that type. The closure takes one argument, which is the value
     ///     of the data to present.
     func flowDestination<D, C>(for type: D.Type, @ViewBuilder destination: @escaping (D) -> C) -> some View where D: Hashable, C: View {
         let destination = AnyDestination(dataType: type, content: { param in
             guard let param = AnyDestination.cast(data: param, to: type) else {
-                fatalError()
+                assertionFailure("FlowStack: Expected value of type \(type) but received \(Swift.type(of: param)).")
+                return AnyView(EmptyView())
             }
             return AnyView (
                 destination(param)
@@ -219,16 +228,20 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     private var usesInternalPath: Bool = false
 
-    @State private var destinationLookup: DestinationLookup = .init()
+    @StateObject private var destinationLookup: DestinationLookup = .init()
     @StateObject var accessibilityManager: AccessibilityManager = .init()
+    @StateObject private var linkContexts = FlowLinkContextStore()
+
+    /// The presented destinations that have disabled interactive dismissal.
+    @State private var dismissDisabled: Set<FlowElement> = []
 
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
     ///   - overlayAlignment: The alignment applied to the overlay.
-    ///   - animation: The animation to use during flow transitions.
+    ///   - customSmoothAnimation: The animation to use during flow transitions.
     ///   - root: The view to display when the stack is empty.
     ///   - overlay: The view to overlay on the FlowStack. This view is always visible in front of any view presented by the flow stack.
-    public init(overlayAlignment: Alignment = .center, customSmoothAnimation: CustomSmoothAnimation?=nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
+    public init(overlayAlignment: Alignment = .center, customSmoothAnimation: CustomSmoothAnimation? = nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
         self.overlayAlignment = overlayAlignment
@@ -242,10 +255,10 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     /// - Parameters:
     ///   - path: A Binding to the flow path for this stack.
     ///   - overlayAlignment: The alignment applied to the overlay.
-    ///   - animation: The animation to use during flow transitions.
+    ///   - customSmoothAnimation: The animation to use during flow transitions.
     ///   - root: The view to display when the stack is empty.
     ///   - overlay: The view to overlay on the FlowStack. This view is always visible in front of any view presented by the flow stack.
-    public init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, customSmoothAnimation: CustomSmoothAnimation?=nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
+    public init(path: Binding<FlowPath>, overlayAlignment: Alignment = .center, customSmoothAnimation: CustomSmoothAnimation? = nil, @ViewBuilder root: @escaping () -> Root, @ViewBuilder overlay: @escaping () -> Overlay) {
         self.root = root
         self.overlay = overlay
         self.overlayAlignment = overlayAlignment
@@ -255,6 +268,7 @@ public struct FlowStack<Root: View, Overlay: View>: View {
 
     private func destination(for instance: any (Hashable & Equatable)) -> AnyDestination? {
         guard let typeName = _mangledTypeName(type(of: instance)), let destination = destinationLookup.table[typeName] else {
+            flowStackLogger.warning("No flowDestination(for:destination:) registered for value of type \(String(describing: type(of: instance))). The value will not be presented. Ensure the flowDestination modifier is attached to a view that has appeared inside this FlowStack (and is not inside a lazy container).")
             return nil
         }
 
@@ -262,15 +276,20 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     }
 
     @ViewBuilder
-    private func skrim(for element: FlowElement) -> some View {
-        if element == pathToUse.wrappedValue.elements.last, element.context?.shouldShowSkrim == true {
+    private func scrim(for element: FlowElement) -> some View {
+        if element == pathToUse.wrappedValue.elements.last, element.context?.shouldShowScrim == true {
             Rectangle()
                 .foregroundColor(Color.black.opacity(0.7))
-                .transition(.opacity)
+                // Fading in, the scrim keeps touches from the flow stack beneath it. Fading
+                // out, it would only be in the way of a flow stack that looks ready to use.
+                .transition(.asymmetric(insertion: .opacity, removal: .opacity.combined(with: .untouchable)))
                 .ignoresSafeArea()
-                .zIndex(accessibilityManager.calcSkrim())
+                .zIndex(accessibilityManager.calcScrim())
                 .id(element.hashValue)
                 .onTapGesture {
+                    // Tapping outside a destination dismisses it as surely as pulling it away
+                    // does, so a destination that disables one disables both.
+                    guard !dismissDisabled.contains(element) else { return }
                     flowDismissAction()
                 }
         }
@@ -283,9 +302,16 @@ public struct FlowStack<Root: View, Overlay: View>: View {
     private var flowDismissAction: FlowDismissAction {
         FlowDismissAction(
             onDismiss: {
-                withTransaction(transaction) {
-                    accessibilityManager.decrementIndex()
-                    pathToUse.wrappedValue.removeLast()
+                guard let element = pathToUse.wrappedValue.elements.last else { return }
+
+                // The link comes into view first, so that it is already standing in for
+                // the destination when the destination starts zooming back into it.
+                linkContexts.revealLink(for: AnyHashable(element.value), atLevel: element.index, source: element.source) {
+                    guard pathToUse.wrappedValue.elements.last == element else { return }
+                    withTransaction(transaction) {
+                        accessibilityManager.decrementIndex()
+                        pathToUse.wrappedValue.removeLast()
+                    }
                 }
             })
     }
@@ -295,24 +321,38 @@ public struct FlowStack<Root: View, Overlay: View>: View {
         transaction.disablesAnimations = true
         return transaction
     }
-    @Environment(\.flowDismiss) var flowDismiss
     public var body: some View {
         ZStack {
-            root()
-                .accessibilityElement(children: .contain)
-                .accessibilityHidden(accessibilityManager.zIndex != 0)
-                .environment(\.flowDepth, 0)
+            ScrollViewReader { proxy in
+                root()
+                    .onAppear { linkContexts.setScrollProxy(proxy, forLevel: 0) }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityHidden(accessibilityManager.zIndex != 0)
+            .environment(\.flowDepth, 0)
 
             ForEach(pathToUse.wrappedValue.elements, id: \.self) { element in
                 if let destination = destination(for: element.value) {
 
-                    skrim(for: element)
+                    scrim(for: element)
 
-                    destination.content(element.value)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .id(element.hashValue)
-                        .transition(.flowTransition(with: element.context ?? .init()))
-                        .modifier(AccessibilityModifier(element: element.index))
+                    ScrollViewReader { proxy in
+                        destination.content(element.value)
+                            .onAppear { linkContexts.setScrollProxy(proxy, forLevel: element.index + 1) }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .id(element.hashValue)
+                    .transition(.flowTransition(with: element.context, source: element.source, value: AnyHashable(element.value), level: element.index))
+                    .modifier(AccessibilityModifier(element: element.index))
+                    .onPreferenceChange(InteractiveDismissDisabledKey.self) { isDisabled in
+                        // A destination being removed can still report, and would otherwise
+                        // be remembered for one that later presents the same value.
+                        if isDisabled, pathToUse.wrappedValue.elements.contains(element) {
+                            dismissDisabled.insert(element)
+                        } else {
+                            dismissDisabled.remove(element)
+                        }
+                    }
                 }
             }
         }
@@ -322,11 +362,25 @@ public struct FlowStack<Root: View, Overlay: View>: View {
                 .environment(\.flowDepth, -1)
         }
         .environment(\.flowPath, pathToUse)
+        .environment(\.flowLinkContexts, linkContexts)
         .environment(\.flowAnimationDuration, customSmoothAnimation.duration)
         .environment(\.flowTransaction, transaction)
         .environmentObject(destinationLookup)
         .environmentObject(accessibilityManager)
         .environment(\.flowDismiss, flowDismissAction)
+        // Keep the accessibility z-index in sync with the path even when the
+        // path is mutated directly (e.g. flowPath.removeLast(2), removeAll()),
+        // which bypasses FlowDismissAction's decrement.
+        .onChange(of: pathToUse.wrappedValue.count) { newCount in
+            accessibilityManager.setIndex(newCount - 1)
+        }
+        .onAppear {
+            linkContexts.pathDidChange(to: pathToUse.wrappedValue.elements)
+        }
+        .onChange(of: pathToUse.wrappedValue.elements) { elements in
+            linkContexts.pathDidChange(to: elements)
+            dismissDisabled.formIntersection(elements)
+        }
     }
 }
 
@@ -334,7 +388,7 @@ public extension FlowStack where Overlay == EmptyView {
 
     /// Creates a flow stack that manages its own navigation state.
     /// - Parameters:
-    ///   - animation: The animation to use during flow transitions.
+    ///   - customSmoothAnimation: The animation to use during flow transitions.
     ///   - root: The view to display when the stack is empty.
     init(customSmoothAnimation: CustomSmoothAnimation? = nil, @ViewBuilder root: @escaping () -> Root) {
         self.root = root
@@ -349,14 +403,14 @@ public extension FlowStack where Overlay == EmptyView {
     /// Creates a flow stack with heterogeneous navigation state that you can control.
     /// - Parameters:
     ///   - path: A Binding to the flow path for this stack.
-    ///   - animation: The animation to use during flow transitions.
+    ///   - customSmoothAnimation: The animation to use during flow transitions.
     ///   - root: The view to display when the stack is empty.
     init(path: Binding<FlowPath>, customSmoothAnimation: CustomSmoothAnimation? = nil, @ViewBuilder root: @escaping () -> Root) {
         self.root = root
         self.overlay = { EmptyView() }
         self.overlayAlignment = .center
         self._path = path
-        self.customSmoothAnimation = customSmoothAnimation ??  CustomSmoothAnimation.default
+        self.customSmoothAnimation = customSmoothAnimation ?? CustomSmoothAnimation.default
     }
 }
 
@@ -376,6 +430,7 @@ struct FlowPathAnimationKey: EnvironmentKey {
 }
 
 public extension EnvironmentValues {
+    /// The duration, in seconds, of the enclosing flow stack's transitions.
     var flowAnimationDuration: Double {
         get { self[FlowPathAnimationKey.self] }
         set { self[FlowPathAnimationKey.self] = newValue }
@@ -398,12 +453,22 @@ struct FlowStack_Previews: PreviewProvider {
     }
 }
 
-/// Object for passable parameters for smooth Animation
-/// Had to be an animation type with a duration value so that it's trackable for flowStack
+/// The timing of a flow stack's transitions, which are smooth spring animations.
+///
+/// Pass one to a ``FlowStack`` initializer to change the timing of all of the stack's
+/// transitions:
+///
+///     FlowStack(customSmoothAnimation: .init(duration: 0.3, bounce: 0.1)) {
+///         ...
+///     }
 public struct CustomSmoothAnimation {
     var duration: Double
     var bounce: Double
 
+    /// Creates the timing for a flow stack's transitions.
+    /// - Parameters:
+    ///   - duration: The perceived duration of a transition, in seconds.
+    ///   - bounce: How much bounce to add to the end of a transition, from 0 for none.
     public init(duration: Double = 0.24, bounce: Double = 0.2) {
         self.duration = duration
         self.bounce = bounce
@@ -464,7 +529,7 @@ struct FlowTransactionModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onAppear(perform: {
-                initialPathCount = path!.elements.count
+                initialPathCount = path?.elements.count ?? 0
                 withTransaction(transaction) {
                     onPresent?()
                 }

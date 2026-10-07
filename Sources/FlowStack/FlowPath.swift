@@ -7,22 +7,6 @@
 import Foundation
 import SwiftUI
 
-extension CGRect: Hashable {
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(minX)
-        hasher.combine(minY)
-        hasher.combine(width)
-        hasher.combine(height)
-    }
-}
-
-extension CGPoint: Hashable {
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(x)
-        hasher.combine(y)
-    }
-}
-
 struct PathContext: Equatable, Hashable {
     var anchor: Anchor<CGRect>?
     var overrideAnchor: Anchor<CGRect>?
@@ -38,25 +22,44 @@ struct PathContext: Equatable, Hashable {
     var shadowColor: Color?
     var shadowOffset: CGPoint = .zero
 
-    var shouldShowSkrim: Bool = true
+    var shouldShowScrim: Bool = true
     var shouldScaleHorizontally: Bool = true
 
     var swipeUpToDismiss: Bool = false
+
+    var presentationStyle: FlowPresentationStyle = .automatic
+
+    // Hashes a subset of the equated properties (anchors and shadowOffset are
+    // excluded because Anchor<CGRect> and CGPoint are not Hashable), which
+    // still satisfies the Hashable contract: equal values hash equally.
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(snapshot)
+        hasher.combine(linkDepth)
+        hasher.combine(cornerRadius)
+        hasher.combine(shadowRadius)
+        hasher.combine(shadowColor)
+        hasher.combine(shouldShowScrim)
+        hasher.combine(shouldScaleHorizontally)
+        hasher.combine(swipeUpToDismiss)
+        hasher.combine(presentationStyle)
+    }
 }
 
 struct FlowElement: Equatable, Hashable {
     var value: (any (Equatable & Hashable))
     var context: PathContext?
+    /// The flow link the value was presented from, where that is known. A value appended to
+    /// the flow path directly comes from whichever link presents it.
+    var source: FlowLinkSource?
     var index: Int
 
     static func == (lhs: FlowElement, rhs: FlowElement) -> Bool {
-        lhs.value.hashValue == rhs.value.hashValue &&
-        _mangledTypeName(type(of: lhs.value)) == _mangledTypeName(type(of: rhs.value)) &&
+        AnyHashable(lhs.value) == AnyHashable(rhs.value) &&
         lhs.index == rhs.index
     }
 
     func hash(into hasher: inout Hasher) {
-        hasher.combine(_mangledTypeName(type(of: value)))
+        hasher.combine(AnyHashable(value))
         hasher.combine(index)
     }
 }
@@ -66,11 +69,13 @@ public struct FlowPath: Equatable, Hashable {
 
     var elements: [FlowElement]
 
+    /// Creates a new, empty flow path.
     public init() {
         elements = []
     }
 
-    var isEmpty: Bool {
+    /// A Boolean that indicates whether the flow path is empty.
+    public var isEmpty: Bool {
         elements.isEmpty
     }
 
@@ -80,18 +85,27 @@ public struct FlowPath: Equatable, Hashable {
     }
 
     func contains<P>(_ element: P, atLevel level: Int?) -> Bool where P: Hashable {
-        return elements.contains { $0 == FlowElement(value: element, context: $0.context, index: level ?? $0.index) }
+        self.element(presenting: element, atLevel: level) != nil
+    }
+
+    func element<P>(presenting value: P, atLevel level: Int?) -> FlowElement? where P: Hashable {
+        elements.first { $0 == FlowElement(value: value, context: $0.context, index: level ?? $0.index) }
     }
 
     /// Removes the specified number of elements from the end of the flow path.
-    /// - Parameter count: The number of elements to remove from the collection. Count must be greater than or equal to zero and must not exceed the number of elements in the flow path.
+    /// - Parameter count: The number of elements to remove from the flow path. If `count` exceeds the
+    ///   number of elements in the flow path, all elements are removed.
     public mutating func removeLast(_ count: Int = 1) {
-        guard !isEmpty else { return }
-        elements.removeLast(count)
+        elements.removeLast(Swift.min(Swift.max(count, 0), elements.count))
     }
 
-    mutating func append<P>(_ newElement: P, context: PathContext?) where P: Hashable {
-        self.elements.append(.init(value: newElement, context: context, index: elements.count))
+    /// Removes all elements from the flow path, returning to the root view.
+    public mutating func removeAll() {
+        elements.removeAll()
+    }
+
+    mutating func append<P>(_ newElement: P, context: PathContext?, source: FlowLinkSource? = nil) where P: Hashable {
+        self.elements.append(.init(value: newElement, context: context, source: source, index: elements.count))
     }
 
     /// Adds a new element at the end of the flow path.
@@ -101,18 +115,21 @@ public struct FlowPath: Equatable, Hashable {
         self.append(newElement, context: nil)
     }
 
-    /// Adds a method to tell flow path to use the correct snapshot for the currently set colorScheme
+    /// Adds a new element at the end of the flow path, presented from a particular flow link.
+    ///
+    /// Use this when more than one flow link presents `newElement`, to choose which of them
+    /// the destination zooms out of and back into.
     /// - Parameters:
-    ///    - colorScheme: The new color scheme to be used for snapshots
-    public mutating func updateSnapshots(from colorScheme: ColorScheme) {
-        for i in elements.indices {
-            guard var context = elements[i].context else { continue }
-            if let newSnapshot = context.snapshotDict[colorScheme] {
-                context.snapshot = newSnapshot
-                elements[i].context?.snapshot = context.snapshot
-            }
-        }
+    ///   - newElement: The element to append to the flow path.
+    ///   - linkID: The identifier given to the flow link with `flowLinkID(_:)`.
+    public mutating func append<P, ID>(_ newElement: P, linkID: ID) where P: Hashable, ID: Hashable {
+        self.append(newElement, context: nil, source: FlowLinkSource(link: .explicit(AnyHashable(linkID))))
     }
+
+    /// Does nothing. Flow links keep a snapshot for each color scheme, and the right one is
+    /// chosen as a transition renders, so there is nothing to update when the scheme changes.
+    @available(*, deprecated, message: "This no longer does anything and can be removed. The snapshot for the current color scheme is chosen automatically.")
+    public mutating func updateSnapshots(from colorScheme: ColorScheme) { }
 }
 
 struct FlowPathKey: EnvironmentKey {
@@ -120,6 +137,10 @@ struct FlowPathKey: EnvironmentKey {
 }
 
 public extension EnvironmentValues {
+    /// A binding to the path of the enclosing flow stack.
+    ///
+    /// Inside a flow stack, this is the stack's ``FlowPath``, whether the stack manages it
+    /// or it was passed in. Outside one, it's a constant, empty path.
     var flowPath: Binding<FlowPath>? {
         get { self[FlowPathKey.self] }
         set { self[FlowPathKey.self] = newValue }

@@ -15,6 +15,7 @@
 		EDA1DD3A2A67693A00D82A9D /* FlowStackExampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA1DD372A67693A00D82A9D /* FlowStackExampleApp.swift */; };
 		EDA1DD3B2A67693A00D82A9D /* Product.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA1DD332A67693A00D82A9D /* Product.swift */; };
 		EDA1DD3C2A67693A00D82A9D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDA1DD342A67693A00D82A9D /* ContentView.swift */; };
+		EDCA5E012E3000000000A001 /* CachedAsyncImage in Frameworks */ = {isa = PBXBuildFile; productRef = EDCA5E022E3000000000A002 /* CachedAsyncImage */; };
 		EDFD07BC2A6F319E00CB0737 /* ProductRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDFD07BB2A6F319E00CB0737 /* ProductRow.swift */; };
 /* End PBXBuildFile section */
 
@@ -38,6 +39,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				ED8DE1742A6767B900215165 /* FlowStack in Frameworks */,
+				EDCA5E012E3000000000A001 /* CachedAsyncImage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,6 +121,7 @@
 			name = FlowStackExample;
 			packageProductDependencies = (
 				ED8DE1732A6767B900215165 /* FlowStack */,
+				EDCA5E022E3000000000A002 /* CachedAsyncImage */,
 			);
 			productName = FlowStackExample;
 			productReference = ED8DE15D2A6765F500215165 /* FlowStackExample.app */;
@@ -148,6 +151,9 @@
 				Base,
 			);
 			mainGroup = ED8DE1542A6765F500215165;
+			packageReferences = (
+				EDCA5E032E3000000000A003 /* XCRemoteSwiftPackageReference "swiftui-cached-async-image" */,
+			);
 			productRefGroup = ED8DE15E2A6765F500215165 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -389,10 +395,26 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		EDCA5E032E3000000000A003 /* XCRemoteSwiftPackageReference "swiftui-cached-async-image" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/lorenzofiamingo/swiftui-cached-async-image.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		ED8DE1732A6767B900215165 /* FlowStack */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FlowStack;
+		};
+		EDCA5E022E3000000000A002 /* CachedAsyncImage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EDCA5E032E3000000000A003 /* XCRemoteSwiftPackageReference "swiftui-cached-async-image" */;
+			productName = CachedAsyncImage;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
