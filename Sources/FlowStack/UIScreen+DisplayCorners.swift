@@ -21,18 +21,33 @@ extension UIScreen {
         return components.reversed().joined()
     }()
 
-    /// The corner radius of the display. Uses a private property of `UIScreen`,
-    /// and may report 0 if the API changes.
-    static var displayCornerRadius: CGFloat? = {
+    /// The corner radius used when the display's real corner radius can't be
+    /// determined, or on square-cornered displays where a small radius still
+    /// looks better for presented views.
+    private static let fallbackCornerRadius: CGFloat = 12
 
-        guard let screen = UIWindowScene.firstForegroundScene?.screen else {
-            return nil
+    private static var cachedDisplayCornerRadius: CGFloat?
+
+    /// The corner radius of the display. Uses a private property of `UIScreen`
+    /// and falls back to a sensible default if the API changes.
+    ///
+    /// This is a single value, so on displays whose corners differ (e.g. the
+    /// hinge side of a foldable) it only describes the roundest ones. Prefer
+    /// `GeometryProxy.concentricCornerRadii` where it's available.
+    static var displayCornerRadius: CGFloat {
+        if let cached = cachedDisplayCornerRadius {
+            return cached
         }
 
-        guard let cornerRadius = screen.value(forKey: cornerRadiusKey) as? CGFloat else {
-            return nil
+        // Don't cache the fallback: a lookup that fails because no scene is
+        // foreground yet may succeed on a later attempt.
+        guard let screen = UIWindowScene.firstForegroundScene?.screen,
+              let cornerRadius = screen.value(forKey: cornerRadiusKey) as? CGFloat else {
+            return fallbackCornerRadius
         }
 
-        return cornerRadius > 0 ? cornerRadius : 12
-    }()
+        let radius = cornerRadius > 0 ? cornerRadius : fallbackCornerRadius
+        cachedDisplayCornerRadius = radius
+        return radius
+    }
 }

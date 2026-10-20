@@ -94,6 +94,10 @@ extension Product {
               imageUrl: URL(string: "https://user-images.githubusercontent.com/11927517/249293764-c60804a4-8829-44e7-ad58-524a5a8731d4.png")!)
     }
 
+    static var featuredProducts: [Product] {
+        [.macSE, .appleII, .macColorClassic]
+    }
+
     static var allProducts: [Product] {
         [.appleII, .appleIII, .appleLisa, .macSE, .macColorClassic]
     }
