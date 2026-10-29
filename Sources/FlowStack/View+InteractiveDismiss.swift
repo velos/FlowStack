@@ -56,12 +56,13 @@ struct InteractiveDismissContainer<T: View>: UIViewControllerRepresentable {
     var onEnded: (Bool) -> Void
 
     let content: T
+    var renderTransform: CGAffineTransform? = nil
 
-    func makeUIViewController(context: Context) -> InteractiveDismissViewController<T> {
-        return InteractiveDismissViewController(rootView: content, coordinator: context.coordinator)
+    func makeUIViewController(context: Context) -> InteractiveDismissRenderingController<T> {
+        InteractiveDismissRenderingController(rootView: content, coordinator: context.coordinator)
     }
 
-    func updateUIViewController(_ uiViewController: InteractiveDismissViewController<T>, context: Context) {
+    func updateUIViewController(_ uiViewController: InteractiveDismissRenderingController<T>, context: Context) {
         context.coordinator.threshold = threshold
         context.coordinator.swipeUpToDismiss = swipeUpToDismiss
         context.coordinator.onPan = onPan
@@ -69,11 +70,49 @@ struct InteractiveDismissContainer<T: View>: UIViewControllerRepresentable {
         context.coordinator.onEnded = onEnded
         context.coordinator.isDismissing = isDismissing
         context.coordinator.isEnabled = isEnabled
-        uiViewController.rootView = content
+        uiViewController.host.rootView = content
+        uiViewController.renderTransform = renderTransform
+        uiViewController.view.setNeedsLayout()
     }
 
     func makeCoordinator() -> InteractiveDismissCoordinator {
         InteractiveDismissCoordinator(threshold: threshold, isEnabled: isEnabled, onPan: onPan, isDismissing: isDismissing, swipeUpToDismiss: swipeUpToDismiss, onDismiss: onDismiss, onEnded: onEnded)
+    }
+}
+
+/// Keeps UIKit's layout at its resting size while the layer tree performs the zoom.
+class InteractiveDismissRenderingController<Content: View>: UIViewController {
+    let host: InteractiveDismissViewController<Content>
+    var renderTransform: CGAffineTransform?
+
+    init(rootView: Content, coordinator: InteractiveDismissCoordinator) {
+        host = InteractiveDismissViewController(rootView: rootView, coordinator: coordinator)
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @MainActor required dynamic init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .clear
+        addChild(host)
+        view.addSubview(host.view)
+        host.didMove(toParent: self)
+    }
+
+    override func viewWillLayoutSubviews() {
+        view.layer.sublayerTransform = CATransform3DIdentity
+        super.viewWillLayoutSubviews()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        host.view.frame = view.bounds
+        host.view.setNeedsLayout()
+        host.view.layoutIfNeeded()
+        view.layer.sublayerTransform = CATransform3DMakeAffineTransform(renderTransform ?? .identity)
     }
 }
 
@@ -663,8 +702,8 @@ class InteractiveDismissCoordinator: NSObject, UIGestureRecognizerDelegate {
 }
 
 extension View {
-    func onInteractiveDismissGesture(threshold: Double = 50, isEnabled: Bool = true, isDismissing: Bool = false, swipeUpToDismiss: Bool, onDismiss: @escaping () -> Void, onPan: @escaping (CGPoint) -> Void = { _ in }, onEnded: @escaping (Bool) -> Void = { _ in }) -> some View {
-        InteractiveDismissContainer(threshold: threshold, onPan: onPan, isEnabled: isEnabled, isDismissing: isDismissing, swipeUpToDismiss: swipeUpToDismiss, onDismiss: onDismiss, onEnded: onEnded, content: self)
+    func onInteractiveDismissGesture(threshold: Double = 50, isEnabled: Bool = true, isDismissing: Bool = false, swipeUpToDismiss: Bool, renderTransform: CGAffineTransform? = nil, onDismiss: @escaping () -> Void, onPan: @escaping (CGPoint) -> Void = { _ in }, onEnded: @escaping (Bool) -> Void = { _ in }) -> some View {
+        InteractiveDismissContainer(threshold: threshold, onPan: onPan, isEnabled: isEnabled, isDismissing: isDismissing, swipeUpToDismiss: swipeUpToDismiss, onDismiss: onDismiss, onEnded: onEnded, content: self, renderTransform: renderTransform)
     }
 }
 

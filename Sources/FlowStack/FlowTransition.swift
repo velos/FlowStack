@@ -301,13 +301,34 @@ extension AnyTransition {
             .allowsHitTesting(isPresented)
         }
 
+        private func usesStableLayout(availableSize: CGSize) -> Bool {
+            if #available(iOS 27.0, *) {
+                return isPresentedFullscreen(availableSize: availableSize) && resolvedContext.shouldScaleHorizontally
+            }
+            return false
+        }
+
         @ViewBuilder
         private func presentation(of content: Content, in proxy: GeometryProxy) -> some View {
             let zoomRect = zoomRect(with: proxy, anchor: resolvedContext.overrideAnchor ?? resolvedContext.anchor, percent: percent, pullOffset: panOffset)
             let scaleRatio = resolvedContext.shouldScaleHorizontally ? zoomRect.size.width / proxy.size.width : 1.0
 
+            let usesStableLayout = usesStableLayout(availableSize: proxy.size)
+            let slideOffset = resolvedContext.anchor == nil ? (1 - percent) * proxy.size.width : 0
+            let renderingRect = CGRect(
+                x: zoomRect.origin.x - zoomRect.width / 2 + slideOffset,
+                y: zoomRect.origin.y - zoomRect.height / 2,
+                width: zoomRect.width,
+                height: zoomRect.height
+            )
+            let renderTransform = CGAffineTransform(
+                a: scaleRatio, b: 0, c: 0, d: scaleRatio,
+                tx: zoomRect.origin.x - proxy.size.width / 2 + slideOffset,
+                ty: zoomRect.origin.y - proxy.size.height / 2
+            )
+
             content
-                .onInteractiveDismissGesture(threshold: 80, isEnabled: !isDisabled, isDismissing: isDismissing, swipeUpToDismiss: resolvedContext.swipeUpToDismiss, onDismiss: {
+                .onInteractiveDismissGesture(threshold: 80, isEnabled: !isDisabled, isDismissing: isDismissing, swipeUpToDismiss: resolvedContext.swipeUpToDismiss, renderTransform: usesStableLayout ? renderTransform : nil, onDismiss: {
                     guard !isDisabled else { return }
                     dismiss()
                     isDismissing = true
@@ -336,23 +357,36 @@ extension AnyTransition {
                 }
                 .overlay(alignment: .top) {
                     if let image = activeSnapshot, percent < 1 {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .opacity(snapshotPercent)
+                        if usesStableLayout {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: renderingRect.width, height: renderingRect.height)
+                                .position(x: renderingRect.midX, y: renderingRect.midY)
+                                .opacity(snapshotPercent)
+                        } else {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .opacity(snapshotPercent)
+                        }
                     }
                 }
-                .clipShape(UnevenCornerShape(radii: cornerRadii(with: proxy).map { $0 / scaleRatio }, style: cornerStyle))
+                .clipShape(UnevenCornerShape(
+                    radii: cornerRadii(with: proxy).map { usesStableLayout ? $0 : $0 / scaleRatio },
+                    style: cornerStyle,
+                    renderingRect: usesStableLayout ? renderingRect : nil
+                ))
                 .shadow(color: resolvedContext.shadowColor ?? .clear, radius: resolvedContext.shadowRadius, x: resolvedContext.shadowOffset.x, y: resolvedContext.shadowOffset.y)
                 .frame(
                     width: resolvedContext.shouldScaleHorizontally ? proxy.size.width : zoomRect.size.width,
-                    height: zoomRect.size.height / scaleRatio
+                    height: usesStableLayout ? proxy.size.height : zoomRect.size.height / scaleRatio
                 )
-                .scaleEffect(x: scaleRatio, y: scaleRatio, anchor: .center)
-                .transformEffect(.init(translationX: resolvedContext.anchor == nil ? (1 - percent) * proxy.size.width : 0, y: 0))
+                .scaleEffect(x: usesStableLayout ? 1 : scaleRatio, y: usesStableLayout ? 1 : scaleRatio, anchor: .center)
+                .transformEffect(.init(translationX: usesStableLayout ? 0 : slideOffset, y: 0))
                 .position(
-                    x: zoomRect.origin.x,
-                    y: zoomRect.origin.y
+                    x: usesStableLayout ? proxy.size.width / 2 : zoomRect.origin.x,
+                    y: usesStableLayout ? proxy.size.height / 2 : zoomRect.origin.y
                 )
                 .opacity(resolvedContext.anchor == nil ? percent : 1)
         }

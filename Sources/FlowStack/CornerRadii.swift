@@ -67,6 +67,7 @@ extension CornerRadii: Animatable {
 struct UnevenCornerShape: Shape {
     var radii: CornerRadii
     var style: RoundedCornerStyle
+    var renderingRect: CGRect? = nil
 
     var animatableData: CornerRadii.AnimatableData {
         get { radii.animatableData }
@@ -74,8 +75,9 @@ struct UnevenCornerShape: Shape {
     }
 
     func path(in rect: CGRect) -> Path {
+        let pathRect = renderingRect ?? rect
         if radii.isUniform {
-            return RoundedRectangle(cornerRadius: radii.topLeft, style: style).path(in: rect)
+            return RoundedRectangle(cornerRadius: radii.topLeft, style: style).path(in: pathRect)
         }
 
         if #available(iOS 16.0, *) {
@@ -87,9 +89,9 @@ struct UnevenCornerShape: Shape {
                 bottomTrailing: radii.bottomRight,
                 topTrailing: radii.topRight
             )
-            return Path(roundedRect: rect, cornerRadii: cornerRadii, style: style)
+            return Path(roundedRect: pathRect, cornerRadii: cornerRadii, style: style)
         }
 
-        return RoundedRectangle(cornerRadius: radii.maximum, style: style).path(in: rect)
+        return RoundedRectangle(cornerRadius: radii.maximum, style: style).path(in: pathRect)
     }
 }
