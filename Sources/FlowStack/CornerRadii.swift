@@ -69,9 +69,25 @@ struct UnevenCornerShape: Shape {
     var style: RoundedCornerStyle
     var renderingRect: CGRect? = nil
 
-    var animatableData: CornerRadii.AnimatableData {
-        get { radii.animatableData }
-        set { radii.animatableData = newValue }
+    typealias RectData = AnimatablePair<AnimatablePair<CGFloat, CGFloat>, AnimatablePair<CGFloat, CGFloat>>
+
+    var animatableData: AnimatablePair<CornerRadii.AnimatableData, RectData> {
+        get {
+            let rect = renderingRect ?? .zero
+            return AnimatablePair(radii.animatableData, AnimatablePair(
+                AnimatablePair(rect.origin.x, rect.origin.y),
+                AnimatablePair(rect.width, rect.height)
+            ))
+        }
+        set {
+            radii.animatableData = newValue.first
+            if renderingRect != nil {
+                renderingRect = CGRect(
+                    x: newValue.second.first.first, y: newValue.second.first.second,
+                    width: newValue.second.second.first, height: newValue.second.second.second
+                )
+            }
+        }
     }
 
     func path(in rect: CGRect) -> Path {

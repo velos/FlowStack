@@ -301,6 +301,9 @@ extension AnyTransition {
             .allowsHitTesting(isPresented)
         }
 
+        // A scaled fullscreen destination needs its final UIKit layout before the first
+        // visible frame. Only its rendering changes size; its navigation bars and safe area
+        // keep the same layout throughout the zoom and an interactive pull.
         private func usesStableLayout(availableSize: CGSize) -> Bool {
             if #available(iOS 27.0, *) {
                 return isPresentedFullscreen(availableSize: availableSize) && resolvedContext.shouldScaleHorizontally
@@ -321,10 +324,15 @@ extension AnyTransition {
                 width: zoomRect.width,
                 height: zoomRect.height
             )
-            let renderTransform = CGAffineTransform(
-                a: scaleRatio, b: 0, c: 0, d: scaleRatio,
-                tx: zoomRect.origin.x - proxy.size.width / 2 + slideOffset,
-                ty: zoomRect.origin.y - proxy.size.height / 2
+            // Cover even a source that's taller in proportion than the destination. The
+            // mask supplies the zoom's viewport, while the content keeps its resting bounds.
+            let renderScale = max(zoomRect.width / proxy.size.width, zoomRect.height / proxy.size.height)
+            let renderTransform = FlowRenderTransform(
+                scale: renderScale,
+                translation: CGPoint(
+                    x: zoomRect.origin.x - proxy.size.width / 2 + slideOffset,
+                    y: renderingRect.minY + proxy.size.height * (renderScale - 1) / 2
+                )
             )
 
             content
@@ -361,7 +369,7 @@ extension AnyTransition {
                             Image(uiImage: image)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .frame(width: renderingRect.width, height: renderingRect.height)
+                                .frame(width: renderingRect.width, height: renderingRect.height, alignment: .top)
                                 .position(x: renderingRect.midX, y: renderingRect.midY)
                                 .opacity(snapshotPercent)
                         } else {
