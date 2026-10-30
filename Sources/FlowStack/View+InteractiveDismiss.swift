@@ -42,7 +42,27 @@ public extension View {
     }
 }
 
-struct InteractiveDismissContainer<T: View>: UIViewControllerRepresentable {
+/// A visual zoom, kept separate from the bounds UIKit uses to lay out system bars.
+struct FlowRenderTransform: Equatable, Animatable {
+    var scale: CGFloat
+    var translation: CGPoint
+
+    static let identity = FlowRenderTransform(scale: 1, translation: .zero)
+
+    var affineTransform: CGAffineTransform {
+        CGAffineTransform(a: scale, b: 0, c: 0, d: scale, tx: translation.x, ty: translation.y)
+    }
+
+    var animatableData: AnimatablePair<CGFloat, AnimatablePair<CGFloat, CGFloat>> {
+        get { AnimatablePair(scale, AnimatablePair(translation.x, translation.y)) }
+        set {
+            scale = newValue.first
+            translation = CGPoint(x: newValue.second.first, y: newValue.second.second)
+        }
+    }
+}
+
+struct InteractiveDismissContainer<T: View>: UIViewControllerRepresentable, Animatable {
 
     var threshold: Double
 
@@ -56,12 +76,19 @@ struct InteractiveDismissContainer<T: View>: UIViewControllerRepresentable {
     var onEnded: (Bool) -> Void
 
     let content: T
+    var renderTransform: FlowRenderTransform? = nil
 
-    func makeUIViewController(context: Context) -> InteractiveDismissViewController<T> {
-        return InteractiveDismissViewController(rootView: content, coordinator: context.coordinator)
+    var animatableData: FlowRenderTransform.AnimatableData {
+        get { (renderTransform ?? .identity).animatableData }
+        set { renderTransform?.animatableData = newValue }
     }
 
-    func updateUIViewController(_ uiViewController: InteractiveDismissViewController<T>, context: Context) {
+    func makeUIViewController(context: Context) -> InteractiveDismissRenderingController<T> {
+        InteractiveDismissRenderingController(rootView: content, coordinator: context.coordinator)
+    }
+
+    func updateUIViewController(_ uiViewController: InteractiveDismissRenderingController<T>, context: Context) {
+        uiViewController.renderTransform = renderTransform
         context.coordinator.threshold = threshold
         context.coordinator.swipeUpToDismiss = swipeUpToDismiss
         context.coordinator.onPan = onPan
@@ -69,7 +96,8 @@ struct InteractiveDismissContainer<T: View>: UIViewControllerRepresentable {
         context.coordinator.onEnded = onEnded
         context.coordinator.isDismissing = isDismissing
         context.coordinator.isEnabled = isEnabled
-        uiViewController.rootView = content
+        uiViewController.host.rootView = content
+        uiViewController.view.setNeedsLayout()
     }
 
     func makeCoordinator() -> InteractiveDismissCoordinator {
@@ -77,10 +105,78 @@ struct InteractiveDismissContainer<T: View>: UIViewControllerRepresentable {
     }
 }
 
+/// Keeps UIKit's layout at its resting size while the layer tree performs the zoom.
+class InteractiveDismissRenderingController<Content: View>: UIViewController {
+    let host: InteractiveDismissViewController<Content>
+    var renderTransform: FlowRenderTransform? {
+        didSet { host.usesStableLayout = renderTransform != nil }
+    }
+
+    init(rootView: Content, coordinator: InteractiveDismissCoordinator) {
+        host = InteractiveDismissViewController(rootView: rootView, coordinator: coordinator)
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @MainActor required dynamic init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override var childForStatusBarStyle: UIViewController? { host }
+    override var childForStatusBarHidden: UIViewController? { host }
+    override var childForHomeIndicatorAutoHidden: UIViewController? { host }
+    override var childForScreenEdgesDeferringSystemGestures: UIViewController? { host }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .clear
+        addChild(host)
+        view.addSubview(host.view)
+        host.didMove(toParent: self)
+    }
+
+    override func viewWillLayoutSubviews() {
+        applyRenderTransform(CATransform3DIdentity)
+        super.viewWillLayoutSubviews()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        host.view.frame = view.bounds
+        host.view.setNeedsLayout()
+        host.view.layoutIfNeeded()
+        host.renderedLayoutDidChange(isAtRest: renderTransform == nil || renderTransform == .identity)
+        applyRenderTransform(CATransform3DMakeAffineTransform(renderTransform?.affineTransform ?? .identity))
+    }
+
+    private func applyRenderTransform(_ transform: CATransform3D) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        view.layer.sublayerTransform = transform
+        CATransaction.commit()
+    }
+}
+
 class InteractiveDismissViewController<Content: View>: UIHostingController<Content> {
 
     private var coordinator: InteractiveDismissCoordinator
     private var frameObservation: NSKeyValueObservation?
+    var usesStableLayout = false {
+        didSet {
+            if usesStableLayout != oldValue { endSafeAreaCompensation() }
+        }
+    }
+    private var renderedLayoutIsAtRest = true
+
+    /// A cancelled pull keeps its toolbar positions until the visual spring reaches rest.
+    func renderedLayoutDidChange(isAtRest: Bool) {
+        renderedLayoutIsAtRest = isAtRest
+        guard usesStableLayout else { return }
+        if coordinator.isUpdating || (heldNavigationStacks != nil && !isAtRest) {
+            holdNavigationStacks()
+        } else {
+            releaseNavigationStacks()
+        }
+    }
 
     init(rootView: Content, coordinator: InteractiveDismissCoordinator) {
         self.coordinator = coordinator
@@ -124,6 +220,12 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
     /// A pull that is let go leaves the view out of place until it has sprung back, so that
     /// is how long this lasts, rather than only for as long as the finger is down.
     private func updateSafeAreaCompensation() {
+        // The render-only zoom needs no ancestor inset compensation, but adaptive toolbar
+        // items still react to their position on screen. Hold them throughout a pull.
+        guard !usesStableLayout else {
+            renderedLayoutDidChange(isAtRest: renderedLayoutIsAtRest)
+            return
+        }
         guard let window = view.window else {
             endSafeAreaCompensation()
             return
@@ -262,7 +364,7 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
         /// that its layout places as one.
         weak var item: UIView?
         weak var control: UIView?
-        /// Where the control sat at rest, in this view.
+        /// Where the control or hosted SwiftUI chrome group sat at rest, in this view.
         var center: CGPoint
         var observations: [NSKeyValueObservation] = []
     }
@@ -297,8 +399,12 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
                 if abs(contentInsets.bottom - ownInsets.bottom) < Constants.tolerance { heldEdges.insert(.bottom) }
 
                 var held = HeldNavigationStack(navigationController: navigationController, contentInsets: contentInsets, heldEdges: heldEdges)
-                if #unavailable(iOS 26.0), !navigationController.isNavigationBarHidden {
-                    held.barMinY = bar.frame.minY
+                if !navigationController.isNavigationBarHidden {
+                    if usesStableLayout {
+                        held.barMinY = bar.frame.minY
+                    } else if #unavailable(iOS 26.0) {
+                        held.barMinY = bar.frame.minY
+                    }
                 }
                 held.observations.append(bar.layer.observe(\.position) { [weak self] _, _ in
                     self?.holdNavigationStacks()
@@ -324,9 +430,9 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
             }
 
             for floating in held.floatingItems {
-                guard let item = floating.item, let control = floating.control, let superview = control.superview else { continue }
+                guard let item = floating.item, let control = floating.control, control.superview != nil else { continue }
                 // Where the layout has put the control, in this view, were the item not moved back.
-                let placed = superview.convert(control.center, to: view)
+                let placed = control.convert(CGPoint(x: control.bounds.midX, y: control.bounds.midY), to: view)
                 let translation = CGPoint(
                     x: floating.center.x - placed.x + item.transform.tx,
                     y: floating.center.y - placed.y + item.transform.ty
@@ -365,34 +471,53 @@ class InteractiveDismissViewController<Content: View>: UIHostingController<Conte
         heldNavigationStacks = nil
     }
 
-    /// The items floating over a navigation stack's content: each control in whatever the
-    /// navigation controller's view holds besides its bar and its content, taken with the
-    /// compact views around it that its layout places as one.
+    /// The items floating over a navigation stack's content, taken with their compact chrome.
+    /// A stable render layout also holds SwiftUI item groups inside the navigation bar; their
+    /// adaptive status-area layout can move the buttons without moving the bar itself.
     private func floatingItems(in navigationController: UINavigationController) -> [HeldFloatingItem] {
         guard #available(iOS 26.0, *) else { return [] }
         let content = navigationController.topViewController?.view
 
         return navigationController.view.subviews.flatMap { container -> [HeldFloatingItem] in
-            guard container !== navigationController.navigationBar, content?.isDescendant(of: container) != true else { return [] }
+            guard (usesStableLayout || container !== navigationController.navigationBar),
+                  content?.isDescendant(of: container) != true else { return [] }
 
-            return controls(in: container).compactMap { control in
+            // SwiftUI toolbar buttons are hosted views, rather than UIControls. Keep each
+            // compact chrome group (including its glass) in place while the view is pulled.
+            let items = usesStableLayout ? compactChromeViews(in: container) : controls(in: container)
+            return items.compactMap { control in
                 var item: UIView = control
                 while let superview = item.superview, superview !== container,
                       superview.bounds.width <= Constants.maxFloatingItemSize, superview.bounds.height <= Constants.maxFloatingItemSize {
                     item = superview
                 }
-                guard item.transform.isIdentity, let superview = control.superview else { return nil }
+                guard item.transform.isIdentity, control.superview != nil else { return nil }
 
-                var held = HeldFloatingItem(item: item, control: control, center: superview.convert(control.center, to: view))
+                let center = control.convert(CGPoint(x: control.bounds.midX, y: control.bounds.midY), to: view)
+                var held = HeldFloatingItem(item: item, control: control, center: center)
                 var ancestor: UIView? = item
                 while let current = ancestor, current !== container {
                     held.observations.append(current.layer.observe(\.position) { [weak self] _, _ in
+                        self?.holdNavigationStacks()
+                    })
+                    held.observations.append(current.layer.observe(\.bounds) { [weak self] _, _ in
                         self?.holdNavigationStacks()
                     })
                     ancestor = current.superview
                 }
                 return held
             }
+        }
+    }
+
+    private func compactChromeViews(in view: UIView) -> [UIView] {
+        view.subviews.flatMap { child in
+            if child.bounds.width > 0, child.bounds.height > 0,
+               child.bounds.width <= Constants.maxFloatingItemSize,
+               child.bounds.height <= Constants.maxFloatingItemSize {
+                return [child]
+            }
+            return compactChromeViews(in: child)
         }
     }
 
@@ -663,8 +788,8 @@ class InteractiveDismissCoordinator: NSObject, UIGestureRecognizerDelegate {
 }
 
 extension View {
-    func onInteractiveDismissGesture(threshold: Double = 50, isEnabled: Bool = true, isDismissing: Bool = false, swipeUpToDismiss: Bool, onDismiss: @escaping () -> Void, onPan: @escaping (CGPoint) -> Void = { _ in }, onEnded: @escaping (Bool) -> Void = { _ in }) -> some View {
-        InteractiveDismissContainer(threshold: threshold, onPan: onPan, isEnabled: isEnabled, isDismissing: isDismissing, swipeUpToDismiss: swipeUpToDismiss, onDismiss: onDismiss, onEnded: onEnded, content: self)
+    func onInteractiveDismissGesture(threshold: Double = 50, isEnabled: Bool = true, isDismissing: Bool = false, swipeUpToDismiss: Bool, renderTransform: FlowRenderTransform? = nil, onDismiss: @escaping () -> Void, onPan: @escaping (CGPoint) -> Void = { _ in }, onEnded: @escaping (Bool) -> Void = { _ in }) -> some View {
+        InteractiveDismissContainer(threshold: threshold, onPan: onPan, isEnabled: isEnabled, isDismissing: isDismissing, swipeUpToDismiss: swipeUpToDismiss, onDismiss: onDismiss, onEnded: onEnded, content: self, renderTransform: renderTransform)
     }
 }
 

@@ -67,15 +67,33 @@ extension CornerRadii: Animatable {
 struct UnevenCornerShape: Shape {
     var radii: CornerRadii
     var style: RoundedCornerStyle
+    var renderingRect: CGRect? = nil
 
-    var animatableData: CornerRadii.AnimatableData {
-        get { radii.animatableData }
-        set { radii.animatableData = newValue }
+    typealias RectData = AnimatablePair<AnimatablePair<CGFloat, CGFloat>, AnimatablePair<CGFloat, CGFloat>>
+
+    var animatableData: AnimatablePair<CornerRadii.AnimatableData, RectData> {
+        get {
+            let rect = renderingRect ?? .zero
+            return AnimatablePair(radii.animatableData, AnimatablePair(
+                AnimatablePair(rect.origin.x, rect.origin.y),
+                AnimatablePair(rect.width, rect.height)
+            ))
+        }
+        set {
+            radii.animatableData = newValue.first
+            if renderingRect != nil {
+                renderingRect = CGRect(
+                    x: newValue.second.first.first, y: newValue.second.first.second,
+                    width: newValue.second.second.first, height: newValue.second.second.second
+                )
+            }
+        }
     }
 
     func path(in rect: CGRect) -> Path {
+        let pathRect = renderingRect ?? rect
         if radii.isUniform {
-            return RoundedRectangle(cornerRadius: radii.topLeft, style: style).path(in: rect)
+            return RoundedRectangle(cornerRadius: radii.topLeft, style: style).path(in: pathRect)
         }
 
         if #available(iOS 16.0, *) {
@@ -87,9 +105,9 @@ struct UnevenCornerShape: Shape {
                 bottomTrailing: radii.bottomRight,
                 topTrailing: radii.topRight
             )
-            return Path(roundedRect: rect, cornerRadii: cornerRadii, style: style)
+            return Path(roundedRect: pathRect, cornerRadii: cornerRadii, style: style)
         }
 
-        return RoundedRectangle(cornerRadius: radii.maximum, style: style).path(in: rect)
+        return RoundedRectangle(cornerRadius: radii.maximum, style: style).path(in: pathRect)
     }
 }
